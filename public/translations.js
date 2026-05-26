@@ -51,7 +51,12 @@ const T = {
     contactSend: "Invia",
     contactOk: "Messaggio inviato!",
     pagamento: "Pagamento",
-    societa2: "Società"
+    societa2: "Società",
+    installTitle: "📲 Installa l'app Busto Battle",
+    installDesc: "Ricevi notifiche live sulla gara!",
+    installBtn: "📲 Installa App",
+    pageDisabledTitle: "🚧 Pagina in costruzione",
+    pageDisabledText: "La pagina è attualmente in costruzione, verrete avvisati non appena sarà disponibile. Scaricate la app e attendete la notifica!"
   },
   es: {
     title: "BUSTO BATTLE XI",
@@ -105,7 +110,12 @@ const T = {
     contactSend: "Enviar",
     contactOk: "¡Mensaje enviado!",
     pagamento: "Pago",
-    societa2: "Club"
+    societa2: "Club",
+    installTitle: "📲 Instala la app Busto Battle",
+    installDesc: "¡Recibe notificaciones en vivo sobre la competición!",
+    installBtn: "📲 Instalar App",
+    pageDisabledTitle: "🚧 Página en construcción",
+    pageDisabledText: "La página está actualmente en construcción, serás notificado cuando esté disponible. ¡Descarga la app y espera la notificación!"
   },
   en: {
     title: "BUSTO BATTLE XI",
@@ -158,7 +168,12 @@ const T = {
     contactSend: "Send",
     contactOk: "Message sent!",
     pagamento: "Payment",
-    societa2: "Club"
+    societa2: "Club",
+    installTitle: "📲 Install the Busto Battle app",
+    installDesc: "Get live notifications about the competition!",
+    installBtn: "📲 Install App",
+    pageDisabledTitle: "🚧 Page under construction",
+    pageDisabledText: "This page is currently under construction. You will be notified when it's available. Download the app and wait for the notification!"
   },
   fr: {
     title: "BUSTO BATTLE XI",
@@ -212,7 +227,12 @@ const T = {
     contactSend: "Envoyer",
     contactOk: "Message envoyé !",
     pagamento: "Paiement",
-    societa2: "Club"
+    societa2: "Club",
+    installTitle: "📲 Installez l'app Busto Battle",
+    installDesc: "Recevez des notifications en direct sur la compétition !",
+    installBtn: "📲 Installer l'App",
+    pageDisabledTitle: "🚧 Page en construction",
+    pageDisabledText: "Cette page est actuellement en construction. Vous serez notifié dès qu'elle sera disponible. Téléchargez l'app et attendez la notification !"
   }
 };
 
