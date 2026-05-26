@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iscrizioni - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">🇮🇹</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="verifica.html" data-t="verifica">VERIFICA ISCRIZIONE</a>
+      <a href="hotel.html" data-t="hotel">HOTEL</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MAGLIA UFFICIALE</a>
+      <a href="risultati.html" data-t="risultati">RISULTATI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+      <a href="#" onclick="installApp()" data-t="app">APP</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="form-section">
+      <h2 data-t="iscrizioneTitle">Iscrizione</h2>
+      <form id="form-iscrizione">
+        <div class="form-row">
+          <input type="text" name="nome" data-t="nome" placeholder="Nome" required>
+          <input type="text" name="cognome" data-t="cognome" placeholder="Cognome" required>
+        </div>
+        <div class="form-row">
+          <input type="date" name="data_nascita">
+        </div>
+        <div class="form-row checkbox-row discipline-row">
+          <span data-t="selectSpec">Seleziona specialità:</span>
+          <label><input type="checkbox" name="discipline" value="Classic Slalom"> Classic Slalom</label>
+          <label><input type="checkbox" name="discipline" value="Pairs"> Pairs</label>
+          <label><input type="checkbox" name="discipline" value="Battle"> Battle</label>
+          <label><input type="checkbox" name="discipline" value="Speed"> Speed</label>
+          <label><input type="checkbox" name="discipline" value="Slide"> Slide</label>
+        </div>
+        <div class="form-row">
+          <input type="text" name="societa" data-t="societa" placeholder="Società sportiva">
+          <input type="email" name="email" data-t="email" placeholder="Email">
+        </div>
+        <div class="form-row">
+          <input type="tel" name="telefono" data-t="telefono" placeholder="Telefono">
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" name="navetta" id="navetta-check"> <span data-t="richNavetta">Richiedo navetta</span></label>
+        </div>
+        <div class="form-row" id="navetta-dettagli-row" style="display:none">
+          <input type="text" name="navetta_dettagli" data-t="navettaDettagli" placeholder="Dettagli navetta (luogo, orario...)">
+        </div>
+        <div class="form-row">
+          <textarea name="note" data-t="note" placeholder="Note aggiuntive"></textarea>
+        </div>
+        <button type="submit" data-t="iscriviti">Iscriviti</button>
+      </form>
+      <p id="msg" class="msg"></p>
+      <div id="payment-info" style="display:none" class="payment-box">
+        <h3>✅ Iscrizione completata!</h3>
+        <p><strong>Codice iscrizione:</strong> <span id="pay-code"></span></p>
+        <p><strong>Totale da pagare:</strong> <span id="pay-total"></span></p>
+        <p><strong>IBAN:</strong> xxsdsdsd</p>
+        <p><strong>Causale:</strong> <span id="pay-causale"></span></p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script>
+    document.getElementById('navetta-check').addEventListener('change', e => {
+      document.getElementById('navetta-dettagli-row').style.display = e.target.checked ? 'flex' : 'none';
+    });
+    document.getElementById('form-iscrizione').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const discipline = fd.getAll('discipline');
+      if (discipline.length === 0) { alert('Seleziona almeno una disciplina'); return; }
+      const data = {
+        nome: fd.get('nome'),
+        cognome: fd.get('cognome'),
+        data_nascita: fd.get('data_nascita'),
+        categoria: discipline.join(', '),
+        societa: fd.get('societa'),
+        email: fd.get('email'),
+        telefono: fd.get('telefono'),
+        navetta: !!fd.get('navetta'),
+        navetta_dettagli: fd.get('navetta_dettagli'),
+        note: fd.get('note')
+      };
+      const res = await fetch('/api/iscritti', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const totale = discipline.length * 40;
+        document.getElementById('pay-code').textContent = result.codice;
+        document.getElementById('pay-total').textContent = '€' + totale;
+        document.getElementById('pay-causale').textContent = result.codice + ' - ' + data.nome + ' - ' + data.cognome;
+        document.getElementById('payment-info').style.display = 'block';
+        document.getElementById('msg').textContent = '';
+        e.target.reset();
+        document.getElementById('navetta-dettagli-row').style.display = 'none';
+      }
+    });
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

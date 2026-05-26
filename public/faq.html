@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1>🏆 BUSTO BATTLE XI</h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">🇮🇹</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="verifica.html" data-t="verifica">VERIFICA ISCRIZIONE</a>
+      <a href="hotel.html" data-t="hotel">HOTEL</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MAGLIA UFFICIALE</a>
+      <a href="risultati.html" data-t="risultati">RISULTATI</a>
+      <a href="faq.html" data-t="faq">FAQ</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="faqTitle">❓ Domande Frequenti</h2>
+      <div class="faq-list" id="faq-list"></div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script>
+    const faqs = {
+      it: [
+        { q: "Quanto costa l'iscrizione?", a: "€40 per ogni disciplina selezionata." },
+        { q: "Come posso pagare?", a: "Tramite bonifico bancario. Dopo l'iscrizione riceverai IBAN e causale da utilizzare." },
+        { q: "Posso cancellare la mia iscrizione?", a: "Sì, contattaci via email almeno 2 settimane prima dell'evento per un rimborso completo." },
+        { q: "Come funziona la navetta?", a: "Il servizio navetta collega la Stazione FS di Busto Arsizio al Palazzetto. Costa €2 a persona per corsa, prenotazione obbligatoria." },
+        { q: "Posso iscrivermi a più discipline?", a: "Sì, puoi selezionare tutte le discipline che vuoi durante l'iscrizione." },
+        { q: "Dove si svolge l'evento?", a: "Al Palazzetto dello Sport di Busto Arsizio (VA), Italia." },
+        { q: "C'è un limite di età?", a: "No, l'evento è aperto a tutte le età e livelli." },
+        { q: "Posso modificare la mia iscrizione?", a: "Sì, contattaci via email con il tuo codice iscrizione." }
+      ],
+      en: [
+        { q: "How much does registration cost?", a: "€40 per selected discipline." },
+        { q: "How can I pay?", a: "Via bank transfer. After registration you'll receive IBAN and payment reference." },
+        { q: "Can I cancel my registration?", a: "Yes, contact us by email at least 2 weeks before the event for a full refund." },
+        { q: "How does the shuttle work?", a: "The shuttle connects Busto Arsizio train station to the venue. €2 per person per ride, booking required." },
+        { q: "Can I register for multiple disciplines?", a: "Yes, you can select all the disciplines you want during registration." },
+        { q: "Where is the event?", a: "At the Palazzetto dello Sport in Busto Arsizio (VA), Italy." },
+        { q: "Is there an age limit?", a: "No, the event is open to all ages and levels." },
+        { q: "Can I modify my registration?", a: "Yes, contact us by email with your registration code." }
+      ],
+      es: [
+        { q: "¿Cuánto cuesta la inscripción?", a: "€40 por cada disciplina seleccionada." },
+        { q: "¿Cómo puedo pagar?", a: "Por transferencia bancaria. Después de la inscripción recibirás el IBAN y la referencia de pago." },
+        { q: "¿Puedo cancelar mi inscripción?", a: "Sí, contáctanos por email al menos 2 semanas antes del evento para un reembolso completo." },
+        { q: "¿Cómo funciona el transporte?", a: "El transporte conecta la estación de tren de Busto Arsizio con el recinto. €2 por persona por trayecto, reserva obligatoria." },
+        { q: "¿Puedo inscribirme en varias disciplinas?", a: "Sí, puedes seleccionar todas las disciplinas que quieras." },
+        { q: "¿Dónde se celebra el evento?", a: "En el Palazzetto dello Sport de Busto Arsizio (VA), Italia." },
+        { q: "¿Hay límite de edad?", a: "No, el evento está abierto a todas las edades y niveles." },
+        { q: "¿Puedo modificar mi inscripción?", a: "Sí, contáctanos por email con tu código de inscripción." }
+      ],
+      fr: [
+        { q: "Combien coûte l'inscription ?", a: "40€ par discipline sélectionnée." },
+        { q: "Comment payer ?", a: "Par virement bancaire. Après l'inscription, vous recevrez l'IBAN et la référence de paiement." },
+        { q: "Puis-je annuler mon inscription ?", a: "Oui, contactez-nous par email au moins 2 semaines avant l'événement pour un remboursement complet." },
+        { q: "Comment fonctionne la navette ?", a: "La navette relie la gare de Busto Arsizio au Palazzetto. 2€ par personne par trajet, réservation obligatoire." },
+        { q: "Puis-je m'inscrire à plusieurs disciplines ?", a: "Oui, vous pouvez sélectionner toutes les disciplines souhaitées." },
+        { q: "Où se déroule l'événement ?", a: "Au Palazzetto dello Sport de Busto Arsizio (VA), Italie." },
+        { q: "Y a-t-il une limite d'âge ?", a: "Non, l'événement est ouvert à tous les âges et niveaux." },
+        { q: "Puis-je modifier mon inscription ?", a: "Oui, contactez-nous par email avec votre code d'inscription." }
+      ]
+    };
+
+    function renderFaq() {
+      const lang = getLang();
+      const list = faqs[lang] || faqs.it;
+      document.getElementById('faq-list').innerHTML = list.map(f =>
+        `<div class="faq-item"><h3>${f.q}</h3><p>${f.a}</p></div>`
+      ).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', renderFaq);
+    const origSetLang = setLang;
+    setLang = function(l) { origSetLang(l); renderFaq(); };
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

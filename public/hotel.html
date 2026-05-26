@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">🇮🇹</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="verifica.html" data-t="verifica">VERIFICA ISCRIZIONE</a>
+      <a href="hotel.html" data-t="hotel">HOTEL</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MAGLIA UFFICIALE</a>
+      <a href="risultati.html" data-t="risultati">RISULTATI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+      <a href="#" onclick="installApp()" data-t="app">APP</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="hotelTitle">Hotel Convenzionati</h2>
+      <p data-t="hotelText">Informazioni sugli hotel convenzionati per l'evento saranno disponibili a breve.</p>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

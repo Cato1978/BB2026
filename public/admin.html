@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Busto Battle - Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="logo-title">
+      <img src="LogoBB.jpeg" alt="Busto Battle Logo">
+      <h1>BUSTO BATTLE - Gestione</h1>
+    </div>
+    <nav>
+      <a href="index.html">Home</a>
+      <span id="admin-user" style="color:#F7AF40"></span>
+      <a href="#" onclick="logout()" style="color:#e74c3c">Logout</a>
+    </nav>
+  </header>
+
+  <!-- Simulate banner -->
+  <div id="simulate-banner" style="display:none;background:#F7AF40;color:#000;padding:0.6rem 1rem;text-align:center;font-weight:600">
+    👁️ Stai simulando: <span id="sim-name"></span>
+    <button onclick="stopSimulate()" style="margin-left:1rem;padding:0.3rem 0.8rem">Esci simulazione</button>
+    <a id="sim-link" href="/index.html" target="_blank" style="margin-left:1rem;color:#000;text-decoration:underline">Apri sito come utente →</a>
+  </div>
+
+  <main>
+    <div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.5rem">
+      <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn active">📋 Iscritti</button>
+      <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button>
+      <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button>
+      <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
+      <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button>
+      <button onclick="showTab('pagine')" id="tab-pagine" class="tab-btn">📄 Pagine</button>
+    </div>
+
+    <div id="section-iscritti">
+    <div class="stats">
+      <span id="totale">Totale: 0</span>
+      <span id="pagati">Pagati: 0</span>
+      <span id="navette">Navette: 0</span>
+    </div>
+
+    <div class="form-row" style="margin-bottom:1rem">
+      <input type="text" id="search" placeholder="Cerca per nome, cognome o codice...">
+      <select id="filter-pagamento">
+        <option value="">Tutti</option>
+        <option value="0">Non pagati</option>
+        <option value="1">Pagati</option>
+      </select>
+      <select id="filter-navetta">
+        <option value="">Tutte navette</option>
+        <option value="1">Con navetta</option>
+      </select>
+    </div>
+
+    <table id="tabella">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Cognome</th>
+          <th>Nome</th>
+          <th>Discipline</th>
+          <th>Totale €</th>
+          <th>Navetta</th>
+          <th>Pagamento</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>
+
+  <div id="section-navetta" style="display:none">
+    <div class="stats">
+      <span>Prenotazioni: <strong id="nav-totale-pren">0</strong></span>
+      <span>Persone totali: <strong id="nav-totale-pers">0</strong></span>
+    </div>
+    <table id="tabella-navetta">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th>Corse</th>
+          <th>Totale €</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-risultati" style="display:none">
+    <h3>📊 Carica Risultato / Classifica</h3>
+    <form id="form-upload-risultato" enctype="multipart/form-data" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="titolo" placeholder="Titolo (es: Classifica Classic Slalom)" required>
+        <input type="text" name="categoria" placeholder="Categoria (opzionale)">
+      </div>
+      <div class="form-row">
+        <input type="file" name="pdf" accept="application/pdf" required>
+        <button type="submit">📤 Carica e Notifica</button>
+      </div>
+    </form>
+    <table id="tabella-risultati">
+      <thead>
+        <tr>
+          <th>Titolo</th>
+          <th>Categoria</th>
+          <th>File</th>
+          <th>Data</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-notifiche" style="display:none">
+    <h3>📢 Invia Notifica Manuale</h3>
+    <p style="color:#888;margin:0.5rem 0">Invia una notifica push a tutti gli utenti che hanno installato l'app.</p>
+    <form id="form-notifica" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="title" placeholder="Titolo notifica" required>
+      </div>
+      <div class="form-row">
+        <input type="text" name="body" placeholder="Messaggio" required>
+      </div>
+      <button type="submit">📨 Invia a tutti</button>
+    </form>
+  </div>
+
+  <div id="section-simula" style="display:none">
+    <h3>👁️ Simula Utente</h3>
+    <p style="color:#888;margin:0.5rem 0">Seleziona un iscritto per vedere il sito dal suo punto di vista.</p>
+    <div class="form-row" style="margin:1rem 0">
+      <select id="simula-select" style="flex:1">
+        <option value="">-- Seleziona iscritto --</option>
+      </select>
+      <button onclick="startSimulate()">👁️ Simula</button>
+    </div>
+    <div id="simula-info" style="display:none" class="info">
+      <h4 style="color:#F7AF40">Profilo simulato:</h4>
+      <div id="simula-details"></div>
+    </div>
+  </div>
+
+  <div id="section-pagine" style="display:none">
+    <h3>📄 Gestione Pagine</h3>
+    <p style="color:#888;margin:0.5rem 0">Attiva o disattiva le pagine del sito. Le pagine disattivate mostreranno un messaggio "in costruzione".</p>
+    <div id="pagine-list"></div>
+    <script>
+      // Forza caricamento pagine appena il DOM è pronto
+      document.getElementById('tab-pagine').addEventListener('click', function() {
+        fetch('/api/pages')
+          .then(function(r) { return r.json(); })
+          .then(function(pages) {
+            var div = document.getElementById('pagine-list');
+            var html = '';
+            for (var i = 0; i < pages.length; i++) {
+              var p = pages[i];
+              var nome = pageNames[p.page] || p.page;
+              var colore = p.enabled ? '#4ade80' : '#ef4444';
+              var stato = p.enabled ? '✅ Attiva' : '❌ Disattivata';
+              var btnText = p.enabled ? '🚫 Disattiva' : '✅ Attiva';
+              var newState = p.enabled ? 'false' : 'true';
+              html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px">';
+              html += '<span style="color:#f0f0f0;font-weight:600">' + nome + '</span>';
+              html += '<div style="display:flex;align-items:center;gap:0.8rem">';
+              html += '<span style="color:' + colore + ';font-size:0.9rem">' + stato + '</span>';
+              html += '<button onclick="togglePage(\'' + p.page + '\',' + newState + ')" style="padding:0.4rem 0.8rem;font-size:0.85rem">' + btnText + '</button>';
+              html += '</div></div>';
+            }
+            div.innerHTML = html;
+          })
+          .catch(function(e) {
+            document.getElementById('pagine-list').innerHTML = '<p style="color:red">Errore: ' + e.message + '</p>';
+          });
+      });
+    </script>
+  </div>
+
+  <div id="modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3>Modifica Iscritto</h3>
+      <form id="form-edit">
+        <input type="hidden" name="id">
+        <div class="form-row">
+          <input type="text" name="nome" placeholder="Nome" required>
+          <input type="text" name="cognome" placeholder="Cognome" required>
+        </div>
+        <div class="form-row">
+          <input type="date" name="data_nascita">
+          <input type="text" name="categoria" placeholder="Categoria">
+        </div>
+        <div class="form-row">
+          <input type="text" name="societa" placeholder="Società">
+          <input type="email" name="email" placeholder="Email">
+        </div>
+        <div class="form-row">
+          <input type="tel" name="telefono" placeholder="Telefono">
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" name="navetta"> Navetta</label>
+          <label><input type="checkbox" name="pagamento"> Pagato</label>
+        </div>
+        <div class="form-row">
+          <input type="text" name="navetta_dettagli" placeholder="Dettagli navetta">
+        </div>
+        <div class="form-row">
+          <textarea name="note" placeholder="Note"></textarea>
+        </div>
+        <div class="form-row">
+          <button type="submit">Salva</button>
+          <button type="button" onclick="chiudiModal()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Check auth
+    fetch('/api/me').then(r => {
+      if (!r.ok) window.location.href = '/login.html';
+      return r.json();
+    }).then(u => {
+      document.getElementById('admin-user').textContent = `👤 ${u.username}`;
+    });
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    let iscritti = [];
+
+    async function carica() {
+      const res = await fetch('/api/iscritti');
+      iscritti = await res.json();
+      render();
+      populateSimulaSelect();
+    }
+
+    function codice(id) { return 'BB11-' + String(id).padStart(4, '0'); }
+    function numDiscipline(cat) { return cat ? cat.split(',').length : 0; }
+
+    function getFiltered() {
+      let list = iscritti;
+      const q = document.getElementById('search').value.toLowerCase();
+      const fp = document.getElementById('filter-pagamento').value;
+      const fn = document.getElementById('filter-navetta').value;
+      if (q) list = list.filter(i => (i.nome + ' ' + i.cognome + ' ' + codice(i.id)).toLowerCase().includes(q));
+      if (fp !== '') list = list.filter(i => String(i.pagamento ? 1 : 0) === fp);
+      if (fn === '1') list = list.filter(i => i.navetta);
+      return list;
+    }
+
+    function render() {
+      const list = getFiltered();
+      const tbody = document.querySelector('#tabella tbody');
+      tbody.innerHTML = list.map(i => `<tr>
+        <td><strong>${codice(i.id)}</strong></td>
+        <td>${i.cognome}</td>
+        <td>${i.nome}</td>
+        <td>${i.categoria || ''}</td>
+        <td>€${numDiscipline(i.categoria) * 40}</td>
+        <td>${i.navetta ? '✅' + (i.navetta_dettagli ? ' ' + i.navetta_dettagli : '') : '—'}</td>
+        <td>${i.pagamento ? '<span style="color:#4ade80">✅ Pagato</span>' : '<span style="color:#ef4444">❌ Non pagato</span>'}</td>
+        <td>
+          ${!i.pagamento ? `<button onclick="togglePagamento(${i.id}, true)" title="Segna pagato">💰</button>` : `<button onclick="togglePagamento(${i.id}, false)" title="Annulla pagamento">↩️</button>`}
+          <button onclick="modifica(${i.id})">✏️</button>
+          <button onclick="elimina(${i.id})">🗑️</button>
+        </td>
+      </tr>`).join('');
+
+      document.getElementById('totale').textContent = `Totale: ${iscritti.length}`;
+      document.getElementById('pagati').textContent = `Pagati: ${iscritti.filter(i => i.pagamento).length}`;
+      document.getElementById('navette').textContent = `Navette: ${iscritti.filter(i => i.navetta).length}`;
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+    document.getElementById('filter-pagamento').addEventListener('change', render);
+    document.getElementById('filter-navetta').addEventListener('change', render);
+
+    async function togglePagamento(id, stato) {
+      const i = iscritti.find(x => x.id === id);
+      const data = { ...i, pagamento: stato, navetta: !!i.navetta };
+      await fetch(`/api/iscritti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      carica();
+    }
+
+    function modifica(id) {
+      const i = iscritti.find(x => x.id === id);
+      const form = document.getElementById('form-edit');
+      form.id_field = id;
+      form.nome.value = i.nome;
+      form.cognome.value = i.cognome;
+      form.data_nascita.value = i.data_nascita || '';
+      form.categoria.value = i.categoria || '';
+      form.societa.value = i.societa || '';
+      form.email.value = i.email || '';
+      form.telefono.value = i.telefono || '';
+      form.navetta.checked = !!i.navetta;
+      form.navetta_dettagli.value = i.navetta_dettagli || '';
+      form.pagamento.checked = !!i.pagamento;
+      form.note.value = i.note || '';
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function chiudiModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    document.getElementById('form-edit').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const id = form.id_field;
+      const data = {
+        nome: form.nome.value,
+        cognome: form.cognome.value,
+        data_nascita: form.data_nascita.value,
+        categoria: form.categoria.value,
+        societa: form.societa.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        navetta: form.navetta.checked,
+        navetta_dettagli: form.navetta_dettagli.value,
+        pagamento: form.pagamento.checked,
+        note: form.note.value
+      };
+      await fetch(`/api/iscritti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      chiudiModal();
+      carica();
+    });
+
+    async function elimina(id) {
+      if (!confirm('Eliminare questo iscritto?')) return;
+      await fetch(`/api/iscritti/${id}`, { method: 'DELETE' });
+      carica();
+    }
+
+    carica();
+
+    // --- TABS ---
+    function showTab(tab) {
+      ['iscritti','navetta','risultati','notifiche','simula','pagine'].forEach(t => {
+        document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
+      });
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      if (tab === 'navetta') caricaNavetta();
+      if (tab === 'risultati') caricaRisultati();
+      if (tab === 'pagine') caricaPagine();
+    }
+
+    // --- NAVETTA ---
+    let prenotazioni = [];
+    async function caricaNavetta() {
+      const res = await fetch('/api/navetta/prenotazioni');
+      prenotazioni = await res.json();
+      renderNavetta();
+    }
+
+    function renderNavetta() {
+      const grouped = {};
+      prenotazioni.forEach(p => {
+        if (!grouped[p.codice]) grouped[p.codice] = [];
+        grouped[p.codice].push(p);
+      });
+      const tbody = document.querySelector('#tabella-navetta tbody');
+      let html = '';
+      for (const [cod, corse] of Object.entries(grouped)) {
+        const first = corse[0];
+        const totPersone = corse.reduce((s, c) => s + c.num_persone, 0);
+        const dettagli = corse.map(c => {
+          const dirLabel = c.direzione === 'andata' ? 'Staz→Pal' : 'Pal→Staz';
+          return `${c.giorno} ${c.ora} ${dirLabel} (${c.num_persone}p)`;
+        }).join('<br>');
+        html += `<tr>
+          <td><strong>${cod}</strong></td>
+          <td>${first.cognome} ${first.nome}</td>
+          <td>${first.email || '-'}</td>
+          <td>${first.telefono || '-'}</td>
+          <td>${dettagli}</td>
+          <td>€${totPersone * 2}</td>
+          <td><button onclick="eliminaNavetta('${cod}')" title="Elimina">🗑️</button></td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+      document.getElementById('nav-totale-pren').textContent = Object.keys(grouped).length;
+      document.getElementById('nav-totale-pers').textContent = prenotazioni.reduce((s, p) => s + p.num_persone, 0);
+    }
+
+    async function eliminaNavetta(codice) {
+      if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
+      await fetch('/api/navetta/prenotazioni/' + codice, { method: 'DELETE' });
+      caricaNavetta();
+    }
+
+    // --- RISULTATI ---
+    let risultati = [];
+    async function caricaRisultati() {
+      const res = await fetch('/api/risultati');
+      risultati = await res.json();
+      renderRisultati();
+    }
+
+    function renderRisultati() {
+      const tbody = document.querySelector('#tabella-risultati tbody');
+      tbody.innerHTML = risultati.map(r => `<tr>
+        <td>${r.titolo}</td>
+        <td>${r.categoria || '-'}</td>
+        <td><a href="/uploads/${r.filename}" target="_blank" style="color:#F7AF40">📄 ${r.filename}</a></td>
+        <td>${new Date(r.created_at).toLocaleString('it-IT')}</td>
+        <td><button onclick="eliminaRisultato(${r.id})">🗑️</button></td>
+      </tr>`).join('');
+    }
+
+    document.getElementById('form-upload-risultato').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/risultati', { method: 'POST', body: fd });
+      if (res.ok) {
+        alert('✅ Risultato caricato e notifica inviata!');
+        e.target.reset();
+        caricaRisultati();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
+
+    async function eliminaRisultato(id) {
+      if (!confirm('Eliminare questo risultato?')) return;
+      await fetch('/api/risultati/' + id, { method: 'DELETE' });
+      caricaRisultati();
+    }
+
+    // --- NOTIFICHE ---
+    document.getElementById('form-notifica').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: fd.get('title'), body: fd.get('body') })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        alert(`✅ Notifica inviata a ${result.sent} utenti!`);
+        e.target.reset();
+      }
+    });
+
+    // --- SIMULA UTENTE ---
+    function populateSimulaSelect() {
+      const sel = document.getElementById('simula-select');
+      sel.innerHTML = '<option value="">-- Seleziona iscritto --</option>' +
+        iscritti.map(i => `<option value="${i.id}">${i.cognome} ${i.nome} (${codice(i.id)}) - ${i.email || 'no email'}</option>`).join('');
+    }
+
+    async function startSimulate() {
+      const id = document.getElementById('simula-select').value;
+      if (!id) return alert('Seleziona un iscritto');
+      const res = await fetch('/api/admin/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscritto_id: id })
+      });
+      if (res.ok) {
+        const { iscritto } = await res.json();
+        showSimulateBanner(iscritto);
+        showSimulaDetails(iscritto);
+      }
+    }
+
+    async function stopSimulate() {
+      await fetch('/api/admin/stop-simulate', { method: 'POST' });
+      document.getElementById('simulate-banner').style.display = 'none';
+      document.getElementById('simula-info').style.display = 'none';
+    }
+
+    function showSimulateBanner(i) {
+      document.getElementById('sim-name').textContent = `${i.nome} ${i.cognome} (${codice(i.id)})`;
+      document.getElementById('simulate-banner').style.display = 'block';
+    }
+
+    function showSimulaDetails(i) {
+      const div = document.getElementById('simula-details');
+      div.innerHTML = `
+        <p><strong>Nome:</strong> ${i.nome} ${i.cognome}</p>
+        <p><strong>Codice:</strong> ${codice(i.id)}</p>
+        <p><strong>Email:</strong> ${i.email || '-'}</p>
+        <p><strong>Telefono:</strong> ${i.telefono || '-'}</p>
+        <p><strong>Discipline:</strong> ${i.categoria || '-'}</p>
+        <p><strong>Società:</strong> ${i.societa || '-'}</p>
+        <p><strong>Pagamento:</strong> ${i.pagamento ? '✅ Pagato' : '❌ Non pagato'}</p>
+        <p><strong>Navetta:</strong> ${i.navetta ? '✅ ' + (i.navetta_dettagli || '') : '❌'}</p>
+        <p style="margin-top:0.8rem;color:#888">Questo utente vedrebbe il sito esattamente come un visitatore normale, con la possibilità di verificare la propria iscrizione cercando "${i.cognome}".</p>
+      `;
+      document.getElementById('simula-info').style.display = 'block';
+    }
+
+    // Check if already simulating
+    fetch('/api/admin/simulating').then(r => r.json()).then(data => {
+      if (data.simulating) {
+        showSimulateBanner(data.simulating);
+      }
+    });
+
+    // --- PAGINE ---
+    const pageNames = {
+      iscrizioni: 'Iscrizioni',
+      verifica: 'Verifica Iscrizione',
+      hotel: 'Hotel',
+      navetta: 'Navetta',
+      maglia: 'Maglia Ufficiale',
+      risultati: 'Risultati',
+      contact: 'Contatti'
+    };
+
+    async function caricaPagine() {
+      const div = document.getElementById('pagine-list');
+      div.innerHTML = 'Caricamento...';
+      const res = await fetch('/api/pages');
+      const pages = await res.json();
+      console.log('Pages:', pages);
+      if (!pages.length) { div.innerHTML = '<p>Nessuna pagina trovata</p>'; return; }
+      div.innerHTML = '';
+      pages.forEach(p => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px';
+        row.innerHTML = `
+          <span style="color:#f0f0f0;font-weight:600">${pageNames[p.page] || p.page}</span>
+          <div style="display:flex;align-items:center;gap:0.8rem">
+            <span style="color:${p.enabled ? '#4ade80' : '#ef4444'};font-size:0.9rem">${p.enabled ? '\u2705 Attiva' : '\u274c Disattivata'}</span>
+            <button style="padding:0.4rem 0.8rem;font-size:0.85rem" data-page="${p.page}" data-enabled="${p.enabled}">
+              ${p.enabled ? '\ud83d\udeab Disattiva' : '\u2705 Attiva'}
+            </button>
+          </div>
+        `;
+        row.querySelector('button').addEventListener('click', function() {
+          togglePage(this.dataset.page, this.dataset.enabled === '1' ? false : true);
+        });
+        div.appendChild(row);
+      });
+    }
+
+    async function togglePage(page, enabled) {
+      await fetch('/api/pages/' + page, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      caricaPagine();
+    }
+
+    // Carica pagine subito
+    setTimeout(caricaPagine, 500);
+  </script>
+  </main>
+</body>
+</html>

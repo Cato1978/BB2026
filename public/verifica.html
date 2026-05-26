@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifica Iscrizione - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">🇮🇹</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="verifica.html" data-t="verifica">VERIFICA ISCRIZIONE</a>
+      <a href="hotel.html" data-t="hotel">HOTEL</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MAGLIA UFFICIALE</a>
+      <a href="risultati.html" data-t="risultati">RISULTATI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+      <a href="#" onclick="installApp()" data-t="app">APP</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="form-section">
+      <h2 data-t="verificaTitle">Verifica Iscrizione</h2>
+      <form id="form-verifica">
+        <div class="form-row">
+          <input type="text" id="search-cognome" data-t="cercaCognome" placeholder="Inserisci il tuo cognome" required>
+          <button type="submit" data-t="cerca">Cerca</button>
+        </div>
+      </form>
+      <div id="risultati"></div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script>
+    document.getElementById('form-verifica').addEventListener('submit', async e => {
+      e.preventDefault();
+      const cognome = document.getElementById('search-cognome').value.trim().toLowerCase();
+      const res = await fetch('/api/iscritti');
+      const lista = await res.json();
+      const trovati = lista.filter(i => i.cognome.toLowerCase().includes(cognome));
+      const div = document.getElementById('risultati');
+      const t = T[getLang()];
+      if (!trovati.length) {
+        div.innerHTML = `<p class="msg" style="color:#e74c3c">${t.nessuna}</p>`;
+      } else {
+        div.innerHTML = trovati.map(i => `
+          <div class="card">
+            <strong>${i.nome} ${i.cognome}</strong> — ${i.categoria || 'N/D'}
+            <br><small>${t.societa2}: ${i.societa || '-'} | ${t.pagamento}: ${i.pagamento ? '✅' : '❌'}</small>
+          </div>`).join('');
+      }
+    });
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

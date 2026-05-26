@@ -1,0 +1,483 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: #000;
+  color: #f0f0f0;
+  min-height: 100vh;
+}
+
+header {
+  background: #000;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #F7AF40;
+}
+
+header .logo-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+header img {
+  height: 50px;
+  border-radius: 4px;
+}
+
+header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem;
+  color: #F7AF40;
+  letter-spacing: 2px;
+}
+
+nav a {
+  color: #F7AF40;
+  text-decoration: none;
+  margin-left: 1.5rem;
+  font-weight: 500;
+}
+
+nav a:hover { color: #ffd080; }
+
+main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+
+.info {
+  background: #0a0a0a;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid #1a1a1a;
+}
+
+.info h2 { color: #F7AF40; margin-bottom: 0.5rem; }
+.info ul { list-style: none; margin-top: 0.5rem; }
+.info li { padding: 0.3rem 0; color: #ddd; }
+.info strong { color: #F7AF40; }
+
+.form-section {
+  background: #0a0a0a;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #1a1a1a;
+}
+
+.form-section h2 { color: #F7AF40; margin-bottom: 1rem; }
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.form-row input, .form-row textarea, .form-row select {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid #222;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  background: #111;
+  color: #f0f0f0;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.form-row input::placeholder, .form-row textarea::placeholder {
+  color: #777;
+}
+
+.form-row input:focus, .form-row textarea:focus, .form-row select:focus {
+  outline: none;
+  border-color: #F7AF40;
+}
+
+.form-row textarea { min-height: 60px; resize: vertical; }
+
+.checkbox-row { align-items: center; }
+.checkbox-row label { display: flex; align-items: center; gap: 0.4rem; color: #ddd; }
+
+button {
+  background: #F7AF40;
+  color: #000;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+button:hover { background: #ffc560; }
+
+.msg { margin-top: 1rem; color: #F7AF40; font-weight: bold; }
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  color: #F7AF40;
+}
+
+table {
+  width: 100%;
+  background: #0a0a0a;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #1a1a1a;
+}
+
+th, td {
+  padding: 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #222;
+  font-size: 0.85rem;
+}
+
+th { background: #000; color: #F7AF40; font-family: 'Montserrat', sans-serif; font-weight: 700; }
+
+td { color: #ddd; }
+
+td button {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  margin-right: 0.3rem;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background: #0a0a0a;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  border: 1px solid #F7AF40;
+}
+
+.modal-content h3 { color: #F7AF40; margin-bottom: 1rem; }
+
+/* Hero & Locandina */
+.hero { display: flex; justify-content: center; padding: 2rem 1rem; }
+
+.locandina {
+  background: transparent;
+  border: none;
+  padding: 3rem;
+  text-align: center;
+  max-width: 700px;
+  width: 100%;
+}
+
+.hero-logo {
+  width: 400px;
+  height: auto;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+}
+
+.locandina h2 { color: #F7AF40; font-size: 2.5rem; margin-bottom: 0.5rem; }
+.locandina .subtitle {
+  font-family: 'Bebas Neue', sans-serif;
+  color: #F7AF40;
+  font-size: 1.6rem;
+  letter-spacing: 3px;
+  margin-bottom: 1.5rem;
+}
+.event-details p {
+  padding: 0.5rem 0;
+  color: #ccc;
+  font-size: 1.05rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+}
+
+.cta-btn {
+  display: inline-block;
+  margin-top: 1.5rem;
+  background: #F7AF40;
+  color: #000;
+  padding: 0.8rem 2rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.cta-btn:hover { background: #ffc560; }
+
+/* Countdown */
+.countdown {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.countdown-item { text-align: center; }
+.countdown-item .number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #F7AF40;
+}
+.countdown-item .label { font-size: 0.8rem; color: #999; }
+
+/* Footer */
+footer {
+  background: #000;
+  padding: 1.5rem;
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.footer-content { color: #999; }
+.social-links { margin-bottom: 0.5rem; }
+.social-links a { color: #F7AF40; text-decoration: none; margin: 0 0.8rem; }
+.social-links a:hover { color: #ffd080; }
+.footer-email { color: #ddd; margin: 0.3rem 0; }
+.copyright { font-size: 0.8rem; color: #666; margin-top: 0.5rem; }
+
+/* Maglia gallery */
+.maglia-gallery {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.maglia-item {
+  text-align: center;
+}
+
+.maglia-item img {
+  width: 280px;
+  height: auto;
+}
+
+.tshirt-frame {
+  background: #F7AF40;
+  padding: 2rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tshirt-mockup {
+  width: 300px;
+  height: 380px;
+  background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(
+    36% 0%, 64% 0%,
+    75% 5%, 85% 10%, 90% 14%, 93% 19%, 96% 24%, 99% 29%,
+    91% 33%, 79% 38%, 78% 43%, 78% 48%, 77% 53%, 77% 57%,
+    77% 62%, 77% 67%, 77% 72%, 78% 76%, 78% 81%, 79% 86%,
+    80% 91%, 80% 95%, 80% 100%,
+    20% 100%, 20% 95%, 20% 91%, 20% 86%, 21% 81%, 21% 76%,
+    22% 72%, 22% 67%, 21% 62%, 21% 57%, 21% 53%, 21% 48%,
+    20% 43%, 20% 38%, 10% 33%,
+    1% 29%, 3% 24%, 6% 19%, 8% 14%, 15% 10%, 26% 5%
+  );
+}
+
+.tshirt-mockup::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 30px;
+  border-radius: 0 0 30px 30px;
+  background: #F7AF40;
+}
+
+.tshirt-logo {
+  width: 120px;
+  height: auto;
+  border-radius: 4px;
+  margin-top: 40px;
+}
+
+.chest-logo {
+  position: absolute;
+  top: 25%;
+  left: 30%;
+  width: 22px;
+  height: auto;
+  background: white;
+  padding: 2px;
+  border-radius: 2px;
+}
+
+.tshirt-back {
+  /* retro vuoto */
+}
+
+.sleeve-logo {
+  position: absolute;
+  width: 35px;
+  height: auto;
+  top: 18%;
+}
+
+.sleeve-left { left: 18%; }
+.sleeve-right { right: 18%; }
+
+.maglia-item p {
+  margin-top: 0.5rem;
+  color: #F7AF40;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+}
+
+/* Lang switcher */
+.lang-switcher { display: flex; gap: 0.3rem; }
+.lang-btn {
+  background: transparent;
+  border: 1px solid #333;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+.lang-btn:hover { border-color: #F7AF40; background: transparent; }
+
+/* Hamburger */
+.hamburger {
+  display: none;
+  background: transparent;
+  color: #F7AF40;
+  font-size: 1.5rem;
+  border: none;
+  padding: 0.3rem;
+}
+
+@media (max-width: 768px) {
+  header { flex-wrap: wrap; }
+  .hamburger { display: block; }
+  nav {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    padding-top: 1rem;
+  }
+  nav.open { display: flex; }
+  nav a { margin: 0.4rem 0; margin-left: 0; }
+  .locandina { padding: 1.5rem; }
+  .locandina h2 { font-size: 1.8rem; }
+  .countdown { gap: 0.8rem; }
+  .countdown-item .number { font-size: 1.4rem; }
+}
+
+.risultato-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  margin-top: 0.8rem;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 6px;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.risultato-info { display: flex; flex-direction: column; gap: 0.2rem; }
+.risultato-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.risultato-info strong { color: #f0f0f0; }
+.risultato-info small { color: #888; }
+.risultato-cat { font-size: 0.8rem; color: #F7AF40; background: #1a1a1a; padding: 0.1rem 0.5rem; border-radius: 3px; width: fit-content; }
+
+.btn-download {
+  background: #F7AF40;
+  color: #000;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-download:hover { background: #ffc560; }
+
+#install-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #F7AF40;
+  color: #000;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 9999;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+#install-banner button {
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+#install-btn { background: #000; color: #F7AF40; }
+#install-btn:hover { background: #222; }
+#install-close { background: transparent; color: #000; font-size: 1.2rem; padding: 0.2rem 0.5rem; }
+
+#notif-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a2e;
+  color: #f0f0f0;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 9999;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #F7AF40;
+}
+
+#notif-banner button {
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+#notif-yes { background: #F7AF40; color: #000; }
+#notif-yes:hover { background: #ffc560; }
+#notif-close { background: transparent; color: #888; font-size: 1.2rem; padding: 0.2rem 0.5rem; }
