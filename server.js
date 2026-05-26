@@ -34,8 +34,8 @@ const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BKmSLTMCb78Qm9ZmSYCnGRdym7iFWT
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'C2DhpRwo6SLXftJGmRmY-lcESP0ndk04V3Z8CKC_cuE';
 webpush.setVapidDetails('mailto:info@bustobattle.it', VAPID_PUBLIC, VAPID_PRIVATE);
 
-const DB_PATH = path.join(__dirname, 'db', 'gara.db');
-const DB_DIR = path.join(__dirname, 'db');
+const DB_DIR = process.env.RENDER ? '/tmp' : path.join(__dirname, 'db');
+const DB_PATH = path.join(DB_DIR, 'gara.db');
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 let db;
 
@@ -451,5 +451,6 @@ async function sendContactEmail({ nome, email, oggetto, messaggio }) {
 }
 
 initDb().then(() => {
-  app.listen(3000, () => console.log('Server avviato su http://localhost:3000'));
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log('Server avviato su porta ' + PORT));
 });
