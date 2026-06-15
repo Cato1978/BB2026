@@ -575,7 +575,8 @@
         email: email,
         telefono: document.getElementById('telefono').value.trim() || null,
         categoria: disciplineConCategoria.join(', '),
-        note: noteFinali.join(' | ')
+        note: noteFinali.join(' | '),
+        prove: oreProve // Array delle ore selezionate
       };
 
       // Disabilita bottoni durante l'operazione

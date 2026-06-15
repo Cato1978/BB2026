@@ -542,7 +542,7 @@ app.get('/api/admin/simulating', requireAdmin, (req, res) => {
 });
 
 app.post('/api/iscritti', async (req, res) => {
-  const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note } = req.body;
+  const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove } = req.body;
   
   // Validazione età minima (nati dal 2016 o prima)
   if (data_nascita) {
@@ -562,6 +562,18 @@ app.post('/api/iscritti', async (req, res) => {
   const id = lastId ? lastId.id : 1;
   const codice = 'BB11-' + String(id).padStart(4, '0');
   console.log('Nuovo iscritto:', { id, codice, nome, cognome });
+  
+  // Salva prenotazioni prove pista
+  if (prove && prove.length > 0) {
+    const proveCodice = 'PRV-' + codice;
+    for (const ora of prove) {
+      db.run('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, ora, proveCodice]);
+    }
+    save();
+    console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
+  }
+  
   // Invio email di conferma
   if (email) {
     const discipline = categoria ? categoria.split(', ') : [];
