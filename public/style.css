@@ -433,12 +433,31 @@ footer {
   padding: 0.6rem 0;
   border-bottom: 1px solid #222;
   align-items: center;
+  flex-wrap: wrap;
 }
 .programma-item .ora {
   color: #F7AF40;
   font-weight: 600;
   min-width: 120px;
   font-size: 0.9rem;
+}
+.programma-item .evento {
+  flex: 1;
+  min-width: 150px;
+  color: #f0f0f0;
+}
+.programma-item .luogo {
+  color: #888;
+  font-size: 0.85rem;
+  min-width: 140px;
+  text-align: right;
+}
+@media (max-width: 768px) {
+  .programma-item .luogo {
+    width: 100%;
+    text-align: left;
+    margin-top: 0.3rem;
+  }
 }
 
 #install-banner {
