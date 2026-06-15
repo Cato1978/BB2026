@@ -30,6 +30,7 @@
     <div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.5rem">
       <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn active">📋 Iscritti</button>
       <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button>
+      <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">🛼 Prove Pista</button>
       <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button>
       <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
       <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button>
@@ -74,6 +75,28 @@
     </div>
 
   <div id="section-navetta" style="display:none">
+    <h3>🚐 Gestione Slot Navetta</h3>
+    <details style="margin-bottom:1rem">
+      <summary style="cursor:pointer;color:#F7AF40;font-weight:600">➕ Aggiungi nuovo slot navetta</summary>
+      <form id="form-add-navetta-slot" style="margin:1rem 0;padding:1rem;background:#111;border:1px solid #222;border-radius:6px">
+        <div class="form-row">
+          <input type="date" name="giorno" required placeholder="Giorno">
+          <input type="time" name="ora" required placeholder="Ora">
+        </div>
+        <div class="form-row">
+          <input type="text" name="partenza" placeholder="Partenza (es: Stazione FS Busto)" required>
+          <input type="text" name="arrivo" placeholder="Arrivo (es: PalaCastiglioni)" required>
+        </div>
+        <div class="form-row">
+          <input type="number" name="posti_max" placeholder="Posti max" value="8" min="1">
+          <input type="number" name="costo" placeholder="Costo €" value="2" min="0" step="0.5">
+        </div>
+        <button type="submit">➕ Aggiungi Slot</button>
+      </form>
+    </details>
+    <div id="navetta-slots-list" style="margin-bottom:1rem"></div>
+    <hr style="border-color:#333;margin:1.5rem 0">
+    <h3>📋 Prenotazioni Navetta</h3>
     <div class="stats">
       <span>Prenotazioni: <strong id="nav-totale-pren">0</strong></span>
       <span>Persone totali: <strong id="nav-totale-pers">0</strong></span>
@@ -86,6 +109,49 @@
           <th>Email</th>
           <th>Telefono</th>
           <th>Corse</th>
+          <th>Totale €</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-prove" style="display:none">
+    <h3>🛼 Gestione Slot Prove Pista</h3>
+    <details style="margin-bottom:1rem">
+      <summary style="cursor:pointer;color:#F7AF40;font-weight:600">➕ Aggiungi nuovo slot prove</summary>
+      <form id="form-add-prove-slot" style="margin:1rem 0;padding:1rem;background:#111;border:1px solid #222;border-radius:6px">
+        <div class="form-row">
+          <input type="date" name="giorno" required placeholder="Giorno">
+          <input type="time" name="ora_inizio" required placeholder="Ora inizio">
+          <input type="time" name="ora_fine" required placeholder="Ora fine">
+        </div>
+        <div class="form-row">
+          <input type="text" name="luogo" placeholder="Luogo (es: PalaCastiglioni)" required>
+          <input type="number" name="posti_max" placeholder="Posti max" value="20" min="1">
+          <input type="number" name="costo" placeholder="Costo €" value="10" min="0" step="0.5">
+        </div>
+        <button type="submit">➕ Aggiungi Slot</button>
+      </form>
+    </details>
+    <div id="prove-slots-list" style="margin-bottom:1rem"></div>
+    <hr style="border-color:#333;margin:1.5rem 0">
+    <h3>📋 Prenotazioni Prove Pista</h3>
+    <div class="stats">
+      <span>Prenotazioni: <strong id="prove-totale-pren">0</strong></span>
+      <span>Sessioni totali: <strong id="prove-totale-sess">0</strong></span>
+      <span>Incasso: <strong id="prove-totale-euro">€0</strong></span>
+    </div>
+    <div id="prove-disponibilita" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0"></div>
+    <table id="tabella-prove">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th>Sessioni</th>
           <th>Totale €</th>
           <th>Azioni</th>
         </tr>
@@ -326,23 +392,91 @@
 
     // --- TABS ---
     function showTab(tab) {
-      ['iscritti','navetta','risultati','notifiche','simula','pagine'].forEach(t => {
+      ['iscritti','navetta','prove','risultati','notifiche','simula','pagine'].forEach(t => {
         document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
       });
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
       if (tab === 'navetta') caricaNavetta();
+      if (tab === 'prove') caricaProve();
       if (tab === 'risultati') caricaRisultati();
       if (tab === 'pagine') caricaPagine();
     }
 
     // --- NAVETTA ---
     let prenotazioni = [];
+    let navettaSlots = [];
+    
     async function caricaNavetta() {
-      const res = await fetch('/api/navetta/prenotazioni');
-      prenotazioni = await res.json();
+      const [resPren, resSlots] = await Promise.all([
+        fetch('/api/navetta/prenotazioni'),
+        fetch('/api/navetta/slots')
+      ]);
+      prenotazioni = await resPren.json();
+      navettaSlots = await resSlots.json();
+      renderNavettaSlots();
       renderNavetta();
     }
+
+    function renderNavettaSlots() {
+      const div = document.getElementById('navetta-slots-list');
+      if (!navettaSlots.length) {
+        div.innerHTML = '<p style="color:#888">Nessuno slot configurato</p>';
+        return;
+      }
+      // Raggruppa per giorno
+      const byDay = {};
+      navettaSlots.forEach(s => {
+        if (!byDay[s.giorno]) byDay[s.giorno] = [];
+        byDay[s.giorno].push(s);
+      });
+      let html = '';
+      for (const [giorno, slots] of Object.entries(byDay)) {
+        const date = new Date(giorno).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        html += `<div style="margin-bottom:1rem"><h4 style="color:#F7AF40;margin-bottom:0.5rem">📅 ${date}</h4>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem">`;
+        for (const s of slots) {
+          html += `<div style="padding:0.5rem;background:#111;border:1px solid #333;border-radius:4px;font-size:0.85rem">
+            <strong>${s.ora}</strong><br>
+            <small style="color:#888">${s.partenza} → ${s.arrivo}</small><br>
+            <small style="color:#888">${s.posti_max} posti, €${s.costo}</small>
+            <button onclick="eliminaNavettaSlot(${s.id})" style="margin-left:0.5rem;padding:0.1rem 0.3rem;font-size:0.7rem" title="Elimina">🗑️</button>
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+      div.innerHTML = html;
+    }
+
+    async function eliminaNavettaSlot(id) {
+      if (!confirm('Eliminare questo slot navetta?')) return;
+      await fetch('/api/navetta/slots/' + id, { method: 'DELETE' });
+      caricaNavetta();
+    }
+
+    document.getElementById('form-add-navetta-slot').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/navetta/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          giorno: fd.get('giorno'),
+          ora: fd.get('ora'),
+          partenza: fd.get('partenza'),
+          arrivo: fd.get('arrivo'),
+          posti_max: parseInt(fd.get('posti_max')) || 8,
+          costo: parseFloat(fd.get('costo')) || 2
+        })
+      });
+      if (res.ok) {
+        e.target.reset();
+        caricaNavetta();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
 
     function renderNavetta() {
       const grouped = {};
@@ -356,16 +490,22 @@
         const first = corse[0];
         const totPersone = corse.reduce((s, c) => s + c.num_persone, 0);
         const dettagli = corse.map(c => {
-          const dirLabel = c.direzione === 'andata' ? 'Staz→Pal' : 'Pal→Staz';
+          const dirLabel = c.direzione === 'andata' ? '→' : '←';
           return `${c.giorno} ${c.ora} ${dirLabel} (${c.num_persone}p)`;
         }).join('<br>');
+        // Calcola totale con costi variabili
+        let totale = 0;
+        for (const c of corse) {
+          const slot = navettaSlots.find(s => s.giorno === c.giorno && s.ora === c.ora);
+          totale += c.num_persone * (slot?.costo || 2);
+        }
         html += `<tr>
           <td><strong>${cod}</strong></td>
           <td>${first.cognome} ${first.nome}</td>
           <td>${first.email || '-'}</td>
           <td>${first.telefono || '-'}</td>
           <td>${dettagli}</td>
-          <td>€${totPersone * 2}</td>
+          <td>€${totale}</td>
           <td><button onclick="eliminaNavetta('${cod}')" title="Elimina">🗑️</button></td>
         </tr>`;
       }
@@ -378,6 +518,129 @@
       if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
       await fetch('/api/navetta/prenotazioni/' + codice, { method: 'DELETE' });
       caricaNavetta();
+    }
+
+    // --- PROVE PISTA ---
+    let provePrenotazioni = [];
+    let proveSlots = [];
+    let proveConfig = { posti_max: 20, costo_ora: 10 };
+
+    async function caricaProve() {
+      const [resPren, resDisp, resConfig, resSlots] = await Promise.all([
+        fetch('/api/prove/prenotazioni'),
+        fetch('/api/prove/disponibilita'),
+        fetch('/api/prove/config'),
+        fetch('/api/prove/slots')
+      ]);
+      provePrenotazioni = await resPren.json();
+      const disponibilita = await resDisp.json();
+      proveConfig = await resConfig.json();
+      proveSlots = await resSlots.json();
+      renderProveSlots();
+      renderProveDisponibilita(disponibilita);
+      renderProve();
+    }
+
+    function renderProveSlots() {
+      const div = document.getElementById('prove-slots-list');
+      if (!proveSlots.length) {
+        div.innerHTML = '<p style="color:#888">Nessuno slot configurato</p>';
+        return;
+      }
+      let html = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">';
+      for (const s of proveSlots) {
+        const date = new Date(s.giorno).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        html += `<div style="padding:0.5rem;background:#111;border:1px solid #333;border-radius:4px;font-size:0.85rem">
+          <strong>${s.ora_inizio}-${s.ora_fine}</strong> (${date})<br>
+          <small style="color:#888">📍 ${s.luogo}</small><br>
+          <small style="color:#888">${s.posti_max} posti, €${s.costo}</small>
+          <button onclick="eliminaProveSlot(${s.id})" style="margin-left:0.5rem;padding:0.1rem 0.3rem;font-size:0.7rem" title="Elimina">🗑️</button>
+        </div>`;
+      }
+      html += '</div>';
+      div.innerHTML = html;
+    }
+
+    async function eliminaProveSlot(id) {
+      if (!confirm('Eliminare questo slot prove?')) return;
+      await fetch('/api/prove/slots/' + id, { method: 'DELETE' });
+      caricaProve();
+    }
+
+    document.getElementById('form-add-prove-slot').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/prove/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          giorno: fd.get('giorno'),
+          ora_inizio: fd.get('ora_inizio'),
+          ora_fine: fd.get('ora_fine'),
+          luogo: fd.get('luogo'),
+          posti_max: parseInt(fd.get('posti_max')) || 20,
+          costo: parseFloat(fd.get('costo')) || 10
+        })
+      });
+      if (res.ok) {
+        e.target.reset();
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
+
+    function renderProveDisponibilita(disponibilita) {
+      const div = document.getElementById('prove-disponibilita');
+      div.innerHTML = Object.entries(disponibilita).map(([ora, data]) => {
+        const posti = typeof data === 'object' ? data.posti : data;
+        const luogo = typeof data === 'object' ? data.luogo : '';
+        const postiMax = typeof data === 'object' ? data.posti_max : proveConfig.posti_max;
+        const color = posti === 0 ? '#ef4444' : posti < 5 ? '#f59e0b' : '#4ade80';
+        return `<div style="padding:0.5rem 1rem;background:#111;border:1px solid #333;border-radius:4px">
+          <strong style="color:#F7AF40">${ora}</strong><br>
+          ${luogo ? `<small style="color:#888">📍 ${luogo}</small><br>` : ''}
+          <span style="color:${color}">${posti}/${postiMax} posti</span>
+        </div>`;
+      }).join('');
+    }
+
+    function renderProve() {
+      const grouped = {};
+      provePrenotazioni.forEach(p => {
+        if (!grouped[p.codice]) grouped[p.codice] = [];
+        grouped[p.codice].push(p);
+      });
+      const tbody = document.querySelector('#tabella-prove tbody');
+      let html = '';
+      for (const [cod, sessioni] of Object.entries(grouped)) {
+        const first = sessioni[0];
+        const oreList = sessioni.map(s => s.ora).join(', ');
+        const totale = sessioni.length * proveConfig.costo_ora;
+        html += `<tr>
+          <td><strong>${cod}</strong></td>
+          <td>${first.cognome} ${first.nome}</td>
+          <td>${first.email || '-'}</td>
+          <td>${first.telefono || '-'}</td>
+          <td>${oreList}</td>
+          <td>€${totale}</td>
+          <td><button onclick="eliminaProva('${cod}')" title="Elimina">🗑️</button></td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+      
+      const numPrenotazioni = Object.keys(grouped).length;
+      const totSessioni = provePrenotazioni.length;
+      document.getElementById('prove-totale-pren').textContent = numPrenotazioni;
+      document.getElementById('prove-totale-sess').textContent = totSessioni;
+      document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * proveConfig.costo_ora);
+    }
+
+    async function eliminaProva(codice) {
+      if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
+      await fetch('/api/prove/prenotazioni/' + codice, { method: 'DELETE' });
+      caricaProve();
     }
 
     // --- RISULTATI ---

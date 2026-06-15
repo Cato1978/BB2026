@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prenotazione Prove - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .prove-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    .prova-item {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 0.8rem;
+    }
+    .prova-item.esaurita {
+      opacity: 0.5;
+    }
+    .prova-item label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      color: #ddd;
+      cursor: pointer;
+    }
+    .prova-item input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    .posti-info {
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .posti-info.esaurita {
+      color: #e74c3c;
+    }
+    .payment-box {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: #0a2a0a;
+      border: 2px solid #4CAF50;
+      border-radius: 8px;
+    }
+    .payment-box h3 {
+      color: #4CAF50;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">TRAVEL SUGGESTIONS</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MERCHANDISING</a>
+      <a href="cena.html" data-t="cena">CENA ATLETI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2>🛼 Prenotazione Prove Pista</h2>
+      <p><strong>Luogo:</strong> PalaCastiglioni</p>
+      <p><strong>Costo:</strong> €10 a persona per ora</p>
+      <p><strong>Giorno:</strong> Sabato 14 Novembre 2026 (mattina)</p>
+      <p style="margin-top:0.8rem;color:#F7AF40"><strong>ℹ️ Prenota le tue sessioni di prova pista prima della gara!</strong></p>
+    </section>
+
+    <section class="form-section">
+      <h2>Prenota Sessioni di Prova</h2>
+      <form id="form-prove">
+        <div class="form-row">
+          <input type="text" name="nome" placeholder="Nome *" required>
+          <input type="text" name="cognome" placeholder="Cognome *" required>
+        </div>
+        <div class="form-row">
+          <input type="email" name="email" placeholder="Email">
+          <input type="tel" name="telefono" placeholder="Telefono">
+        </div>
+
+        <h3 style="margin:1.5rem 0 0.5rem;color:#F7AF40">📅 Sabato 14 Novembre - Sessioni disponibili</h3>
+        <div id="prove-container" class="prove-grid"></div>
+
+        <div id="totale-prove" style="margin-top:1rem;padding:1rem;background:#111;border:1px solid #F7AF40;border-radius:6px;display:none">
+          <p style="margin:0"><strong>Totale:</strong> <span id="prove-totale" style="color:#F7AF40;font-size:1.2rem">€0</span></p>
+        </div>
+
+        <button type="submit" style="margin-top:1rem">Prenota Prove</button>
+      </form>
+      <div id="prove-result" style="display:none" class="payment-box">
+        <h3>✅ Prenotazione confermata!</h3>
+        <p><strong>Codice prenotazione:</strong> <span id="prove-codice"></span></p>
+        <p><strong>Totale:</strong> <span id="prove-totale-conf"></span></p>
+        <p style="margin-top:0.5rem">Conserva il codice per eventuali modifiche.</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script>
+    const PREZZO_ORA = 10;
+    let config, disponibilita;
+
+    async function init() {
+      const [cfgRes, dispRes] = await Promise.all([
+        fetch('/api/prove/config'),
+        fetch('/api/prove/disponibilita')
+      ]);
+      config = await cfgRes.json();
+      disponibilita = await dispRes.json();
+      renderProve();
+    }
+
+    function renderProve() {
+      const container = document.getElementById('prove-container');
+      let html = '';
+      
+      for (const slot of config.slots) {
+        const posti = disponibilita[slot.ora] || 0;
+        const esaurita = posti <= 0;
+        
+        html += `<div class="prova-item ${esaurita ? 'esaurita' : ''}">
+          <label>
+            <div style="display:flex;align-items:center">
+              <input type="checkbox" class="prova-check" data-ora="${slot.ora}" ${esaurita ? 'disabled' : ''}>
+              <strong style="color:#F7AF40">${slot.ora}</strong>
+            </div>
+            <span class="posti-info ${esaurita ? 'esaurita' : ''}">${esaurita ? 'ESAURITA' : posti + ' posti disponibili'}</span>
+          </label>
+        </div>`;
+      }
+      
+      container.innerHTML = html;
+
+      document.querySelectorAll('.prova-check').forEach(cb => {
+        cb.addEventListener('change', updateTotaleProve);
+      });
+    }
+
+    function updateTotaleProve() {
+      const checked = document.querySelectorAll('.prova-check:checked').length;
+      const totale = checked * PREZZO_ORA;
+      const box = document.getElementById('totale-prove');
+      
+      if (checked > 0) {
+        box.style.display = 'block';
+        document.getElementById('prove-totale').textContent = '€' + totale;
+      } else {
+        box.style.display = 'none';
+      }
+    }
+
+    document.getElementById('form-prove').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const checks = document.querySelectorAll('.prova-check:checked');
+      
+      if (!checks.length) {
+        alert('Seleziona almeno una sessione di prova');
+        return;
+      }
+
+      const sessioni = [];
+      checks.forEach(cb => {
+        sessioni.push(cb.dataset.ora);
+      });
+
+      const res = await fetch('/api/prove/prenota', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: fd.get('nome'),
+          cognome: fd.get('cognome'),
+          email: fd.get('email'),
+          telefono: fd.get('telefono'),
+          sessioni
+        })
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        document.getElementById('prove-codice').textContent = result.codice;
+        document.getElementById('prove-totale-conf').textContent = '€' + result.totale;
+        document.getElementById('prove-result').style.display = 'block';
+        document.querySelector('.form-section form').style.display = 'none';
+        init();
+      } else {
+        const err = await res.json();
+        alert(err.error);
+      }
+    });
+
+    init();
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

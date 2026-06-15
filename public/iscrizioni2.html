@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iscrizioni - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .discipline-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #222;
+      flex-wrap: wrap;
+    }
+    .discipline-row label {
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ddd;
+    }
+    .discipline-row select {
+      padding: 0.4rem;
+      background: #111;
+      color: #f0f0f0;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .discipline-row select:disabled {
+      opacity: 0.4;
+    }
+    .taglia-section {
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 6px;
+    }
+    .taglia-section h3 {
+      color: #F7AF40;
+      margin-bottom: 0.8rem;
+    }
+    .felpa-option {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #333;
+    }
+    .felpa-option label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ddd;
+    }
+    .size-select {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .size-btn {
+      padding: 0.4rem 0.8rem;
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .size-btn:hover {
+      border-color: #F7AF40;
+    }
+    .size-btn.selected {
+      background: #F7AF40;
+      color: #000;
+      border-color: #F7AF40;
+    }
+    .size-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .prove-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .prove-grid label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.8rem;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #ccc;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .prove-grid label:hover {
+      border-color: #F7AF40;
+    }
+    .prove-grid input:checked + span {
+      color: #F7AF40;
+    }
+    .prove-grid label:has(input:checked) {
+      border-color: #F7AF40;
+      background: #1a1a1a;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">TRAVEL SUGGESTIONS</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MERCHANDISING</a>
+      <a href="cena.html" data-t="cena">CENA ATLETI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="iscrizioniTitle">📝 Iscrizione Gara</h2>
+      <p data-t="iscrizioniDescQuota">Compila il modulo per iscriverti alla Busto Battle XI.</p>
+      <p><strong style="color:#F7AF40" data-t="quotaIscrizione">Quota iscrizione: €50 prima disciplina + €30 ogni disciplina aggiuntiva</strong></p>
+    </section>
+
+    <section class="form-section">
+      <h2 data-t="datiPersonali">Dati Personali</h2>
+      <form id="form-iscrizione">
+        <div class="form-row">
+          <input type="text" id="nome" data-t="nomePlaceholder" placeholder="Nome *" required>
+          <input type="text" id="cognome" data-t="cognomePlaceholder" placeholder="Cognome *" required>
+        </div>
+        <div class="form-row">
+          <input type="date" id="data_nascita" required>
+          <input type="text" id="societa" data-t="societaPlaceholder" placeholder="Società / Club">
+        </div>
+        <div class="form-row">
+          <input type="email" id="email" placeholder="Email *" required>
+          <input type="tel" id="telefono" data-t="telefonoPlaceholder" placeholder="Telefono">
+        </div>
+
+        <div class="form-row" style="align-items:center">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem" data-t="genereLabel">Genere *</label>
+            <div style="display:flex;gap:1.5rem">
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="genere" value="M" required> <span data-t="genereMaschile">Maschile</span>
+              </label>
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="genere" value="F" required> <span data-t="genereFemminile">Femminile</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <input type="text" id="world_skate_id" placeholder="World Skate ID">
+          <input type="text" id="skate_italia_card" placeholder="Skate Italia Card Number">
+        </div>
+        <p style="color:#888;font-size:0.8rem;margin-top:-0.5rem;margin-bottom:1rem" data-t="tesseraObbligatoria">* Almeno uno tra World Skate ID e Skate Italia Card è obbligatorio</p>
+
+        <h3 style="color:#F7AF40;margin:1.5rem 0 1rem" data-t="scegli_discipline">Scegli le Discipline</h3>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem" data-t="categoriaAutoCalc">La categoria viene calcolata automaticamente dalla data di nascita, ma puoi modificarla se necessario.</p>
+        
+        <div id="discipline-container">
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Speed Slalom" onchange="updateDisciplina(this)"> Speed Slalom ⭐</label>
+            <select class="cat-select" data-for="Speed Slalom" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Classic Slalom" onchange="updateDisciplina(this)"> Classic Slalom ⭐</label>
+            <select class="cat-select" data-for="Classic Slalom" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Battle" onchange="updateDisciplina(this)"> Battle ⭐</label>
+            <select class="cat-select" data-for="Battle" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Slides" onchange="updateDisciplina(this)"> Slides ⭐⭐</label>
+            <select class="cat-select" data-for="Slides" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Pair Slalom" onchange="updateDisciplina(this)"> Pair Slalom ⭐⭐</label>
+            <select class="cat-select" data-for="Pair Slalom" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Free Jump" onchange="updateDisciplina(this)"> Free Jump ⭐⭐</label>
+            <select class="cat-select" data-for="Free Jump" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="taglia-section">
+          <h3 data-t="tagliaMagliaTitle">👕 Taglia Maglietta Gara *</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="magliaInclusa">La maglietta ufficiale è inclusa nell'iscrizione.</p>
+          <div class="size-select" id="taglia-maglia">
+            <button type="button" class="size-btn" data-size="XS">XS</button>
+            <button type="button" class="size-btn" data-size="S">S</button>
+            <button type="button" class="size-btn" data-size="M">M</button>
+            <button type="button" class="size-btn" data-size="L">L</button>
+            <button type="button" class="size-btn" data-size="XL">XL</button>
+          </div>
+          <input type="hidden" id="taglia_maglia" required>
+
+          <div class="felpa-option">
+            <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span data-t="aggiungiFelpa">🧥 Aggiungi Felpa Ufficiale (+€30)</span></label>
+            <div id="felpa-taglia" style="display:none;margin-top:0.8rem">
+              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</p>
+              <div class="size-select" id="taglia-felpa">
+                <button type="button" class="size-btn" data-size="XS" disabled>XS</button>
+                <button type="button" class="size-btn" data-size="S" disabled>S</button>
+                <button type="button" class="size-btn" data-size="M" disabled>M</button>
+                <button type="button" class="size-btn" data-size="L" disabled>L</button>
+                <button type="button" class="size-btn" data-size="XL" disabled>XL</button>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="taglia_felpa">
+        </div>
+
+        <div class="taglia-section">
+          <h3 data-t="proveTitle">🛼 Prenotazione Prove Pista (opzionale)</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="proveDesc">Sabato 14 Novembre mattina @ PalaCastiglioni</p>
+          <p style="color:#F7AF40;font-weight:600;margin-bottom:0.8rem" data-t="proveCosto">€10 per ogni ora selezionata</p>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.8rem" data-t="proveMax">Max 20 persone per sessione</p>
+          <div class="prove-grid" id="prove-container">
+            <!-- Popolato dinamicamente -->
+          </div>
+        </div>
+
+        <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
+          <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
+          <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
+        </div>
+
+        <div class="form-row">
+          <textarea id="note" data-t="notePlaceholder" placeholder="Note aggiuntive (opzionale)"></textarea>
+        </div>
+
+        <button type="submit" data-t="inviaIscrizione">Invia Iscrizione</button>
+        <p class="msg" id="msg"></p>
+      </form>
+    </section>
+
+    <section class="info" id="conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="riceveraiEmail">Riceverai una email di conferma con le istruzioni per il pagamento.</p>
+      <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
+        <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
+        <p style="margin:0.3rem 0;color:#ccc"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="intestatario">Intestatario:</strong> ASD Busto Battle</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="causale">Causale:</strong> <span id="causale-bonifico"></span></p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
+      </div>
+      <a href="verifica.html" class="cta-btn" style="margin-top:1.5rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const PREZZO_PRIMA = 50;
+    const PREZZO_ALTRE = 30;
+    const PREZZO_FELPA = 30;
+    const PREZZO_PROVA_ORA = 10;
+
+    let proveDisponibilita = {};
+
+    // Carica disponibilità prove
+    async function caricaProveDisponibilita() {
+      try {
+        const res = await fetch('/api/prove/disponibilita');
+        proveDisponibilita = await res.json();
+        renderProveSlots();
+      } catch (e) {
+        console.error('Errore caricamento prove:', e);
+      }
+    }
+
+    function renderProveSlots() {
+      const container = document.getElementById('prove-container');
+      const entries = Object.entries(proveDisponibilita);
+      if (!entries.length) {
+        container.innerHTML = '<p style="color:#888">Nessuno slot prove disponibile</p>';
+        return;
+      }
+      container.innerHTML = entries.map(([ora, data]) => {
+        const posti = typeof data === 'object' ? data.posti : data;
+        const luogo = typeof data === 'object' ? data.luogo : 'PalaCastiglioni';
+        const postiMax = typeof data === 'object' ? data.posti_max : 20;
+        const esaurito = posti <= 0;
+        const quasi = posti > 0 && posti <= 5;
+        const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
+        return `<label style="${esaurito ? 'opacity:0.5;cursor:not-allowed' : ''}">
+          <input type="checkbox" name="prove" value="${ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''}>
+          <span>${ora}</span>
+          <small style="color:${color};margin-left:0.3rem">(${posti}/${postiMax})</small>
+          <small style="color:#888;display:block;font-size:0.75rem">📍 ${luogo}</small>
+        </label>`;
+      }).join('');
+    }
+
+    // Carica al load
+    caricaProveDisponibilita();
+
+    // Calcola categoria da data nascita (riferimento 2026)
+    function calcolaCategoria(dataNascita) {
+      if (!dataNascita) return 'SENIOR';
+      const anno = parseInt(dataNascita.split('-')[0]);
+      if (anno >= 2012 && anno <= 2016) return 'U15';
+      if (anno >= 2008 && anno <= 2011) return 'U19';
+      return 'SENIOR';
+    }
+
+    // Aggiorna categoria quando cambia data nascita
+    document.getElementById('data_nascita').addEventListener('change', function() {
+      const categoria = calcolaCategoria(this.value);
+      document.querySelectorAll('.cat-select').forEach(sel => {
+        sel.value = categoria;
+      });
+      updateTotale();
+    });
+
+    // Toggle disciplina
+    function updateDisciplina(cb) {
+      const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
+      sel.disabled = !cb.checked;
+      if (cb.checked) {
+        const dataNascita = document.getElementById('data_nascita').value;
+        sel.value = calcolaCategoria(dataNascita);
+      }
+      updateTotale();
+    }
+
+    // Calcolo totale
+    function updateTotale() {
+      const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const oreProve = document.querySelectorAll('input[name="prove"]:checked').length;
+      
+      let totaleGare = 0;
+      if (checkedDiscipline > 0) {
+        totaleGare = PREZZO_PRIMA + (checkedDiscipline - 1) * PREZZO_ALTRE;
+      }
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleProve = oreProve * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleProve;
+
+      const box = document.getElementById('totale-box');
+      if (checkedDiscipline > 0 || oreProve > 0) {
+        box.style.display = 'block';
+        document.getElementById('totale').textContent = '€' + totale;
+        
+        // Dettaglio
+        let dettaglio = [];
+        if (checkedDiscipline === 1) {
+          dettaglio.push('1 disciplina: €' + PREZZO_PRIMA);
+        } else if (checkedDiscipline > 1) {
+          dettaglio.push(`${checkedDiscipline} discipline: €${PREZZO_PRIMA} + ${checkedDiscipline-1}×€${PREZZO_ALTRE} = €${totaleGare}`);
+        }
+        if (vuoleFelpa) {
+          dettaglio.push('Felpa: €' + PREZZO_FELPA);
+        }
+        if (oreProve > 0) {
+          dettaglio.push(`Prove: ${oreProve} ${oreProve === 1 ? 'ora' : 'ore'} × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
+        }
+        document.getElementById('dettaglio-totale').textContent = dettaglio.join(' | ');
+      } else {
+        box.style.display = 'none';
+      }
+    }
+
+    // Toggle felpa
+    function toggleFelpa() {
+      const checked = document.getElementById('vuole_felpa').checked;
+      const felpaDiv = document.getElementById('felpa-taglia');
+      felpaDiv.style.display = checked ? 'block' : 'none';
+      
+      document.querySelectorAll('#taglia-felpa .size-btn').forEach(btn => {
+        btn.disabled = !checked;
+        if (!checked) btn.classList.remove('selected');
+      });
+      
+      if (!checked) {
+        document.getElementById('taglia_felpa').value = '';
+      }
+      
+      updateTotale();
+    }
+
+    // Size buttons
+    document.querySelectorAll('#taglia-maglia .size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#taglia-maglia .size-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('taglia_maglia').value = this.dataset.size;
+      });
+    });
+
+    document.querySelectorAll('#taglia-felpa .size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        if (this.disabled) return;
+        document.querySelectorAll('#taglia-felpa .size-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('taglia_felpa').value = this.dataset.size;
+      });
+    });
+
+    // Submit form
+    document.getElementById('form-iscrizione').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+
+      // Validazione genere
+      const genere = document.querySelector('input[name="genere"]:checked');
+      if (!genere) {
+        msg.textContent = getLang() === 'en' ? 'Select gender' : 'Seleziona il genere';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      // Validazione World Skate ID o Skate Italia Card
+      const worldSkateId = document.getElementById('world_skate_id').value.trim();
+      const skateItaliaCard = document.getElementById('skate_italia_card').value.trim();
+      if (!worldSkateId && !skateItaliaCard) {
+        msg.textContent = getLang() === 'en' ? 'Enter at least World Skate ID or Skate Italia Card' : 'Inserisci almeno uno tra World Skate ID e Skate Italia Card';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      // Validazioni discipline
+      const checkedBoxes = document.querySelectorAll('input[name="cat"]:checked');
+      if (checkedBoxes.length === 0) {
+        msg.textContent = getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      const tagliaMaglia = document.getElementById('taglia_maglia').value;
+      if (!tagliaMaglia) {
+        msg.textContent = getLang() === 'en' ? 'Select t-shirt size' : 'Seleziona la taglia della maglietta';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const tagliaFelpa = document.getElementById('taglia_felpa').value;
+      if (vuoleFelpa && !tagliaFelpa) {
+        msg.textContent = getLang() === 'en' ? 'Select hoodie size' : 'Seleziona la taglia della felpa';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      // Costruisci categoria con dettaglio per ogni disciplina
+      const disciplineConCategoria = [];
+      checkedBoxes.forEach(cb => {
+        const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
+        disciplineConCategoria.push(`${cb.value} (${sel.value})`);
+      });
+
+      // Ore prove
+      const oreProveChecked = document.querySelectorAll('input[name="prove"]:checked');
+      const oreProve = Array.from(oreProveChecked).map(cb => cb.value);
+
+      const numDiscipline = checkedBoxes.length;
+      const totaleGare = PREZZO_PRIMA + (numDiscipline - 1) * PREZZO_ALTRE;
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleProve = oreProve.length * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleProve;
+
+      // Note con info tessere, maglia/felpa, prove
+      let noteFinali = [];
+      noteFinali.push(`Genere: ${genere.value}`);
+      if (worldSkateId) noteFinali.push(`WS ID: ${worldSkateId}`);
+      if (skateItaliaCard) noteFinali.push(`FISR: ${skateItaliaCard}`);
+      noteFinali.push(`Maglia: ${tagliaMaglia}`);
+      if (vuoleFelpa) {
+        noteFinali.push(`Felpa: ${tagliaFelpa}`);
+      }
+      if (oreProve.length > 0) {
+        noteFinali.push(`Prove: ${oreProve.join(', ')}`);
+      }
+      const noteUtente = document.getElementById('note').value.trim();
+      if (noteUtente) {
+        noteFinali.push(noteUtente);
+      }
+
+      const data = {
+        nome: document.getElementById('nome').value.trim(),
+        cognome: document.getElementById('cognome').value.trim(),
+        data_nascita: document.getElementById('data_nascita').value || null,
+        societa: document.getElementById('societa').value.trim() || null,
+        email: document.getElementById('email').value.trim(),
+        telefono: document.getElementById('telefono').value.trim() || null,
+        categoria: disciplineConCategoria.join(', '),
+        note: noteFinali.join(' | ')
+      };
+
+      try {
+        const res = await fetch('/api/iscritti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (res.ok) {
+          // Mostra conferma
+          document.querySelector('.form-section').style.display = 'none';
+          document.getElementById('conferma').style.display = 'block';
+          document.getElementById('codice-iscrizione').textContent = result.codice;
+          document.getElementById('causale-bonifico').textContent = `${result.codice} - ${data.nome} ${data.cognome}`;
+          document.getElementById('importo-bonifico').textContent = '€' + totale;
+        } else {
+          msg.textContent = result.error || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
+          msg.style.color = '#f44336';
+        }
+      } catch (err) {
+        msg.textContent = getLang() === 'en' ? 'Network error. Try again.' : 'Errore di rete. Riprova.';
+        msg.style.color = '#f44336';
+      }
+    });
+  </script>
+</body>
+</html>

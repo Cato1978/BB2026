@@ -120,6 +120,34 @@ async function initDb() {
     prezzo_unitario REAL NOT NULL,
     FOREIGN KEY (ordine_id) REFERENCES merch_ordini(id)
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    ora TEXT NOT NULL,
+    codice TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    giorno TEXT NOT NULL,
+    ora TEXT NOT NULL,
+    partenza TEXT NOT NULL,
+    arrivo TEXT NOT NULL,
+    posti_max INTEGER DEFAULT 8,
+    costo REAL DEFAULT 2
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS prove_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    giorno TEXT NOT NULL,
+    ora_inizio TEXT NOT NULL,
+    ora_fine TEXT NOT NULL,
+    luogo TEXT NOT NULL,
+    posti_max INTEGER DEFAULT 20,
+    costo REAL DEFAULT 10
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -135,9 +163,37 @@ async function initDb() {
   // Assicura che la colonna visible esista (per DB esistenti)
   try { db.run('ALTER TABLE page_settings ADD COLUMN visible INTEGER DEFAULT 1'); } catch(e) {}
   // Seed pagine default
-  const pages = ['iscrizioni','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena'];
+  const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
   for (const p of pages) {
     db.run('INSERT OR IGNORE INTO page_settings (page, enabled, visible) VALUES (?, 1, 1)', [p]);
+  }
+  // Seed navetta slots default
+  const navettaCount = all('SELECT COUNT(*) as c FROM navetta_slots')[0].c;
+  if (navettaCount === 0) {
+    const giorni = ['2026-11-13', '2026-11-14'];
+    const ore = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+    for (const g of giorni) {
+      for (const o of ore) {
+        db.run('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+          [g, o, 'Stazione FS Busto Arsizio', 'E Work Arena / PalaCastiglioni', 8, 2]);
+      }
+    }
+  }
+  // Seed prove slots default
+  const proveCount = all('SELECT COUNT(*) as c FROM prove_slots')[0].c;
+  if (proveCount === 0) {
+    const proveSlots = [
+      ['2026-11-14', '08:00', '09:00', 'PalaCastiglioni', 20, 10],
+      ['2026-11-14', '09:00', '10:00', 'PalaCastiglioni', 20, 10],
+      ['2026-11-14', '10:00', '11:00', 'PalaCastiglioni', 20, 10],
+      ['2026-11-14', '11:00', '12:00', 'PalaCastiglioni', 20, 10],
+      ['2026-11-14', '12:00', '13:00', 'PalaCastiglioni', 20, 10],
+    ];
+    for (const [g, oi, of, l, p, c] of proveSlots) {
+      db.run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of, l, p, c]);
+    }
+  }
   }
   const admins = all('SELECT * FROM users WHERE username=?', ['admin']);
   if (!admins.length) {
@@ -284,31 +340,62 @@ app.delete('/api/iscritti/:id', (req, res) => {
 });
 
 // --- NAVETTA API ---
-const NAVETTA_CONFIG = {
-  giorni: ['2025-11-13', '2025-11-14'],
-  ore: ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'],
-  posti_max: 8,
-  max_per_prenotazione: 8,
-  costo_persona: 2,
-  partenza: 'Stazione FS Busto Arsizio',
-  arrivo: 'Palazzetto dello Sport'
-};
+app.get('/api/navetta/slots', (req, res) => {
+  res.json(all('SELECT * FROM navetta_slots ORDER BY giorno, ora'));
+});
+
+app.post('/api/navetta/slots', requireAdmin, (req, res) => {
+  const { giorno, ora, partenza, arrivo, posti_max, costo } = req.body;
+  if (!giorno || !ora || !partenza || !arrivo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+  db.run('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+    [giorno, ora, partenza, arrivo, posti_max || 8, costo || 2]);
+  save();
+  res.json({ ok: true });
+});
+
+app.put('/api/navetta/slots/:id', requireAdmin, (req, res) => {
+  const { giorno, ora, partenza, arrivo, posti_max, costo } = req.body;
+  db.run('UPDATE navetta_slots SET giorno=?, ora=?, partenza=?, arrivo=?, posti_max=?, costo=? WHERE id=?',
+    [giorno, ora, partenza, arrivo, posti_max, costo, +req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+app.delete('/api/navetta/slots/:id', requireAdmin, (req, res) => {
+  db.run('DELETE FROM navetta_slots WHERE id=?', [+req.params.id]);
+  save();
+  res.json({ ok: true });
+});
 
 app.get('/api/navetta/config', (req, res) => {
-  res.json(NAVETTA_CONFIG);
+  const slots = all('SELECT DISTINCT giorno FROM navetta_slots ORDER BY giorno');
+  const ore = all('SELECT DISTINCT ora FROM navetta_slots ORDER BY ora');
+  const first = all('SELECT * FROM navetta_slots LIMIT 1')[0] || {};
+  res.json({
+    giorni: slots.map(s => s.giorno),
+    ore: ore.map(o => o.ora),
+    posti_max: first.posti_max || 8,
+    max_per_prenotazione: 8,
+    costo_persona: first.costo || 2,
+    partenza: first.partenza || '',
+    arrivo: first.arrivo || ''
+  });
 });
 
 app.get('/api/navetta/disponibilita', (req, res) => {
+  const slots = all('SELECT * FROM navetta_slots ORDER BY giorno, ora');
   const result = {};
-  for (const giorno of NAVETTA_CONFIG.giorni) {
-    result[giorno] = {};
-    for (const ora of NAVETTA_CONFIG.ore) {
-      for (const dir of ['andata', 'ritorno']) {
-        const key = `${ora}_${dir}`;
-        const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [giorno, ora, dir]);
-        const occupati = rows[0]?.tot || 0;
-        result[giorno][key] = NAVETTA_CONFIG.posti_max - occupati;
-      }
+  for (const slot of slots) {
+    if (!result[slot.giorno]) result[slot.giorno] = {};
+    for (const dir of ['andata', 'ritorno']) {
+      const key = `${slot.ora}_${dir}`;
+      const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [slot.giorno, slot.ora, dir]);
+      const occupati = rows[0]?.tot || 0;
+      result[slot.giorno][key] = {
+        posti: slot.posti_max - occupati,
+        partenza: dir === 'andata' ? slot.partenza : slot.arrivo,
+        arrivo: dir === 'andata' ? slot.arrivo : slot.partenza
+      };
     }
   }
   res.json(result);
@@ -316,25 +403,31 @@ app.get('/api/navetta/disponibilita', (req, res) => {
 
 app.post('/api/navetta/prenota', (req, res) => {
   const { nome, cognome, email, telefono, corse } = req.body;
-  // corse = [{ giorno, ora, direzione, num_persone }]
   if (!corse || !corse.length) return res.status(400).json({ error: 'Nessuna corsa selezionata' });
+  
   for (const c of corse) {
-    if (c.num_persone < 1 || c.num_persone > NAVETTA_CONFIG.max_per_prenotazione) {
-      return res.status(400).json({ error: `Max ${NAVETTA_CONFIG.max_per_prenotazione} persone per corsa` });
+    const slot = all('SELECT * FROM navetta_slots WHERE giorno=? AND ora=?', [c.giorno, c.ora])[0];
+    if (!slot) return res.status(400).json({ error: `Slot ${c.giorno} ${c.ora} non trovato` });
+    
+    if (c.num_persone < 1 || c.num_persone > 8) {
+      return res.status(400).json({ error: 'Max 8 persone per corsa' });
     }
     const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [c.giorno, c.ora, c.direzione]);
     const occupati = rows[0]?.tot || 0;
-    if (occupati + c.num_persone > NAVETTA_CONFIG.posti_max) {
+    if (occupati + c.num_persone > slot.posti_max) {
       return res.status(400).json({ error: `Posti esauriti per ${c.giorno} ${c.ora} ${c.direzione}` });
     }
   }
+  
   const codice = 'NAV-' + Date.now().toString(36).toUpperCase();
+  let totale = 0;
   for (const c of corse) {
+    const slot = all('SELECT costo FROM navetta_slots WHERE giorno=? AND ora=?', [c.giorno, c.ora])[0];
     db.run('INSERT INTO navetta_prenotazioni (nome, cognome, email, telefono, giorno, ora, direzione, num_persone, codice) VALUES (?,?,?,?,?,?,?,?,?)',
       [nome, cognome, email || null, telefono || null, c.giorno, c.ora, c.direzione, c.num_persone, codice]);
+    totale += c.num_persone * (slot?.costo || 2);
   }
   save();
-  const totale = corse.reduce((s, c) => s + c.num_persone, 0) * NAVETTA_CONFIG.costo_persona;
   res.json({ codice, totale });
 });
 
@@ -447,6 +540,102 @@ app.delete('/api/merch/ordini/:codice', (req, res) => {
     db.run('DELETE FROM merch_ordini WHERE codice=?', [req.params.codice]);
     save();
   }
+  res.json({ ok: true });
+});
+
+// --- PROVE PISTA API ---
+app.get('/api/prove/slots', (req, res) => {
+  res.json(all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio'));
+});
+
+app.post('/api/prove/slots', requireAdmin, (req, res) => {
+  const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
+  if (!giorno || !ora_inizio || !ora_fine || !luogo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+  db.run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+    [giorno, ora_inizio, ora_fine, luogo, posti_max || 20, costo || 10]);
+  save();
+  res.json({ ok: true });
+});
+
+app.put('/api/prove/slots/:id', requireAdmin, (req, res) => {
+  const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
+  db.run('UPDATE prove_slots SET giorno=?, ora_inizio=?, ora_fine=?, luogo=?, posti_max=?, costo=? WHERE id=?',
+    [giorno, ora_inizio, ora_fine, luogo, posti_max, costo, +req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+app.delete('/api/prove/slots/:id', requireAdmin, (req, res) => {
+  db.run('DELETE FROM prove_slots WHERE id=?', [+req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+app.get('/api/prove/config', (req, res) => {
+  const slots = all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+  const first = slots[0] || {};
+  res.json({
+    giorno: first.giorno || '2026-11-14',
+    slots: slots.map(s => ({ ora: `${s.ora_inizio}-${s.ora_fine}`, luogo: s.luogo, posti_max: s.posti_max, costo: s.costo })),
+    posti_max: first.posti_max || 20,
+    costo_ora: first.costo || 10
+  });
+});
+
+app.get('/api/prove/disponibilita', (req, res) => {
+  const slots = all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+  const result = {};
+  for (const slot of slots) {
+    const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
+    const rows = all('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+    const occupati = rows[0]?.tot || 0;
+    result[ora] = {
+      posti: slot.posti_max - occupati,
+      luogo: slot.luogo,
+      costo: slot.costo,
+      posti_max: slot.posti_max
+    };
+  }
+  res.json(result);
+});
+
+app.post('/api/prove/prenota', (req, res) => {
+  const { nome, cognome, email, telefono, sessioni } = req.body;
+  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+  if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
+
+  // Verifica disponibilità
+  let totale = 0;
+  for (const ora of sessioni) {
+    const parts = ora.split('-');
+    const slot = all('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]])[0];
+    if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
+    
+    const rows = all('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+    const occupati = rows[0]?.tot || 0;
+    if (occupati >= slot.posti_max) {
+      return res.status(400).json({ error: `Sessione ${ora} esaurita` });
+    }
+    totale += slot.costo;
+  }
+
+  const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
+  for (const ora of sessioni) {
+    db.run('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, ora, codice]);
+  }
+  save();
+
+  res.json({ codice, totale, sessioni });
+});
+
+app.get('/api/prove/prenotazioni', (req, res) => {
+  res.json(all('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome'));
+});
+
+app.delete('/api/prove/prenotazioni/:codice', (req, res) => {
+  db.run('DELETE FROM prove_prenotazioni WHERE codice=?', [req.params.codice]);
+  save();
   res.json({ ok: true });
 });
 
