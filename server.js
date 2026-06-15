@@ -194,7 +194,6 @@ async function initDb() {
         [g, oi, of, l, p, c]);
     }
   }
-  }
   const admins = all('SELECT * FROM users WHERE username=?', ['admin']);
   if (!admins.length) {
     const hash = bcrypt.hashSync('admin123', 10);
