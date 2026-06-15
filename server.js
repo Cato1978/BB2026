@@ -556,8 +556,12 @@ app.post('/api/iscritti', async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
   save();
-  const id = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+  
+  // Ottieni l'ID dell'ultimo inserimento
+  const lastId = all('SELECT MAX(id) as id FROM iscritti')[0];
+  const id = lastId ? lastId.id : 1;
   const codice = 'BB11-' + String(id).padStart(4, '0');
+  console.log('Nuovo iscritto:', { id, codice, nome, cognome });
   // Invio email di conferma
   if (email) {
     const discipline = categoria ? categoria.split(', ') : [];
