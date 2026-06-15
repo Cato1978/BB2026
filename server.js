@@ -586,8 +586,10 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
   try {
     const { iscritto_id, totale, descrizione, success_url, cancel_url } = req.body;
     
-    if (!iscritto_id || !totale) {
-      return res.status(400).json({ error: 'Dati mancanti' });
+    console.log('Stripe checkout request:', { iscritto_id, totale, descrizione });
+    
+    if (!iscritto_id || iscritto_id === 0 || !totale || totale <= 0) {
+      return res.status(400).json({ error: 'Dati mancanti', details: { iscritto_id, totale } });
     }
 
     // Recupera l'iscritto

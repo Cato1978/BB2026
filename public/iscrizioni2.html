@@ -609,6 +609,8 @@
 
           const descrizione = `${data.nome} ${data.cognome} - ${disciplineConCategoria.join(', ')}`;
           
+          console.log('Stripe checkout data:', { iscritto_id, totale, descrizione });
+          
           const stripeRes = await fetch('/api/stripe/create-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -619,6 +621,8 @@
             })
           });
           const stripeResult = await stripeRes.json();
+          
+          console.log('Stripe response:', stripeResult);
 
           if (stripeRes.ok && stripeResult.url) {
             // Redirect a Stripe Checkout
