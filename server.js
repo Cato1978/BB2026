@@ -89,6 +89,37 @@ async function initDb() {
     keys_auth TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    giorno TEXT NOT NULL,
+    num_persone INTEGER NOT NULL DEFAULT 1,
+    note TEXT,
+    codice TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS merch_ordini (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    codice TEXT,
+    note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS merch_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ordine_id INTEGER NOT NULL,
+    articolo TEXT NOT NULL,
+    taglia TEXT,
+    quantita INTEGER NOT NULL DEFAULT 1,
+    prezzo_unitario REAL NOT NULL,
+    FOREIGN KEY (ordine_id) REFERENCES merch_ordini(id)
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -98,12 +129,15 @@ async function initDb() {
   )`);
   db.run(`CREATE TABLE IF NOT EXISTS page_settings (
     page TEXT PRIMARY KEY,
-    enabled INTEGER DEFAULT 1
+    enabled INTEGER DEFAULT 1,
+    visible INTEGER DEFAULT 1
   )`);
+  // Assicura che la colonna visible esista (per DB esistenti)
+  try { db.run('ALTER TABLE page_settings ADD COLUMN visible INTEGER DEFAULT 1'); } catch(e) {}
   // Seed pagine default
-  const pages = ['iscrizioni','verifica','hotel','navetta','maglia','risultati','contact'];
+  const pages = ['iscrizioni','verifica','programma','hotel','navetta','maglia','risultati','contact','cena'];
   for (const p of pages) {
-    db.run('INSERT OR IGNORE INTO page_settings (page, enabled) VALUES (?, 1)', [p]);
+    db.run('INSERT OR IGNORE INTO page_settings (page, enabled, visible) VALUES (?, 1, 1)', [p]);
   }
   const admins = all('SELECT * FROM users WHERE username=?', ['admin']);
   if (!admins.length) {
@@ -189,8 +223,13 @@ app.get('/api/pages', (req, res) => {
 });
 
 app.put('/api/pages/:page', requireAdmin, (req, res) => {
-  const { enabled } = req.body;
-  db.run('UPDATE page_settings SET enabled=? WHERE page=?', [enabled ? 1 : 0, req.params.page]);
+  const { enabled, visible } = req.body;
+  if (enabled !== undefined) {
+    db.run('UPDATE page_settings SET enabled=? WHERE page=?', [enabled ? 1 : 0, req.params.page]);
+  }
+  if (visible !== undefined) {
+    db.run('UPDATE page_settings SET visible=? WHERE page=?', [visible ? 1 : 0, req.params.page]);
+  }
   save();
   res.json({ ok: true });
 });
@@ -365,6 +404,82 @@ app.delete('/api/risultati/:id', (req, res) => {
     if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
   }
   db.run('DELETE FROM risultati WHERE id=?', [+req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+// --- MERCHANDISING API ---
+app.post('/api/merch/ordina', (req, res) => {
+  const { nome, cognome, email, telefono, items, note } = req.body;
+  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+  if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
+
+  const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+  db.run('INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note) VALUES (?,?,?,?,?,?)',
+    [nome, cognome, email || null, telefono || null, codice, note || null]);
+  save();
+  const ordineId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+
+  let totale = 0;
+  for (const item of items) {
+    const prezzo = item.articolo === 'Felpa' ? 30 : 5;
+    db.run('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+      [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
+    totale += prezzo * item.quantita;
+  }
+  save();
+
+  res.json({ codice, totale });
+});
+
+app.get('/api/merch/ordini', (req, res) => {
+  const ordini = all('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+  for (const o of ordini) {
+    o.items = all('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+  }
+  res.json(ordini);
+});
+
+app.delete('/api/merch/ordini/:codice', (req, res) => {
+  const ordine = all('SELECT id FROM merch_ordini WHERE codice=?', [req.params.codice])[0];
+  if (ordine) {
+    db.run('DELETE FROM merch_items WHERE ordine_id=?', [ordine.id]);
+    db.run('DELETE FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    save();
+  }
+  res.json({ ok: true });
+});
+
+// --- CENA ATLETI API ---
+app.post('/api/cena/prenota', (req, res) => {
+  const { nome, cognome, email, telefono, giorni, num_persone, note } = req.body;
+  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+  if (!giorni || !giorni.length) return res.status(400).json({ error: 'Seleziona almeno una serata' });
+  if (num_persone < 1 || num_persone > 10) return res.status(400).json({ error: 'Numero persone non valido (1-10)' });
+
+  const codice = 'CEN-' + Date.now().toString(36).toUpperCase();
+  for (const giorno of giorni) {
+    db.run('INSERT INTO cena_prenotazioni (nome, cognome, email, telefono, giorno, num_persone, note, codice) VALUES (?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, giorno, num_persone, note || null, codice]);
+  }
+  save();
+
+  const totale = giorni.length * num_persone * 20;
+  const nomiGiorni = giorni.map(g => {
+    if (g === '2025-11-13') return 'Gio 13/11';
+    if (g === '2025-11-14') return 'Ven 14/11';
+    return g;
+  });
+  const riepilogo = `${num_persone} persone × ${nomiGiorni.join(' + ')}`;
+  res.json({ codice, totale, riepilogo });
+});
+
+app.get('/api/cena/prenotazioni', (req, res) => {
+  res.json(all('SELECT * FROM cena_prenotazioni ORDER BY giorno, cognome, nome'));
+});
+
+app.delete('/api/cena/prenotazioni/:codice', (req, res) => {
+  db.run('DELETE FROM cena_prenotazioni WHERE codice=?', [req.params.codice]);
   save();
   res.json({ ok: true });
 });

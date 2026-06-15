@@ -1,18 +1,32 @@
-// Page Guard - controlla se la pagina è attiva
+// Page Guard - controlla se la pagina è attiva e gestisce visibilità nel menu
 (async function() {
-  const pageName = location.pathname.replace('/', '').replace('.html', '');
-  if (!pageName || pageName === 'index' || pageName === 'login' || pageName === 'admin') return;
-
   try {
     const res = await fetch('/api/pages');
     const pages = await res.json();
-    const page = pages.find(p => p.page === pageName);
+
+    // Nascondi dal nav i link alle pagine con visible=0
+    const navLinks = document.querySelectorAll('nav a');
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      const pageName = href.replace('.html', '').replace('/', '');
+      const page = pages.find(p => p.page === pageName);
+      if (page && !page.visible) {
+        link.style.display = 'none';
+      }
+    });
+
+    // Controlla se la pagina corrente è disabilitata
+    const currentPage = location.pathname.replace('/', '').replace('.html', '');
+    if (!currentPage || currentPage === 'index' || currentPage === 'login' || currentPage === 'admin') return;
+
+    const page = pages.find(p => p.page === currentPage);
     if (page && !page.enabled) {
-      const lang = getLang ? getLang() : 'it';
-      const t = T ? T[lang] : {};
+      const lang = typeof getLang === 'function' ? getLang() : 'it';
+      const t = (typeof T !== 'undefined') ? T[lang] : {};
       const title = t.pageDisabledTitle || '🚧 Pagina in costruzione';
       const text = t.pageDisabledText || "La pagina è attualmente in costruzione, verrete avvisati non appena sarà disponibile. Scaricate la app e attendete la notifica!";
-      const btn = t.installBtn || '📲 Installa App';
+      const btn = t.installBtn || 'Installa App';
       document.querySelector('main').innerHTML = `
         <div style="text-align:center;padding:3rem 1rem;max-width:600px;margin:0 auto">
           <h2 style="color:#F7AF40;margin-bottom:1rem">${title}</h2>

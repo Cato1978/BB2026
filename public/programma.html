@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programma - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="hotel.html" data-t="hotel">HOTEL</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MERCHANDISING</a>
+      <a href="cena.html" data-t="cena">CENA ATLETI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="programmaTitle">📋 Programma Gara</h2>
+
+      <div class="programma-giorno">
+        <h3>📅 Giovedì 13 Novembre</h3>
+        <div class="programma-item"><span class="ora">08:00 - 09:00</span><span>Accrediti e ritiro pettorali</span></div>
+        <div class="programma-item"><span class="ora">09:30 - 12:30</span><span>Classic Slalom - Qualifiche</span></div>
+        <div class="programma-item"><span class="ora">14:00 - 17:00</span><span>Speed Slalom - Qualifiche</span></div>
+        <div class="programma-item"><span class="ora">17:30 - 19:00</span><span>Classic Slalom - Finali</span></div>
+      </div>
+
+      <div class="programma-giorno">
+        <h3>📅 Venerdì 14 Novembre</h3>
+        <div class="programma-item"><span class="ora">09:00 - 12:00</span><span>Battle - Turni eliminatori</span></div>
+        <div class="programma-item"><span class="ora">12:00 - 13:00</span><span>Pairs - Qualifiche</span></div>
+        <div class="programma-item"><span class="ora">14:30 - 17:00</span><span>Battle - Semifinali e Finali</span></div>
+        <div class="programma-item"><span class="ora">17:30 - 19:00</span><span>Speed Slalom - Finali</span></div>
+      </div>
+
+      <div class="programma-giorno">
+        <h3>📅 Sabato 15 Novembre</h3>
+        <div class="programma-item"><span class="ora">09:00 - 11:00</span><span>Slide - Qualifiche e Finali</span></div>
+        <div class="programma-item"><span class="ora">11:30 - 13:00</span><span>Pairs - Finali</span></div>
+        <div class="programma-item"><span class="ora">15:00 - 16:30</span><span>🏆 Cerimonia di Premiazione</span></div>
+      </div>
+
+      <p style="margin-top:1.5rem;color:#888;font-size:0.85rem" data-t="programmaNote">* Il programma potrebbe subire variazioni. Seguiteci per aggiornamenti in tempo reale.</p>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

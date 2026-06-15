@@ -355,13 +355,17 @@ footer {
 .lang-switcher { display: flex; gap: 0.3rem; }
 .lang-btn {
   background: transparent;
-  border: 1px solid #333;
-  padding: 0.3rem 0.5rem;
+  border: 1px solid #555;
+  padding: 0.3rem 0.6rem;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.85rem;
+  color: #f0f0f0;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
 }
-.lang-btn:hover { border-color: #F7AF40; background: transparent; }
+.lang-btn:hover { border-color: #F7AF40; color: #F7AF40; background: transparent; }
+.lang-btn.active { border-color: #F7AF40; color: #F7AF40; }
 
 /* Hamburger */
 .hamburger {
@@ -420,6 +424,22 @@ footer {
   white-space: nowrap;
 }
 .btn-download:hover { background: #ffc560; }
+
+.programma-giorno { margin: 1.5rem 0; }
+.programma-giorno h3 { color: #F7AF40; margin-bottom: 0.8rem; }
+.programma-item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #222;
+  align-items: center;
+}
+.programma-item .ora {
+  color: #F7AF40;
+  font-weight: 600;
+  min-width: 120px;
+  font-size: 0.9rem;
+}
 
 #install-banner {
   position: fixed;

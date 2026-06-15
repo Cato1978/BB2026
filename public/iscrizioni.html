@@ -12,22 +12,19 @@
   <header>
     <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
     <div class="lang-switcher">
-      <button class="lang-btn" data-lang="it" onclick="setLang('it')">🇮🇹</button>
-      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷</button>
-      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸</button>
-      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇬🇧</button>
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
     </div>
     <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
     <nav>
       <a href="index.html" data-t="home">HOME</a>
       <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
-      <a href="verifica.html" data-t="verifica">VERIFICA ISCRIZIONE</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
       <a href="hotel.html" data-t="hotel">HOTEL</a>
       <a href="navetta.html" data-t="navetta">NAVETTA</a>
-      <a href="maglia.html" data-t="maglia">MAGLIA UFFICIALE</a>
-      <a href="risultati.html" data-t="risultati">RISULTATI</a>
+      <a href="maglia.html" data-t="maglia">MERCHANDISING</a>
+      <a href="cena.html" data-t="cena">CENA ATLETI</a>
       <a href="contact.html" data-t="contact">CONTATTI</a>
-      <a href="#" onclick="installApp()" data-t="app">APP</a>
     </nav>
   </header>
   <main class="page-content">
@@ -43,11 +40,12 @@
         </div>
         <div class="form-row checkbox-row discipline-row">
           <span data-t="selectSpec">Seleziona specialità:</span>
-          <label><input type="checkbox" name="discipline" value="Classic Slalom"> Classic Slalom</label>
-          <label><input type="checkbox" name="discipline" value="Pairs"> Pairs</label>
-          <label><input type="checkbox" name="discipline" value="Battle"> Battle</label>
-          <label><input type="checkbox" name="discipline" value="Speed"> Speed</label>
-          <label><input type="checkbox" name="discipline" value="Slide"> Slide</label>
+          <label><input type="checkbox" name="discipline" value="Speed Slalom"> Speed Slalom ⭐</label>
+          <label><input type="checkbox" name="discipline" value="Classic Slalom"> Classic Slalom ⭐</label>
+          <label><input type="checkbox" name="discipline" value="Battle"> Battle ⭐</label>
+          <label><input type="checkbox" name="discipline" value="Slides"> Slides ⭐⭐</label>
+          <label><input type="checkbox" name="discipline" value="Pair Slalom"> Pair Slalom ⭐⭐</label>
+          <label><input type="checkbox" name="discipline" value="Free Jump"> Free Jump ⭐⭐</label>
         </div>
         <div class="form-row">
           <input type="text" name="societa" data-t="societa" placeholder="Società sportiva">
@@ -67,6 +65,8 @@
         </div>
         <button type="submit" data-t="iscriviti">Iscriviti</button>
       </form>
+      <p style="margin-top:1rem;text-align:center"><a href="verifica.html" style="color:#F7AF40" data-t="verificaLink">🔍 Hai già un'iscrizione? Verificala qui</a></p>
+      <p style="margin-top:0.8rem;text-align:center"><a href="https://www.wespoort.it/modulo-iscrizione-evento?society=fcc80609-c7ee-4982-bc58-29e46d0ea77d&event=c76f51a0-ea37-4a84-8f6d-5e119e42af49&noback=true" target="_blank" style="display:inline-block;background:#F7AF40;color:#000;padding:0.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="wespoortLink">📋 Iscrizione ufficiale Wespoort</a></p>
       <p id="msg" class="msg"></p>
       <div id="payment-info" style="display:none" class="payment-box">
         <h3>✅ Iscrizione completata!</h3>

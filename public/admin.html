@@ -151,37 +151,8 @@
 
   <div id="section-pagine" style="display:none">
     <h3>📄 Gestione Pagine</h3>
-    <p style="color:#888;margin:0.5rem 0">Attiva o disattiva le pagine del sito. Le pagine disattivate mostreranno un messaggio "in costruzione".</p>
+    <p style="color:#888;margin:0.5rem 0">Attiva/disattiva le pagine o nascondile dal menu di navigazione.</p>
     <div id="pagine-list"></div>
-    <script>
-      // Forza caricamento pagine appena il DOM è pronto
-      document.getElementById('tab-pagine').addEventListener('click', function() {
-        fetch('/api/pages')
-          .then(function(r) { return r.json(); })
-          .then(function(pages) {
-            var div = document.getElementById('pagine-list');
-            var html = '';
-            for (var i = 0; i < pages.length; i++) {
-              var p = pages[i];
-              var nome = pageNames[p.page] || p.page;
-              var colore = p.enabled ? '#4ade80' : '#ef4444';
-              var stato = p.enabled ? '✅ Attiva' : '❌ Disattivata';
-              var btnText = p.enabled ? '🚫 Disattiva' : '✅ Attiva';
-              var newState = p.enabled ? 'false' : 'true';
-              html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px">';
-              html += '<span style="color:#f0f0f0;font-weight:600">' + nome + '</span>';
-              html += '<div style="display:flex;align-items:center;gap:0.8rem">';
-              html += '<span style="color:' + colore + ';font-size:0.9rem">' + stato + '</span>';
-              html += '<button onclick="togglePage(\'' + p.page + '\',' + newState + ')" style="padding:0.4rem 0.8rem;font-size:0.85rem">' + btnText + '</button>';
-              html += '</div></div>';
-            }
-            div.innerHTML = html;
-          })
-          .catch(function(e) {
-            document.getElementById('pagine-list').innerHTML = '<p style="color:red">Errore: ' + e.message + '</p>';
-          });
-      });
-    </script>
   </div>
 
   <div id="modal" class="modal" style="display:none">
@@ -524,11 +495,13 @@
     const pageNames = {
       iscrizioni: 'Iscrizioni',
       verifica: 'Verifica Iscrizione',
+      programma: 'Programma',
       hotel: 'Hotel',
       navetta: 'Navetta',
-      maglia: 'Maglia Ufficiale',
+      maglia: 'Merchandising',
       risultati: 'Risultati',
-      contact: 'Contatti'
+      contact: 'Contatti',
+      cena: 'Cena Atleti'
     };
 
     async function caricaPagine() {
@@ -536,23 +509,30 @@
       div.innerHTML = 'Caricamento...';
       const res = await fetch('/api/pages');
       const pages = await res.json();
-      console.log('Pages:', pages);
       if (!pages.length) { div.innerHTML = '<p>Nessuna pagina trovata</p>'; return; }
       div.innerHTML = '';
       pages.forEach(p => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px';
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px;flex-wrap:wrap;gap:0.5rem';
+        const visible = p.visible !== undefined ? p.visible : 1;
         row.innerHTML = `
-          <span style="color:#f0f0f0;font-weight:600">${pageNames[p.page] || p.page}</span>
-          <div style="display:flex;align-items:center;gap:0.8rem">
-            <span style="color:${p.enabled ? '#4ade80' : '#ef4444'};font-size:0.9rem">${p.enabled ? '\u2705 Attiva' : '\u274c Disattivata'}</span>
-            <button style="padding:0.4rem 0.8rem;font-size:0.85rem" data-page="${p.page}" data-enabled="${p.enabled}">
-              ${p.enabled ? '\ud83d\udeab Disattiva' : '\u2705 Attiva'}
+          <span style="color:#f0f0f0;font-weight:600;min-width:140px">${pageNames[p.page] || p.page}</span>
+          <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+            <span style="color:${p.enabled ? '#4ade80' : '#ef4444'};font-size:0.85rem">${p.enabled ? '✅ Attiva' : '❌ Disattivata'}</span>
+            <button class="btn-toggle-enabled" data-page="${p.page}" data-enabled="${p.enabled}" style="padding:0.3rem 0.6rem;font-size:0.8rem">
+              ${p.enabled ? '🚫 Disattiva' : '✅ Attiva'}
+            </button>
+            <span style="color:${visible ? '#60a5fa' : '#888'};font-size:0.85rem">${visible ? '👁️ Menu' : '🙈 Nascosta'}</span>
+            <button class="btn-toggle-visible" data-page="${p.page}" data-visible="${visible}" style="padding:0.3rem 0.6rem;font-size:0.8rem">
+              ${visible ? '🙈 Nascondi' : '👁️ Mostra'}
             </button>
           </div>
         `;
-        row.querySelector('button').addEventListener('click', function() {
+        row.querySelector('.btn-toggle-enabled').addEventListener('click', function() {
           togglePage(this.dataset.page, this.dataset.enabled === '1' ? false : true);
+        });
+        row.querySelector('.btn-toggle-visible').addEventListener('click', function() {
+          toggleVisible(this.dataset.page, this.dataset.visible === '1' ? false : true);
         });
         div.appendChild(row);
       });
@@ -563,6 +543,15 @@
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled })
+      });
+      caricaPagine();
+    }
+
+    async function toggleVisible(page, visible) {
+      await fetch('/api/pages/' + page, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible })
       });
       caricaPagine();
     }
