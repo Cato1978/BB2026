@@ -27,7 +27,7 @@ function showNotificationBanner(reg) {
   const banner = document.createElement('div');
   banner.id = 'notif-banner';
   banner.innerHTML = `
-    <span>🔔 Vuoi ricevere notifiche live durante la gara?</span>
+    <span>🔔 Vuoi restare aggiornato sulle novità?</span>
     <button id="notif-yes">Attiva</button>
     <button id="notif-close">✕</button>
   `;
