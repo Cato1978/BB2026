@@ -276,7 +276,10 @@
           <textarea id="note" data-t="notePlaceholder" placeholder="Note aggiuntive (opzionale)"></textarea>
         </div>
 
-        <button type="submit" data-t="inviaIscrizione">Invia Iscrizione</button>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
+          <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#222;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
+          <button type="button" id="btn-online" onclick="submitIscrizione('online')" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
+        </div>
         <p class="msg" id="msg"></p>
       </form>
     </section>
@@ -303,7 +306,7 @@
         <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
       </div>
       <p class="footer-email">✉️ info@bustobattle.it</p>
-      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
     </div>
   </footer>
   <script src="translations.js"></script>
@@ -457,11 +460,11 @@
       });
     });
 
-    // Submit form
-    document.getElementById('form-iscrizione').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    // Submit form - paymentMethod può essere 'bonifico' o 'online'
+    async function submitIscrizione(paymentMethod) {
       const msg = document.getElementById('msg');
       msg.textContent = '';
+      msg.style.color = '';
 
       // Validazione genere
       const genere = document.querySelector('input[name="genere"]:checked');
@@ -503,6 +506,16 @@
         return;
       }
 
+      // Validazioni campi base
+      const nome = document.getElementById('nome').value.trim();
+      const cognome = document.getElementById('cognome').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (!nome || !cognome || !email) {
+        msg.textContent = getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori';
+        msg.style.color = '#f44336';
+        return;
+      }
+
       // Costruisci categoria con dettaglio per ogni disciplina
       const disciplineConCategoria = [];
       checkedBoxes.forEach(cb => {
@@ -538,37 +551,121 @@
       }
 
       const data = {
-        nome: document.getElementById('nome').value.trim(),
-        cognome: document.getElementById('cognome').value.trim(),
+        nome: nome,
+        cognome: cognome,
         data_nascita: document.getElementById('data_nascita').value || null,
         societa: document.getElementById('societa').value.trim() || null,
-        email: document.getElementById('email').value.trim(),
+        email: email,
         telefono: document.getElementById('telefono').value.trim() || null,
         categoria: disciplineConCategoria.join(', '),
         note: noteFinali.join(' | ')
       };
 
+      // Disabilita bottoni durante l'operazione
+      document.getElementById('btn-bonifico').disabled = true;
+      document.getElementById('btn-online').disabled = true;
+
       try {
+        // Prima registra l'iscritto
         const res = await fetch('/api/iscritti', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
         const result = await res.json();
-        if (res.ok) {
-          // Mostra conferma
-          document.querySelector('.form-section').style.display = 'none';
-          document.getElementById('conferma').style.display = 'block';
-          document.getElementById('codice-iscrizione').textContent = result.codice;
-          document.getElementById('causale-bonifico').textContent = `${result.codice} - ${data.nome} ${data.cognome}`;
-          document.getElementById('importo-bonifico').textContent = '€' + totale;
-        } else {
+        
+        if (!res.ok) {
           msg.textContent = result.error || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
           msg.style.color = '#f44336';
+          document.getElementById('btn-bonifico').disabled = false;
+          document.getElementById('btn-online').disabled = false;
+          return;
+        }
+
+        const codice = result.codice;
+        const iscritto_id = result.id;
+
+        if (paymentMethod === 'online') {
+          // Pagamento con Stripe
+          msg.textContent = getLang() === 'en' ? 'Redirecting to payment...' : 'Reindirizzamento al pagamento...';
+          msg.style.color = '#F7AF40';
+
+          const descrizione = `${data.nome} ${data.cognome} - ${disciplineConCategoria.join(', ')}`;
+          
+          const stripeRes = await fetch('/api/stripe/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              iscritto_id: iscritto_id,
+              totale: totale,
+              descrizione: descrizione
+            })
+          });
+          const stripeResult = await stripeRes.json();
+
+          if (stripeRes.ok && stripeResult.url) {
+            // Redirect a Stripe Checkout
+            window.location.href = stripeResult.url;
+          } else {
+            // Errore Stripe, mostra comunque conferma con info bonifico
+            console.error('Stripe error:', stripeResult.error);
+            msg.textContent = (getLang() === 'en' ? 'Online payment error. Use bank transfer.' : 'Errore pagamento online. Usa il bonifico.') + ' ' + (stripeResult.error || '');
+            msg.style.color = '#f59e0b';
+            showConferma(codice, data, totale);
+          }
+        } else {
+          // Pagamento con bonifico
+          showConferma(codice, data, totale);
         }
       } catch (err) {
         msg.textContent = getLang() === 'en' ? 'Network error. Try again.' : 'Errore di rete. Riprova.';
         msg.style.color = '#f44336';
+        document.getElementById('btn-bonifico').disabled = false;
+        document.getElementById('btn-online').disabled = false;
+      }
+    }
+
+    function showConferma(codice, data, totale) {
+      document.querySelector('.form-section').style.display = 'none';
+      document.getElementById('conferma').style.display = 'block';
+      document.getElementById('codice-iscrizione').textContent = codice;
+      document.getElementById('causale-bonifico').textContent = `${codice} - ${data.nome} ${data.cognome}`;
+      document.getElementById('importo-bonifico').textContent = '€' + totale;
+    }
+
+    // Gestisce parametri URL per risultato pagamento Stripe
+    window.addEventListener('DOMContentLoaded', function() {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get('payment');
+      const codice = params.get('codice');
+      
+      if (payment === 'success' && codice) {
+        document.querySelector('.form-section').style.display = 'none';
+        document.getElementById('conferma').style.display = 'block';
+        document.getElementById('codice-iscrizione').textContent = codice;
+        
+        // Aggiorna messaggio per pagamento completato
+        const confH2 = document.querySelector('#conferma h2');
+        confH2.innerHTML = '✅ <span data-t="pagamentoSuccesso">' + (getLang() === 'en' ? 'Payment completed successfully!' : 'Pagamento completato con successo!') + '</span>';
+        
+        // Nascondi istruzioni bonifico visto che già pagato
+        const istruzioni = document.querySelector('#conferma .info div[style*="border"]');
+        if (istruzioni) istruzioni.style.display = 'none';
+        
+        // Mostra messaggio conferma
+        const riceveraiEmail = document.querySelector('#conferma p[data-t="riceveraiEmail"]');
+        if (riceveraiEmail) {
+          riceveraiEmail.textContent = getLang() === 'en' ? 'Your payment has been received. You will receive a confirmation email shortly.' : 'Il pagamento è stato ricevuto. Riceverai presto una email di conferma.';
+        }
+      } else if (payment === 'cancel' && codice) {
+        document.querySelector('.form-section').style.display = 'none';
+        document.getElementById('conferma').style.display = 'block';
+        document.getElementById('codice-iscrizione').textContent = codice;
+        
+        // Aggiorna messaggio per pagamento annullato
+        const confH2 = document.querySelector('#conferma h2');
+        confH2.innerHTML = '⚠️ <span data-t="pagamentoAnnullato">' + (getLang() === 'en' ? 'Payment cancelled. You can complete payment via bank transfer.' : 'Pagamento annullato. Puoi completare il pagamento via bonifico.') + '</span>';
+        confH2.style.color = '#f59e0b';
       }
     });
   </script>

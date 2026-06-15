@@ -7,6 +7,10 @@ const multer = require('multer');
 const webpush = require('web-push');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const Stripe = require('stripe');
+
+// Stripe config - imposta la chiave segreta nelle variabili d'ambiente
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
 
 const app = express();
 app.use(express.json());
@@ -336,6 +340,83 @@ app.delete('/api/iscritti/:id', (req, res) => {
   db.run('DELETE FROM iscritti WHERE id=?', [+req.params.id]);
   save();
   res.json({ ok: true });
+});
+
+// --- STRIPE CHECKOUT API ---
+app.post('/api/stripe/create-checkout', async (req, res) => {
+  try {
+    const { iscritto_id, totale, descrizione, success_url, cancel_url } = req.body;
+    
+    if (!iscritto_id || !totale) {
+      return res.status(400).json({ error: 'Dati mancanti' });
+    }
+
+    // Recupera l'iscritto
+    const iscritto = all('SELECT * FROM iscritti WHERE id=?', [+iscritto_id])[0];
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+
+    const codice = 'BB11-' + String(iscritto_id).padStart(4, '0');
+    
+    // Crea sessione Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Iscrizione Busto Battle XI - ${codice}`,
+            description: descrizione || `${iscritto.nome} ${iscritto.cognome} - ${iscritto.categoria || 'N/D'}`,
+          },
+          unit_amount: Math.round(totale * 100), // Stripe usa centesimi
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: success_url || `${req.protocol}://${req.get('host')}/iscrizioni2.html?payment=success&codice=${codice}`,
+      cancel_url: cancel_url || `${req.protocol}://${req.get('host')}/iscrizioni2.html?payment=cancel&codice=${codice}`,
+      metadata: {
+        iscritto_id: String(iscritto_id),
+        codice: codice
+      },
+      customer_email: iscritto.email || undefined,
+    });
+
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Webhook Stripe per confermare pagamento (opzionale, per server sempre attivi)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  if (!endpointSecret) {
+    return res.status(400).send('Webhook secret non configurato');
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const iscritto_id = session.metadata?.iscritto_id;
+    if (iscritto_id) {
+      db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [+iscritto_id]);
+      save();
+      console.log(`Pagamento confermato per iscritto ${iscritto_id}`);
+    }
+  }
+
+  res.json({ received: true });
 });
 
 // --- NAVETTA API ---
