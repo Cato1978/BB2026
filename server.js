@@ -543,6 +543,15 @@ app.get('/api/admin/simulating', requireAdmin, (req, res) => {
 
 app.post('/api/iscritti', async (req, res) => {
   const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note } = req.body;
+  
+  // Validazione età minima (nati dal 2016 o prima)
+  if (data_nascita) {
+    const annoNascita = parseInt(data_nascita.split('-')[0]);
+    if (annoNascita > 2016) {
+      return res.status(400).json({ error: 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)' });
+    }
+  }
+  
   db.run(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);

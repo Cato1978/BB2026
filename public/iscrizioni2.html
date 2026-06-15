@@ -510,8 +510,25 @@
       const nome = document.getElementById('nome').value.trim();
       const cognome = document.getElementById('cognome').value.trim();
       const email = document.getElementById('email').value.trim();
+      const dataNascita = document.getElementById('data_nascita').value;
+      
       if (!nome || !cognome || !email) {
         msg.textContent = getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      // Validazione data nascita obbligatoria
+      if (!dataNascita) {
+        msg.textContent = getLang() === 'en' ? 'Enter date of birth' : 'Inserisci la data di nascita';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      // Validazione età minima (nati dal 2016 o prima)
+      const annoNascita = parseInt(dataNascita.split('-')[0]);
+      if (annoNascita > 2016) {
+        msg.textContent = getLang() === 'en' ? 'Athletes must be born in 2016 or earlier (minimum age U15)' : 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)';
         msg.style.color = '#f44336';
         return;
       }
