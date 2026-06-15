@@ -3,53 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prenotazione Prove - Busto Battle XI</title>
+  <title>Prenotazione Prove Pista - Busto Battle XI</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#F7AF40">
   <style>
     .prove-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 0.8rem;
-      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
     }
-    .prova-item {
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 6px;
-      padding: 0.8rem;
-    }
-    .prova-item.esaurita {
-      opacity: 0.5;
-    }
-    .prova-item label {
+    .prove-grid label {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
-      color: #ddd;
+      align-items: center;
+      padding: 0.8rem 1rem;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #ccc;
       cursor: pointer;
+      font-size: 0.9rem;
+      min-width: 120px;
     }
-    .prova-item input[type="checkbox"] {
-      margin-right: 0.5rem;
+    .prove-grid label:hover {
+      border-color: #F7AF40;
     }
-    .posti-info {
-      font-size: 0.8rem;
+    .prove-grid input:checked + span {
+      color: #F7AF40;
+    }
+    .prove-grid label:has(input:checked) {
+      border-color: #F7AF40;
+      background: #1a1a1a;
+    }
+    .prove-grid label.esaurito {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .slot-info {
+      font-size: 0.75rem;
       color: #888;
+      margin-top: 0.3rem;
     }
-    .posti-info.esaurita {
-      color: #e74c3c;
-    }
-    .payment-box {
-      margin-top: 1.5rem;
-      padding: 1.5rem;
-      background: #0a2a0a;
-      border: 2px solid #4CAF50;
-      border-radius: 8px;
-    }
-    .payment-box h3 {
-      color: #4CAF50;
-      margin-bottom: 0.5rem;
+    .slot-posti {
+      font-size: 0.7rem;
+      margin-top: 0.2rem;
     }
   </style>
 </head>
@@ -72,44 +71,57 @@
       <a href="contact.html" data-t="contact">CONTATTI</a>
     </nav>
   </header>
+  
   <main class="page-content">
     <section class="info">
-      <h2>🛼 Prenotazione Prove Pista</h2>
-      <p><strong>Luogo:</strong> PalaCastiglioni</p>
-      <p><strong>Costo:</strong> €10 a persona per ora</p>
-      <p><strong>Giorno:</strong> Sabato 14 Novembre 2026 (mattina)</p>
-      <p style="margin-top:0.8rem;color:#F7AF40"><strong>ℹ️ Prenota le tue sessioni di prova pista prima della gara!</strong></p>
+      <h2>🛼 <span data-t="provePageTitle">Prenotazione Prove Pista</span></h2>
+      <p data-t="provePageDesc">Prenota le tue sessioni di prova pista per il sabato mattina.</p>
+      <p style="color:#F7AF40;font-weight:600">€10 <span data-t="perOgniOra">per ogni ora selezionata</span></p>
     </section>
 
     <section class="form-section">
-      <h2>Prenota Sessioni di Prova</h2>
       <form id="form-prove">
+        <h3 style="color:#F7AF40;margin-bottom:1rem" data-t="tuoiDati">I tuoi dati</h3>
         <div class="form-row">
-          <input type="text" name="nome" placeholder="Nome *" required>
-          <input type="text" name="cognome" placeholder="Cognome *" required>
+          <input type="text" id="nome" placeholder="Nome *" required>
+          <input type="text" id="cognome" placeholder="Cognome *" required>
         </div>
         <div class="form-row">
-          <input type="email" name="email" placeholder="Email">
-          <input type="tel" name="telefono" placeholder="Telefono">
+          <input type="email" id="email" placeholder="Email *" required>
+          <input type="tel" id="telefono" placeholder="Telefono">
         </div>
 
-        <h3 style="margin:1.5rem 0 0.5rem;color:#F7AF40">📅 Sabato 14 Novembre - Sessioni disponibili</h3>
-        <div id="prove-container" class="prove-grid"></div>
-
-        <div id="totale-prove" style="margin-top:1rem;padding:1rem;background:#111;border:1px solid #F7AF40;border-radius:6px;display:none">
-          <p style="margin:0"><strong>Totale:</strong> <span id="prove-totale" style="color:#F7AF40;font-size:1.2rem">€0</span></p>
+        <h3 style="color:#F7AF40;margin:1.5rem 0 0.5rem" data-t="selezionaSessioni">Seleziona le sessioni</h3>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem" data-t="proveInfoDate">Sabato 14 Novembre 2026 @ PalaCastiglioni</p>
+        
+        <div class="prove-grid" id="prove-container">
+          <p style="color:#888">Caricamento disponibilità...</p>
         </div>
 
-        <button type="submit" style="margin-top:1rem">Prenota Prove</button>
+        <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
+          <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
+        </div>
+
+        <button type="submit" data-t="prenotaProve">Prenota Prove</button>
+        <p class="msg" id="msg"></p>
       </form>
-      <div id="prove-result" style="display:none" class="payment-box">
-        <h3>✅ Prenotazione confermata!</h3>
-        <p><strong>Codice prenotazione:</strong> <span id="prove-codice"></span></p>
-        <p><strong>Totale:</strong> <span id="prove-totale-conf"></span></p>
-        <p style="margin-top:0.5rem">Conserva il codice per eventuali modifiche.</p>
+    </section>
+
+    <section class="info" id="conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="prenotazioneConfermata">Prenotazione Confermata!</span></h2>
+      <p data-t="codicePrenotazione">Il tuo codice di prenotazione è:</p>
+      <p id="codice-prenotazione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p id="riepilogo-sessioni" style="color:#ccc;margin:1rem 0"></p>
+      <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
+        <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
+        <p style="margin:0.3rem 0;color:#ccc"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="intestatario">Intestatario:</strong> ASD Busto Battle</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="causale">Causale:</strong> <span id="causale-bonifico"></span></p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
       </div>
     </section>
   </main>
+
   <footer>
     <div class="footer-content">
       <div class="social-links">
@@ -117,106 +129,118 @@
         <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
       </div>
       <p class="footer-email">✉️ info@bustobattle.it</p>
-      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
     </div>
   </footer>
+
   <script src="translations.js"></script>
   <script src="page-guard.js"></script>
+  <script src="app.js"></script>
   <script>
     const PREZZO_ORA = 10;
-    let config, disponibilita;
+    let proveDisponibilita = {};
 
-    async function init() {
-      const [cfgRes, dispRes] = await Promise.all([
-        fetch('/api/prove/config'),
-        fetch('/api/prove/disponibilita')
-      ]);
-      config = await cfgRes.json();
-      disponibilita = await dispRes.json();
-      renderProve();
-    }
-
-    function renderProve() {
-      const container = document.getElementById('prove-container');
-      let html = '';
-      
-      for (const slot of config.slots) {
-        const posti = disponibilita[slot.ora] || 0;
-        const esaurita = posti <= 0;
-        
-        html += `<div class="prova-item ${esaurita ? 'esaurita' : ''}">
-          <label>
-            <div style="display:flex;align-items:center">
-              <input type="checkbox" class="prova-check" data-ora="${slot.ora}" ${esaurita ? 'disabled' : ''}>
-              <strong style="color:#F7AF40">${slot.ora}</strong>
-            </div>
-            <span class="posti-info ${esaurita ? 'esaurita' : ''}">${esaurita ? 'ESAURITA' : posti + ' posti disponibili'}</span>
-          </label>
-        </div>`;
+    async function caricaDisponibilita() {
+      try {
+        const res = await fetch('/api/prove/disponibilita');
+        proveDisponibilita = await res.json();
+        renderSlots();
+      } catch (e) {
+        console.error('Errore caricamento prove:', e);
+        document.getElementById('prove-container').innerHTML = '<p style="color:#f44336">Errore caricamento disponibilità</p>';
       }
-      
-      container.innerHTML = html;
-
-      document.querySelectorAll('.prova-check').forEach(cb => {
-        cb.addEventListener('change', updateTotaleProve);
-      });
     }
 
-    function updateTotaleProve() {
-      const checked = document.querySelectorAll('.prova-check:checked').length;
+    function renderSlots() {
+      const container = document.getElementById('prove-container');
+      const entries = Object.entries(proveDisponibilita);
+      
+      if (!entries.length) {
+        container.innerHTML = '<p style="color:#888" data-t="nessunoSlot">Nessuno slot disponibile al momento</p>';
+        return;
+      }
+
+      container.innerHTML = entries.map(([ora, data]) => {
+        const posti = typeof data === 'object' ? data.posti : data;
+        const luogo = typeof data === 'object' ? data.luogo : 'PalaCastiglioni';
+        const postiMax = typeof data === 'object' ? data.posti_max : 20;
+        const esaurito = posti <= 0;
+        const quasi = posti > 0 && posti <= 5;
+        const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
+        
+        return `<label class="${esaurito ? 'esaurito' : ''}">
+          <input type="checkbox" name="prove" value="${ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''} style="display:none">
+          <span style="font-weight:600;font-size:1rem">${ora}</span>
+          <span class="slot-info">📍 ${luogo}</span>
+          <span class="slot-posti" style="color:${color}">${esaurito ? 'Esaurito' : `${posti}/${postiMax} posti`}</span>
+        </label>`;
+      }).join('');
+    }
+
+    function updateTotale() {
+      const checked = document.querySelectorAll('input[name="prove"]:checked').length;
       const totale = checked * PREZZO_ORA;
-      const box = document.getElementById('totale-prove');
+      const box = document.getElementById('totale-box');
       
       if (checked > 0) {
         box.style.display = 'block';
-        document.getElementById('prove-totale').textContent = '€' + totale;
+        document.getElementById('totale').textContent = '€' + totale;
       } else {
         box.style.display = 'none';
       }
     }
 
-    document.getElementById('form-prove').addEventListener('submit', async e => {
+    document.getElementById('form-prove').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
-      const checks = document.querySelectorAll('.prova-check:checked');
-      
-      if (!checks.length) {
-        alert('Seleziona almeno una sessione di prova');
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+
+      const nome = document.getElementById('nome').value.trim();
+      const cognome = document.getElementById('cognome').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const telefono = document.getElementById('telefono').value.trim();
+
+      const sessioni = Array.from(document.querySelectorAll('input[name="prove"]:checked')).map(cb => cb.value);
+
+      if (!nome || !cognome || !email) {
+        msg.textContent = getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori';
+        msg.style.color = '#f44336';
         return;
       }
 
-      const sessioni = [];
-      checks.forEach(cb => {
-        sessioni.push(cb.dataset.ora);
-      });
+      if (sessioni.length === 0) {
+        msg.textContent = getLang() === 'en' ? 'Select at least one session' : 'Seleziona almeno una sessione';
+        msg.style.color = '#f44336';
+        return;
+      }
 
-      const res = await fetch('/api/prove/prenota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: fd.get('nome'),
-          cognome: fd.get('cognome'),
-          email: fd.get('email'),
-          telefono: fd.get('telefono'),
-          sessioni
-        })
-      });
-
-      if (res.ok) {
+      try {
+        const res = await fetch('/api/prove/prenota', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cognome, email, telefono, sessioni })
+        });
         const result = await res.json();
-        document.getElementById('prove-codice').textContent = result.codice;
-        document.getElementById('prove-totale-conf').textContent = '€' + result.totale;
-        document.getElementById('prove-result').style.display = 'block';
-        document.querySelector('.form-section form').style.display = 'none';
-        init();
-      } else {
-        const err = await res.json();
-        alert(err.error);
+
+        if (res.ok) {
+          document.querySelector('.form-section').style.display = 'none';
+          document.getElementById('conferma').style.display = 'block';
+          document.getElementById('codice-prenotazione').textContent = result.codice;
+          document.getElementById('riepilogo-sessioni').textContent = `Sessioni: ${sessioni.join(', ')}`;
+          document.getElementById('causale-bonifico').textContent = `${result.codice} - ${nome} ${cognome} - Prove Pista`;
+          document.getElementById('importo-bonifico').textContent = '€' + result.totale;
+        } else {
+          msg.textContent = result.error || 'Errore durante la prenotazione';
+          msg.style.color = '#f44336';
+        }
+      } catch (err) {
+        msg.textContent = getLang() === 'en' ? 'Network error. Try again.' : 'Errore di rete. Riprova.';
+        msg.style.color = '#f44336';
       }
     });
 
-    init();
+    // Carica disponibilità al load
+    caricaDisponibilita();
   </script>
-  <script src="app.js"></script>
 </body>
 </html>

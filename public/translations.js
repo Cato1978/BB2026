@@ -128,7 +128,17 @@ const T = {
     proveDesc: "Sabato 14 Novembre mattina @ PalaCastiglioni",
     proveCosto: "€10 per ogni ora selezionata",
     proveMax: "Max 20 persone per sessione",
-    notePlaceholder: "Note aggiuntive (opzionale)"
+    notePlaceholder: "Note aggiuntive (opzionale)",
+    provePageTitle: "Prenotazione Prove Pista",
+    provePageDesc: "Prenota le tue sessioni di prova pista per il sabato mattina.",
+    perOgniOra: "per ogni ora selezionata",
+    tuoiDati: "I tuoi dati",
+    selezionaSessioni: "Seleziona le sessioni",
+    proveInfoDate: "Sabato 14 Novembre 2026 @ PalaCastiglioni",
+    prenotaProve: "Prenota Prove",
+    prenotazioneConfermata: "Prenotazione Confermata!",
+    codicePrenotazione: "Il tuo codice di prenotazione è:",
+    nessunoSlot: "Nessuno slot disponibile al momento"
   },
 
   en: {
@@ -258,7 +268,17 @@ const T = {
     proveDesc: "Saturday November 14 morning @ PalaCastiglioni",
     proveCosto: "€10 for each selected hour",
     proveMax: "Max 20 people per session",
-    notePlaceholder: "Additional notes (optional)"
+    notePlaceholder: "Additional notes (optional)",
+    provePageTitle: "Practice Session Booking",
+    provePageDesc: "Book your practice sessions for Saturday morning.",
+    perOgniOra: "for each selected hour",
+    tuoiDati: "Your details",
+    selezionaSessioni: "Select sessions",
+    proveInfoDate: "Saturday November 14, 2026 @ PalaCastiglioni",
+    prenotaProve: "Book Practice",
+    prenotazioneConfermata: "Booking Confirmed!",
+    codicePrenotazione: "Your booking code is:",
+    nessunoSlot: "No slots available at the moment"
   },
 
 };
