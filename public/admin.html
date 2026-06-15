@@ -38,10 +38,11 @@
     </div>
 
     <div id="section-iscritti">
-    <div class="stats">
+    <div class="stats" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
       <span id="totale">Totale: 0</span>
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
+      <button onclick="exportExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -273,6 +274,10 @@
     async function logout() {
       await fetch('/api/logout', { method: 'POST' });
       window.location.href = '/login.html';
+    }
+
+    function exportExcel() {
+      window.location.href = '/api/iscritti/export';
     }
 
     let iscritti = [];

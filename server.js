@@ -8,6 +8,7 @@ const webpush = require('web-push');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const Stripe = require('stripe');
+const ExcelJS = require('exceljs');
 
 // Stripe config - imposta la chiave segreta nelle variabili d'ambiente
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
@@ -206,19 +207,90 @@ async function initDb() {
   // Seed utenti demo se tabella iscritti è vuota
   const count = all('SELECT COUNT(*) as c FROM iscritti');
   if (count[0].c === 0) {
-    const demo = [
-      ['Marco', 'Rossi', '1995-03-12', 'Classic Slalom, Battle', 'ASD Pattinatori Milano', 'marco.rossi@email.com', '3331234567'],
-      ['Laura', 'Bianchi', '1998-07-22', 'Speed, Slide', 'Skating Club Torino', 'laura.bianchi@email.com', '3339876543'],
-      ['Pierre', 'Dupont', '1992-11-05', 'Classic Slalom, Pairs, Battle', 'Lyon Freestyle', 'pierre.dupont@email.com', '0033612345'],
-      ['Sofia', 'Garcia', '2001-01-18', 'Battle, Speed', 'Madrid Skating', 'sofia.garcia@email.com', '0034678901'],
-      ['James', 'Smith', '1999-09-30', 'Classic Slalom, Speed, Slide', 'London Rollers', 'james.smith@email.com', '0044712345'],
-    ];
-    for (const [nome, cognome, nascita, cat, soc, email, tel] of demo) {
-      db.run('INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono) VALUES (?,?,?,?,?,?,?)',
-        [nome, cognome, nascita, cat, soc, email, tel]);
-    }
+    seedDemoAthletes();
   }
   save();
+}
+
+function seedDemoAthletes() {
+  const nomiM = ['Marco', 'Luca', 'Alessandro', 'Andrea', 'Matteo', 'Lorenzo', 'Davide', 'Federico', 'Simone', 'Riccardo', 'Pierre', 'Jean', 'Hans', 'Klaus', 'Erik', 'Sven', 'James', 'Michael', 'Thomas', 'Carlos', 'Pablo', 'Miguel', 'João', 'Pedro', 'Anton', 'Dmitri', 'Yuki', 'Kenji', 'Chen', 'Wei'];
+  const nomiF = ['Giulia', 'Francesca', 'Sara', 'Chiara', 'Valentina', 'Elisa', 'Martina', 'Alessia', 'Giorgia', 'Elena', 'Marie', 'Sophie', 'Anna', 'Emma', 'Lisa', 'Nina', 'Sarah', 'Emily', 'Laura', 'Maria', 'Carmen', 'Ana', 'Lucia', 'Marta', 'Olga', 'Natasha', 'Yuki', 'Sakura', 'Mei', 'Lin'];
+  const cognomi = ['Rossi', 'Bianchi', 'Ferrari', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno', 'Gallo', 'Conti', 'De Luca', 'Mancini', 'Costa', 'Giordano', 'Rizzo', 'Lombardi', 'Moretti', 'Barbieri', 'Fontana', 'Dupont', 'Martin', 'Bernard', 'Müller', 'Schmidt', 'Weber', 'Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Martinez', 'Rodriguez', 'Lopez', 'Silva', 'Santos', 'Oliveira', 'Petrov', 'Ivanov', 'Tanaka', 'Yamamoto', 'Wang', 'Li', 'Zhang', 'Kim', 'Park'];
+  const societa = ['ASD Pattinatori Milano', 'Skating Club Torino', 'Roma Roller', 'Firenze Skate', 'Bologna Freestyle', 'Napoli Skating', 'Genova Rollers', 'Verona Inline', 'Padova Skate Club', 'Trieste Freestyle', 'Lyon Freestyle', 'Paris Roller', 'Marseille Skate', 'Berlin Inline', 'Munich Rollers', 'Vienna Skating', 'London Rollers', 'Manchester Skate', 'Madrid Skating', 'Barcelona Roller', 'Lisbon Skate', 'Amsterdam Inline', 'Brussels Freestyle', 'Zurich Rollers', 'Prague Skating', 'Warsaw Inline', 'Budapest Rollers', 'Moscow Skate', 'Tokyo Inline', 'Seoul Rollers'];
+  const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Pair Slalom', 'Free Jump'];
+  const taglie = ['XS', 'S', 'M', 'L', 'XL'];
+  
+  // Funzione per generare data nascita in base alla categoria desiderata
+  function randomDate(categoria) {
+    let yearMin, yearMax;
+    if (categoria === 'U15') { yearMin = 2012; yearMax = 2016; }
+    else if (categoria === 'U19') { yearMin = 2008; yearMax = 2011; }
+    else { yearMin = 1985; yearMax = 2007; } // SENIOR
+    const year = yearMin + Math.floor(Math.random() * (yearMax - yearMin + 1));
+    const month = String(1 + Math.floor(Math.random() * 12)).padStart(2, '0');
+    const day = String(1 + Math.floor(Math.random() * 28)).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function randomPhone(country) {
+    const prefixes = { IT: '33', FR: '06', DE: '017', ES: '06', UK: '07', US: '55' };
+    const prefix = prefixes[country] || '33';
+    return prefix + Math.floor(10000000 + Math.random() * 90000000);
+  }
+
+  function randomWsId() {
+    return 'WS' + Math.floor(100000 + Math.random() * 900000);
+  }
+
+  function randomFisrCard() {
+    return 'FISR' + Math.floor(10000 + Math.random() * 90000);
+  }
+
+  // Genera 100 atleti
+  for (let i = 0; i < 100; i++) {
+    const genere = Math.random() > 0.45 ? 'M' : 'F'; // 55% maschi
+    const nome = genere === 'M' ? nomiM[Math.floor(Math.random() * nomiM.length)] : nomiF[Math.floor(Math.random() * nomiF.length)];
+    const cognome = cognomi[Math.floor(Math.random() * cognomi.length)];
+    const soc = societa[Math.floor(Math.random() * societa.length)];
+    const email = `${nome.toLowerCase()}.${cognome.toLowerCase().replace(' ', '')}${Math.floor(Math.random() * 100)}@email.com`;
+    
+    // Categoria: distribuzione realistica
+    const catRnd = Math.random();
+    let categoria;
+    if (catRnd < 0.25) categoria = 'U15';
+    else if (catRnd < 0.5) categoria = 'U19';
+    else categoria = 'SENIOR';
+    
+    const dataNascita = randomDate(categoria);
+    const telefono = randomPhone(soc.includes('Milan') || soc.includes('Roma') || soc.includes('Torino') ? 'IT' : 'FR');
+    
+    // Discipline random (1-4 discipline)
+    const numDisc = 1 + Math.floor(Math.random() * 4);
+    const discShuffle = [...discipline].sort(() => Math.random() - 0.5);
+    const discScelte = discShuffle.slice(0, numDisc).map(d => `${d} (${categoria})`);
+    
+    // Taglia maglia e eventuale felpa
+    const tagliaMaglia = taglie[Math.floor(Math.random() * taglie.length)];
+    const vuoleFelpa = Math.random() > 0.7; // 30% vuole felpa
+    const tagliaFelpa = vuoleFelpa ? taglie[Math.floor(Math.random() * taglie.length)] : null;
+    
+    // Tessere (almeno una)
+    const hasWsId = Math.random() > 0.3;
+    const hasFisr = Math.random() > 0.5 || !hasWsId;
+    const wsId = hasWsId ? randomWsId() : null;
+    const fisrCard = hasFisr ? randomFisrCard() : null;
+    
+    // Costruisci note nel formato del form
+    let note = [`Genere: ${genere}`];
+    if (wsId) note.push(`WS ID: ${wsId}`);
+    if (fisrCard) note.push(`FISR: ${fisrCard}`);
+    note.push(`Maglia: ${tagliaMaglia}`);
+    if (vuoleFelpa) note.push(`Felpa: ${tagliaFelpa}`);
+    
+    db.run(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, note) VALUES (?,?,?,?,?,?,?,?)`,
+      [nome, cognome, dataNascita, discScelte.join(', '), soc, email, telefono, note.join(' | ')]);
+  }
+  console.log('Seeded 100 demo athletes');
 }
 
 function save() {
@@ -237,6 +309,164 @@ function all(sql, params = []) {
 
 app.get('/api/iscritti', (req, res) => {
   res.json(all('SELECT * FROM iscritti ORDER BY cognome, nome'));
+});
+
+// --- EXPORT EXCEL ISCRITTI ---
+app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = all('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    workbook.created = new Date();
+    
+    // Helper per parsing note
+    function parseNote(note) {
+      const result = { genere: '', wsId: '', fisr: '', maglia: '', felpa: '' };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Genere:')) result.genere = p.replace('Genere:', '').trim();
+        else if (p.startsWith('WS ID:')) result.wsId = p.replace('WS ID:', '').trim();
+        else if (p.startsWith('FISR:')) result.fisr = p.replace('FISR:', '').trim();
+        else if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+      }
+      return result;
+    }
+    
+    // Helper per parsing discipline
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      // Formato: "Speed Slalom (U15), Battle (SENIOR)"
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
+    // ========== FOGLIO 1: TUTTI GLI ATLETI ==========
+    const sheetAtleti = workbook.addWorksheet('Tutti gli Atleti');
+    sheetAtleti.columns = [
+      { header: 'N°', key: 'num', width: 5 },
+      { header: 'Cognome', key: 'cognome', width: 18 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Data Nascita', key: 'data_nascita', width: 12 },
+      { header: 'Genere', key: 'genere', width: 8 },
+      { header: 'Società', key: 'societa', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'World Skate ID', key: 'ws_id', width: 15 },
+      { header: 'Skate Italia Card', key: 'fisr', width: 15 },
+      { header: 'Maglia', key: 'maglia', width: 8 },
+      { header: 'Felpa', key: 'felpa', width: 8 },
+      { header: 'Discipline', key: 'discipline', width: 40 },
+      { header: 'Pagamento', key: 'pagamento', width: 10 }
+    ];
+    
+    // Stile header
+    sheetAtleti.getRow(1).font = { bold: true };
+    sheetAtleti.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    iscritti.forEach((isc, idx) => {
+      const note = parseNote(isc.note);
+      sheetAtleti.addRow({
+        num: idx + 1,
+        cognome: isc.cognome,
+        nome: isc.nome,
+        data_nascita: isc.data_nascita,
+        genere: note.genere,
+        societa: isc.societa,
+        email: isc.email,
+        telefono: isc.telefono,
+        ws_id: note.wsId,
+        fisr: note.fisr,
+        maglia: note.maglia,
+        felpa: note.felpa || '-',
+        discipline: isc.categoria,
+        pagamento: isc.pagamento ? 'Sì' : 'No'
+      });
+    });
+    
+    // ========== FOGLI PER DISCIPLINA/CATEGORIA/GENERE ==========
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Pair Slalom', 'Free Jump'];
+    const categorie = ['U15', 'U19', 'SENIOR'];
+    const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
+    
+    for (const disc of discipline) {
+      for (const cat of categorie) {
+        for (const gen of generi) {
+          // Filtra atleti per questa combinazione
+          const atleti = iscritti.filter(isc => {
+            const note = parseNote(isc.note);
+            const discipline = parseDiscipline(isc.categoria);
+            const hasDisc = discipline.some(d => d.nome === disc && d.categoria === cat);
+            return hasDisc && note.genere === gen.code;
+          });
+          
+          if (atleti.length === 0) continue; // Salta fogli vuoti
+          
+          // Nome foglio max 31 caratteri
+          let sheetName = `${disc.replace(' Slalom', '').replace(' ', '')} ${cat} ${gen.code}`;
+          if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
+          
+          const sheet = workbook.addWorksheet(sheetName);
+          sheet.columns = [
+            { header: 'N°', key: 'num', width: 5 },
+            { header: 'Cognome', key: 'cognome', width: 18 },
+            { header: 'Nome', key: 'nome', width: 15 },
+            { header: 'Data Nascita', key: 'data_nascita', width: 12 },
+            { header: 'Società', key: 'societa', width: 25 },
+            { header: 'World Skate ID', key: 'ws_id', width: 15 },
+            { header: 'Skate Italia Card', key: 'fisr', width: 15 }
+          ];
+          
+          // Stile header
+          sheet.getRow(1).font = { bold: true };
+          sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+          
+          // Titolo
+          sheet.insertRow(1, [`${disc} - ${cat} - ${gen.name}`]);
+          sheet.getRow(1).font = { bold: true, size: 14 };
+          sheet.mergeCells('A1:G1');
+          
+          atleti.forEach((isc, idx) => {
+            const note = parseNote(isc.note);
+            sheet.addRow({
+              num: idx + 1,
+              cognome: isc.cognome,
+              nome: isc.nome,
+              data_nascita: isc.data_nascita,
+              societa: isc.societa,
+              ws_id: note.wsId,
+              fisr: note.fisr
+            });
+          });
+          
+          // Riga totale
+          sheet.addRow([]);
+          sheet.addRow([`Totale iscritti: ${atleti.length}`]);
+        }
+      }
+    }
+    
+    // Genera e invia file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.xlsx');
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Excel export error:', err);
+    res.status(500).json({ error: 'Errore generazione Excel: ' + err.message });
+  }
 });
 
 // --- AUTH API ---
