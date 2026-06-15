@@ -585,6 +585,22 @@ app.delete('/api/iscritti/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Conferma pagamento tramite codice (chiamato dopo ritorno da Stripe)
+app.post('/api/iscritti/conferma-pagamento', (req, res) => {
+  const { codice } = req.body;
+  if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+  
+  // Estrai ID dal codice (es. BB11-0101 -> 101)
+  const match = codice.match(/BB11-(\d+)/);
+  if (!match) return res.status(400).json({ error: 'Codice non valido' });
+  
+  const id = parseInt(match[1]);
+  db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [id]);
+  save();
+  console.log('Pagamento confermato per iscritto:', { codice, id });
+  res.json({ ok: true });
+});
+
 // --- STRIPE CHECKOUT API ---
 app.post('/api/stripe/create-checkout', async (req, res) => {
   try {

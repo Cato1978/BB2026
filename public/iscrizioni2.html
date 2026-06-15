@@ -655,12 +655,23 @@
     }
 
     // Gestisce parametri URL per risultato pagamento Stripe
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('DOMContentLoaded', async function() {
       const params = new URLSearchParams(window.location.search);
       const payment = params.get('payment');
       const codice = params.get('codice');
       
       if (payment === 'success' && codice) {
+        // Segna come pagato nel database
+        try {
+          await fetch('/api/iscritti/conferma-pagamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codice })
+          });
+        } catch (e) {
+          console.error('Errore conferma pagamento:', e);
+        }
+        
         document.querySelector('.form-section').style.display = 'none';
         document.getElementById('conferma').style.display = 'block';
         document.getElementById('codice-iscrizione').textContent = codice;
@@ -670,7 +681,7 @@
         confH2.innerHTML = '✅ <span data-t="pagamentoSuccesso">' + (getLang() === 'en' ? 'Payment completed successfully!' : 'Pagamento completato con successo!') + '</span>';
         
         // Nascondi istruzioni bonifico visto che già pagato
-        const istruzioni = document.querySelector('#conferma .info div[style*="border"]');
+        const istruzioni = document.querySelector('#conferma div[style*="background:#111"]');
         if (istruzioni) istruzioni.style.display = 'none';
         
         // Mostra messaggio conferma
