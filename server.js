@@ -135,7 +135,7 @@ async function initDb() {
   // Assicura che la colonna visible esista (per DB esistenti)
   try { db.run('ALTER TABLE page_settings ADD COLUMN visible INTEGER DEFAULT 1'); } catch(e) {}
   // Seed pagine default
-  const pages = ['iscrizioni','verifica','programma','hotel','navetta','maglia','risultati','contact','cena'];
+  const pages = ['iscrizioni','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena'];
   for (const p of pages) {
     db.run('INSERT OR IGNORE INTO page_settings (page, enabled, visible) VALUES (?, 1, 1)', [p]);
   }

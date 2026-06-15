@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travel Suggestions - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">TRAVEL SUGGESTIONS</a>
+      <a href="navetta.html" data-t="navetta">NAVETTA</a>
+      <a href="maglia.html" data-t="maglia">MERCHANDISING</a>
+      <a href="cena.html" data-t="cena">CENA ATLETI</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+
+    <!-- LUOGHI DELL'EVENTO -->
+    <section class="info">
+      <h2 data-t="travelLuoghiTitle">📍 Luoghi dell'Evento</h2>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Palazzetto dello Sport</h3>
+        <p>Via Procaccini, 21052 Busto Arsizio (VA)</p>
+        <p style="color:#888;margin-top:0.3rem">Sede principale delle gare</p>
+      </div>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Stazione FS Busto Arsizio</h3>
+        <p>Piazzale Stazione, 21052 Busto Arsizio (VA)</p>
+        <p style="color:#888;margin-top:0.3rem">Collegamento ferroviario principale - servizio navetta disponibile</p>
+      </div>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Aeroporto Milano Malpensa</h3>
+        <p>A 20 minuti di auto / treno da Busto Arsizio</p>
+        <p style="color:#888;margin-top:0.3rem">Aeroporto internazionale più vicino</p>
+      </div>
+    </section>
+
+    <!-- HOTEL CONSIGLIATI -->
+    <section class="info" style="margin-top:2rem">
+      <h2 data-t="travelHotelTitle">🏨 Hotel Consigliati</h2>
+      <p style="color:#ccc;margin-bottom:1rem" data-t="travelHotelDesc">Strutture convenzionate con tariffe speciali per i partecipanti.</p>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Hotel Pineta</h3>
+        <p>Via Magenta 68, Busto Arsizio</p>
+        <p style="color:#888;margin-top:0.3rem">A 5 minuti dal Palazzetto</p>
+      </div>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Hotel Malpensa Inn</h3>
+        <p>Via Galvani 9, Busto Arsizio</p>
+        <p style="color:#888;margin-top:0.3rem">Vicino alla stazione, comodo per la navetta</p>
+      </div>
+      <p style="color:#F7AF40;margin-top:1rem;font-weight:600" data-t="travelHotelNote">Per prenotare con la convenzione, indica "Busto Battle XI" al momento della prenotazione.</p>
+    </section>
+
+    <!-- CENA CONVENZIONATA -->
+    <section class="info" style="margin-top:2rem">
+      <h2 data-t="travelCenaTitle">🍽️ Cena Convenzionata</h2>
+      <p style="color:#ccc;margin-bottom:1rem" data-t="travelCenaDesc">Cena sociale per atleti e accompagnatori nelle serate del 13 e 14 Novembre.</p>
+      <div class="travel-card" style="margin-top:1rem">
+        <h3 style="color:#F7AF40">Ristorante convenzionato</h3>
+        <p>€20 a persona — menù dedicato all'evento</p>
+        <p style="color:#888;margin-top:0.3rem">Dettagli e location in aggiornamento</p>
+      </div>
+      <p style="margin-top:1rem"><a href="cena.html" style="color:#F7AF40;font-weight:600" data-t="travelCenaLink">👉 Prenota la cena qui</a></p>
+    </section>
+
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
