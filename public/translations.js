@@ -54,7 +54,7 @@ const T = {
     risultatiText: "Qui trovi le classifiche aggiornate della gara.",
     risultatiEmpty: "Nessun risultato pubblicato ancora.",
     subtitle: "Gara Internazionale di Pattinaggio Freestyle",
-    date: "📅 13 - 14 - 15 Novembre 2025",
+    date: "📅 13 - 14 - 15 Novembre 2026",
     location: "📍 Busto Arsizio (VA)",
     disciplines: "Speed Slalom ⭐ • Classic Slalom ⭐ • Battle ⭐ • Slides ⭐⭐ • Pair Slalom ⭐⭐ • Free Jump ⭐⭐",
     cta: "ISCRIVITI ORA",
