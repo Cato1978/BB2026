@@ -270,6 +270,10 @@
         <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
           <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
           <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
+          <div id="commissioni-info" style="margin-top:0.8rem;padding:0.6rem;background:#1a1a1a;border-radius:4px;font-size:0.8rem;display:none">
+            <p style="margin:0;color:#f59e0b" data-t="commissioniAvviso">⚠️ Pagando online verranno applicate commissioni carta: <strong id="commissioni-importo">€0</strong></p>
+            <p style="margin:0.3rem 0 0;color:#888" data-t="commissioniTotale">Totale con commissioni: <strong id="totale-con-commissioni" style="color:#F7AF40">€0</strong></p>
+          </div>
         </div>
 
         <div class="form-row">
@@ -278,11 +282,30 @@
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
           <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#222;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
-          <button type="button" id="btn-online" onclick="submitIscrizione('online')" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
+          <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
         </div>
+        <p style="margin-top:0.5rem;font-size:0.75rem;color:#888" data-t="commissioniNota">* Il pagamento online include commissioni carta (2% + €0.25)</p>
         <p class="msg" id="msg"></p>
       </form>
     </section>
+
+    <!-- Modal conferma commissioni -->
+    <div id="modal-commissioni" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:400px;margin:1rem;border:2px solid #F7AF40">
+        <h3 style="color:#F7AF40;margin:0 0 1rem" data-t="confermaCommissioniTitle">💳 Conferma Pagamento Online</h3>
+        <p data-t="confermaCommissioniDesc">Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:</p>
+        <div style="background:#111;padding:1rem;border-radius:6px;margin:1rem 0">
+          <p style="margin:0"><span data-t="importoIscrizione">Importo iscrizione:</span> <strong id="modal-importo-base">€0</strong></p>
+          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (2% + €0.25):</span> <strong id="modal-commissioni" style="color:#f59e0b">€0</strong></p>
+          <hr style="border-color:#333;margin:0.8rem 0">
+          <p style="margin:0;font-size:1.1rem"><span data-t="totaleFinale">Totale da pagare:</span> <strong id="modal-totale" style="color:#F7AF40">€0</strong></p>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:1.5rem">
+          <button onclick="chiudiModalCommissioni()" style="flex:1;background:#333;border:1px solid #555" data-t="annulla">Annulla</button>
+          <button onclick="procediPagamentoOnline()" style="flex:1;background:#F7AF40;color:#000;border:none" data-t="confermaPaga">Conferma e Paga</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Conferma BONIFICO (Sospesa) -->
     <section class="info" id="conferma-bonifico" style="display:none;text-align:center">
@@ -410,6 +433,10 @@
       updateTotale();
     }
 
+    // Costanti commissioni
+    const COMMISSIONE_PERCENTUALE = 0.02; // 2%
+    const COMMISSIONE_FISSA = 0.25; // €0.25
+
     // Calcolo totale
     function updateTotale() {
       const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
@@ -423,6 +450,10 @@
       const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
       const totaleProve = oreProve * PREZZO_PROVA_ORA;
       const totale = totaleGare + totaleFelpa + totaleProve;
+
+      // Calcola commissioni
+      const commissioni = Math.round((totale * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
+      const totaleConCommissioni = totale + commissioni;
 
       const box = document.getElementById('totale-box');
       if (checkedDiscipline > 0 || oreProve > 0) {
@@ -443,9 +474,56 @@
           dettaglio.push(`Prove: ${oreProve} ${oreProve === 1 ? 'ora' : 'ore'} × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
         }
         document.getElementById('dettaglio-totale').textContent = dettaglio.join(' | ');
+
+        // Mostra info commissioni
+        document.getElementById('commissioni-info').style.display = 'block';
+        document.getElementById('commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+        document.getElementById('totale-con-commissioni').textContent = '€' + totaleConCommissioni.toFixed(2);
       } else {
         box.style.display = 'none';
+        document.getElementById('commissioni-info').style.display = 'none';
       }
+    }
+
+    // Calcola commissioni per un importo
+    function calcolaCommissioni(importo) {
+      return Math.round((importo * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
+    }
+
+    // Mostra modal conferma commissioni
+    function confermaCommissioni() {
+      const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
+      if (checkedDiscipline === 0) {
+        document.getElementById('msg').textContent = getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina';
+        document.getElementById('msg').style.color = '#f44336';
+        return;
+      }
+
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const oreProve = document.querySelectorAll('input[name="prove"]:checked').length;
+      
+      let totaleGare = PREZZO_PRIMA + (checkedDiscipline - 1) * PREZZO_ALTRE;
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleProve = oreProve * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleProve;
+      
+      const commissioni = calcolaCommissioni(totale);
+      const totaleConCommissioni = totale + commissioni;
+
+      document.getElementById('modal-importo-base').textContent = '€' + totale;
+      document.getElementById('modal-commissioni').textContent = '€' + commissioni.toFixed(2);
+      document.getElementById('modal-totale').textContent = '€' + totaleConCommissioni.toFixed(2);
+      
+      document.getElementById('modal-commissioni').style.display = 'flex';
+    }
+
+    function chiudiModalCommissioni() {
+      document.getElementById('modal-commissioni').style.display = 'none';
+    }
+
+    function procediPagamentoOnline() {
+      chiudiModalCommissioni();
+      submitIscrizione('online');
     }
 
     // Toggle felpa
@@ -628,20 +706,24 @@
         const iscritto_id = result.id;
 
         if (paymentMethod === 'online') {
-          // Pagamento con Stripe
+          // Pagamento con Stripe - includiamo le commissioni
           msg.textContent = getLang() === 'en' ? 'Redirecting to payment...' : 'Reindirizzamento al pagamento...';
           msg.style.color = '#F7AF40';
 
+          // Calcola commissioni da aggiungere al totale per Stripe
+          const commissioni = calcolaCommissioni(totale);
+          const totaleConCommissioni = totale + commissioni;
+
           const descrizione = `${data.nome} ${data.cognome} - ${disciplineConCategoria.join(', ')}`;
           
-          console.log('Stripe checkout data:', { iscritto_id, totale, descrizione });
+          console.log('Stripe checkout data:', { iscritto_id, totale, commissioni, totaleConCommissioni, descrizione });
           
           const stripeRes = await fetch('/api/stripe/create-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               iscritto_id: iscritto_id,
-              totale: totale,
+              totale: totaleConCommissioni, // Invia il totale CON commissioni a Stripe
               descrizione: descrizione
             })
           });

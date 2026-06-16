@@ -160,7 +160,17 @@ const T = {
     prenotaProve: "Prenota Prove",
     prenotazioneConfermata: "Prenotazione Confermata!",
     codicePrenotazione: "Il tuo codice di prenotazione è:",
-    nessunoSlot: "Nessuno slot disponibile al momento"
+    nessunoSlot: "Nessuno slot disponibile al momento",
+    commissioniAvviso: "⚠️ Pagando online verranno applicate commissioni carta:",
+    commissioniTotale: "Totale con commissioni:",
+    commissioniNota: "* Il pagamento online include commissioni carta (2% + €0.25)",
+    confermaCommissioniTitle: "💳 Conferma Pagamento Online",
+    confermaCommissioniDesc: "Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:",
+    importoIscrizione: "Importo iscrizione:",
+    commissioni: "Commissioni (2% + €0.25):",
+    totaleFinale: "Totale da pagare:",
+    annulla: "Annulla",
+    confermaPaga: "Conferma e Paga"
   },
 
   en: {
@@ -322,7 +332,17 @@ const T = {
     prenotaProve: "Book Practice",
     prenotazioneConfermata: "Booking Confirmed!",
     codicePrenotazione: "Your booking code is:",
-    nessunoSlot: "No slots available at the moment"
+    nessunoSlot: "No slots available at the moment",
+    commissioniAvviso: "⚠️ Online payment includes card fees:",
+    commissioniTotale: "Total with fees:",
+    commissioniNota: "* Online payment includes card fees (2% + €0.25)",
+    confermaCommissioniTitle: "💳 Confirm Online Payment",
+    confermaCommissioniDesc: "By choosing online payment, credit card fees will be applied:",
+    importoIscrizione: "Registration amount:",
+    commissioni: "Fees (2% + €0.25):",
+    totaleFinale: "Total to pay:",
+    annulla: "Cancel",
+    confermaPaga: "Confirm and Pay"
   },
 
 };
