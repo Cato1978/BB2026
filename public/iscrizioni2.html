@@ -284,11 +284,13 @@
       </form>
     </section>
 
-    <section class="info" id="conferma" style="display:none;text-align:center">
-      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+    <!-- Conferma BONIFICO (Sospesa) -->
+    <section class="info" id="conferma-bonifico" style="display:none;text-align:center">
+      <h2 style="color:#f59e0b">🕐 <span data-t="iscrizioneSospesa">Iscrizione Sospesa</span></h2>
       <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
-      <p id="codice-iscrizione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
-      <p data-t="riceveraiEmail">Riceverai una email di conferma con le istruzioni per il pagamento.</p>
+      <p id="codice-iscrizione-bonifico" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="riceveraiEmailBonifico">Riceverai una email con le istruzioni per completare il pagamento.</p>
+      
       <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
         <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
         <p style="margin:0.3rem 0;color:#ccc"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
@@ -296,6 +298,28 @@
         <p style="margin:0.3rem 0;color:#ccc"><strong data-t="causale">Causale:</strong> <span id="causale-bonifico"></span></p>
         <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
       </div>
+      
+      <div style="margin-top:1.5rem;padding:1rem;background:#1a1a1a;border:2px solid #F7AF40;border-radius:6px">
+        <p style="margin:0;color:#F7AF40;font-weight:600" data-t="dopoIlBonifico">Dopo aver effettuato il bonifico:</p>
+        <a id="link-carica-ricevuta" href="#" class="cta-btn" style="margin-top:1rem;display:inline-block;background:#F7AF40;color:#000" data-t="caricaRicevutaBtn">📤 Carica la ricevuta del bonifico</a>
+      </div>
+    </section>
+
+    <!-- Conferma STRIPE (Confermata) -->
+    <section class="info" id="conferma-stripe" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione-stripe" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="pagamentoRicevuto">Il pagamento è stato ricevuto. Riceverai una email di conferma.</p>
+      <a href="verifica.html" class="cta-btn" style="margin-top:1.5rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
+    </section>
+
+    <!-- Vecchia sezione conferma (per compatibilità) -->
+    <section class="info" id="conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="riceveraiEmail">Riceverai una email di conferma con le istruzioni per il pagamento.</p>
       <a href="verifica.html" class="cta-btn" style="margin-top:1.5rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
     </section>
   </main>
@@ -647,12 +671,26 @@
       }
     }
 
-    function showConferma(codice, data, totale) {
+    // Mostra conferma BONIFICO (stato sospesa)
+    function showConfermaBonifico(codice, data, totale) {
       document.querySelector('.form-section').style.display = 'none';
-      document.getElementById('conferma').style.display = 'block';
-      document.getElementById('codice-iscrizione').textContent = codice;
+      document.getElementById('conferma-bonifico').style.display = 'block';
+      document.getElementById('codice-iscrizione-bonifico').textContent = codice;
       document.getElementById('causale-bonifico').textContent = `${codice} - ${data.nome} ${data.cognome}`;
       document.getElementById('importo-bonifico').textContent = '€' + totale;
+      document.getElementById('link-carica-ricevuta').href = `/carica-ricevuta.html?codice=${codice}`;
+    }
+
+    // Mostra conferma STRIPE (stato confermata)
+    function showConfermaStripe(codice) {
+      document.querySelector('.form-section').style.display = 'none';
+      document.getElementById('conferma-stripe').style.display = 'block';
+      document.getElementById('codice-iscrizione-stripe').textContent = codice;
+    }
+
+    // Legacy function for compatibility
+    function showConferma(codice, data, totale) {
+      showConfermaBonifico(codice, data, totale);
     }
 
     // Gestisce parametri URL per risultato pagamento Stripe
@@ -673,31 +711,21 @@
           console.error('Errore conferma pagamento:', e);
         }
         
+        // Mostra conferma Stripe
         document.querySelector('.form-section').style.display = 'none';
-        document.getElementById('conferma').style.display = 'block';
-        document.getElementById('codice-iscrizione').textContent = codice;
+        document.getElementById('conferma-stripe').style.display = 'block';
+        document.getElementById('codice-iscrizione-stripe').textContent = codice;
         
-        // Aggiorna messaggio per pagamento completato
-        const confH2 = document.querySelector('#conferma h2');
-        confH2.innerHTML = '✅ <span data-t="pagamentoSuccesso">' + (getLang() === 'en' ? 'Payment completed successfully!' : 'Pagamento completato con successo!') + '</span>';
-        
-        // Nascondi istruzioni bonifico visto che già pagato
-        const istruzioni = document.querySelector('#conferma div[style*="background:#111"]');
-        if (istruzioni) istruzioni.style.display = 'none';
-        
-        // Mostra messaggio conferma
-        const riceveraiEmail = document.querySelector('#conferma p[data-t="riceveraiEmail"]');
-        if (riceveraiEmail) {
-          riceveraiEmail.textContent = getLang() === 'en' ? 'Your payment has been received. You will receive a confirmation email shortly.' : 'Il pagamento è stato ricevuto. Riceverai presto una email di conferma.';
-        }
       } else if (payment === 'cancel' && codice) {
+        // Pagamento annullato - mostra sezione bonifico
         document.querySelector('.form-section').style.display = 'none';
-        document.getElementById('conferma').style.display = 'block';
-        document.getElementById('codice-iscrizione').textContent = codice;
+        document.getElementById('conferma-bonifico').style.display = 'block';
+        document.getElementById('codice-iscrizione-bonifico').textContent = codice;
+        document.getElementById('link-carica-ricevuta').href = `/carica-ricevuta.html?codice=${codice}`;
         
-        // Aggiorna messaggio per pagamento annullato
-        const confH2 = document.querySelector('#conferma h2');
-        confH2.innerHTML = '⚠️ <span data-t="pagamentoAnnullato">' + (getLang() === 'en' ? 'Payment cancelled. You can complete payment via bank transfer.' : 'Pagamento annullato. Puoi completare il pagamento via bonifico.') + '</span>';
+        // Aggiorna messaggio
+        const confH2 = document.querySelector('#conferma-bonifico h2');
+        confH2.innerHTML = '⚠️ <span>' + (getLang() === 'en' ? 'Payment cancelled' : 'Pagamento annullato') + '</span>';
         confH2.style.color = '#f59e0b';
       }
     });

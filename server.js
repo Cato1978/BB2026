@@ -64,9 +64,14 @@ async function initDb() {
     navetta INTEGER DEFAULT 0,
     navetta_dettagli TEXT,
     pagamento INTEGER DEFAULT 0,
+    stato TEXT DEFAULT 'sospesa',
+    ricevuta_bonifico TEXT,
     note TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  // Migrazione: aggiungi colonne se non esistono (per DB esistenti)
+  try { db.run('ALTER TABLE iscritti ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {};
   db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -607,11 +612,175 @@ app.post('/api/iscritti/conferma-pagamento', (req, res) => {
   if (!match) return res.status(400).json({ error: 'Codice non valido' });
   
   const id = parseInt(match[1]);
-  db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [id]);
+  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
+  db.run('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
   save();
-  console.log('Pagamento confermato per iscritto:', { codice, id });
+  console.log('Pagamento Stripe confermato per iscritto:', { codice, id });
+  
+  // Invia email conferma
+  if (iscritto && iscritto.email) {
+    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+  }
+  
   res.json({ ok: true });
 });
+
+// Upload ricevuta bonifico
+const uploadRicevute = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, 'public', 'uploads', 'ricevute');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'))
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
+});
+
+app.post('/api/iscritti/upload-ricevuta', uploadRicevute.single('ricevuta'), (req, res) => {
+  const { codice } = req.body;
+  if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+  if (!req.file) return res.status(400).json({ error: 'File ricevuta mancante' });
+  
+  const match = codice.match(/BB11-(\d+)/);
+  if (!match) return res.status(400).json({ error: 'Codice non valido' });
+  
+  const id = parseInt(match[1]);
+  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
+  if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+  
+  // Aggiorna stato a "verifica"
+  db.run('UPDATE iscritti SET stato=?, ricevuta_bonifico=? WHERE id=?', ['verifica', req.file.filename, id]);
+  save();
+  console.log('Ricevuta caricata:', { codice, id, file: req.file.filename });
+  
+  // Invia email conferma ricezione
+  if (iscritto.email) {
+    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'verifica' }).catch(console.error);
+  }
+  
+  res.json({ ok: true, stato: 'verifica' });
+});
+
+// Ottieni stato iscrizione per codice (pubblico)
+app.get('/api/iscritti/stato/:codice', (req, res) => {
+  const match = req.params.codice.match(/BB11-(\d+)/);
+  if (!match) return res.status(400).json({ error: 'Codice non valido' });
+  
+  const id = parseInt(match[1]);
+  const iscritto = all('SELECT id, nome, cognome, stato, pagamento, ricevuta_bonifico FROM iscritti WHERE id=?', [id])[0];
+  if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+  
+  const codice = 'BB11-' + String(id).padStart(4, '0');
+  res.json({ ...iscritto, codice });
+});
+
+// Admin: conferma pagamento bonifico
+app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, (req, res) => {
+  const id = +req.params.id;
+  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
+  if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+  
+  db.run('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
+  save();
+  
+  const codice = 'BB11-' + String(id).padStart(4, '0');
+  console.log('Bonifico confermato da admin:', { codice, id });
+  
+  // Invia email conferma
+  if (iscritto.email) {
+    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+  }
+  
+  res.json({ ok: true });
+});
+
+// Funzione per inviare email di stato
+async function sendStatusEmail(to, data) {
+  const { nome, cognome, codice, stato, categoria } = data;
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = `Busto Battle XI - Iscrizione Sospesa - ${codice}`;
+    html = `
+      <h2>🕐 Iscrizione Sospesa</h2>
+      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+      <p>La tua iscrizione è stata registrata con codice: <strong>${codice}</strong></p>
+      <p>Discipline: ${categoria || 'N/D'}</p>
+      <hr>
+      <h3>Per completare l'iscrizione:</h3>
+      <p>1. Effettua il bonifico con i seguenti dati:</p>
+      <ul>
+        <li><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</li>
+        <li><strong>Intestatario:</strong> ASD Busto Battle</li>
+        <li><strong>Causale:</strong> ${codice} - ${nome} ${cognome}</li>
+      </ul>
+      <p>2. Carica la ricevuta del bonifico su:</p>
+      <p><a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">📤 Carica Ricevuta Bonifico</a></p>
+      <hr>
+      <p>Grazie,<br>Busto Battle Team</p>
+    `;
+  } else if (stato === 'verifica') {
+    subject = `Busto Battle XI - Iscrizione in Verifica - ${codice}`;
+    html = `
+      <h2>🔍 Iscrizione in Verifica</h2>
+      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+      <p>Abbiamo ricevuto la ricevuta del bonifico per l'iscrizione <strong>${codice}</strong>.</p>
+      <p>Il nostro team verificherà il pagamento e riceverai una conferma via email.</p>
+      <hr>
+      <p>Grazie per la pazienza,<br>Busto Battle Team</p>
+    `;
+  } else if (stato === 'confermata') {
+    subject = `Busto Battle XI - Iscrizione Confermata! - ${codice}`;
+    html = `
+      <h2>✅ Iscrizione Confermata!</h2>
+      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+      <p>La tua iscrizione <strong>${codice}</strong> è stata confermata!</p>
+      <p>Discipline: ${categoria || 'N/D'}</p>
+      <hr>
+      <p>Ti aspettiamo alla Busto Battle XI!</p>
+      <p>📅 13-15 Novembre 2026</p>
+      <p>📍 Busto Arsizio</p>
+      <hr>
+      <p>A presto,<br>Busto Battle Team</p>
+    `;
+  }
+  
+  if (!subject) return;
+  
+  // Usa il transporter esistente se configurato
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+    
+    if (process.env.SMTP_USER) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || 'info@bustobattle.it',
+        to,
+        subject,
+        html
+      });
+      console.log('Email stato inviata:', { to, stato, codice });
+    } else {
+      console.log('Email non inviata (SMTP non configurato):', { to, stato, codice });
+    }
+  } catch (err) {
+    console.error('Errore invio email stato:', err);
+  }
+}
 
 // --- STRIPE CHECKOUT API ---
 app.post('/api/stripe/create-checkout', async (req, res) => {

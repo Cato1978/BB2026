@@ -56,6 +56,12 @@
         <option value="">Tutte navette</option>
         <option value="1">Con navetta</option>
       </select>
+      <select id="filter-stato">
+        <option value="">Tutti gli stati</option>
+        <option value="sospesa">Sospese</option>
+        <option value="verifica">In Verifica</option>
+        <option value="confermata">Confermate</option>
+      </select>
     </div>
 
     <table id="tabella">
@@ -66,8 +72,7 @@
           <th>Nome</th>
           <th>Discipline</th>
           <th>Totale €</th>
-          <th>Navetta</th>
-          <th>Pagamento</th>
+          <th>Stato</th>
           <th>Azioni</th>
         </tr>
       </thead>
@@ -297,38 +302,87 @@
       const q = document.getElementById('search').value.toLowerCase();
       const fp = document.getElementById('filter-pagamento').value;
       const fn = document.getElementById('filter-navetta').value;
+      const fs = document.getElementById('filter-stato').value;
       if (q) list = list.filter(i => (i.nome + ' ' + i.cognome + ' ' + codice(i.id)).toLowerCase().includes(q));
       if (fp !== '') list = list.filter(i => String(i.pagamento ? 1 : 0) === fp);
       if (fn === '1') list = list.filter(i => i.navetta);
+      if (fs) list = list.filter(i => (i.stato || 'sospesa') === fs);
       return list;
+    }
+
+    function getStatoBadge(i) {
+      const stato = i.stato || 'sospesa';
+      const badges = {
+        'sospesa': '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>',
+        'verifica': '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">🔍 In Verifica</span>',
+        'confermata': '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>'
+      };
+      return badges[stato] || stato;
     }
 
     function render() {
       const list = getFiltered();
       const tbody = document.querySelector('#tabella tbody');
-      tbody.innerHTML = list.map(i => `<tr>
-        <td><strong>${codice(i.id)}</strong></td>
-        <td>${i.cognome}</td>
-        <td>${i.nome}</td>
-        <td>${i.categoria || ''}</td>
-        <td>€${numDiscipline(i.categoria) * 40}</td>
-        <td>${i.navetta ? '✅' + (i.navetta_dettagli ? ' ' + i.navetta_dettagli : '') : '—'}</td>
-        <td>${i.pagamento ? '<span style="color:#4ade80">✅ Pagato</span>' : '<span style="color:#ef4444">❌ Non pagato</span>'}</td>
-        <td>
-          ${!i.pagamento ? `<button onclick="togglePagamento(${i.id}, true)" title="Segna pagato">💰</button>` : `<button onclick="togglePagamento(${i.id}, false)" title="Annulla pagamento">↩️</button>`}
-          <button onclick="modifica(${i.id})">✏️</button>
-          <button onclick="elimina(${i.id})">🗑️</button>
-        </td>
-      </tr>`).join('');
+      tbody.innerHTML = list.map(i => {
+        const stato = i.stato || 'sospesa';
+        let azioniHtml = '';
+        
+        // Bottone conferma bonifico (solo se in verifica)
+        if (stato === 'verifica') {
+          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          if (i.ricevuta_bonifico) {
+            azioniHtml += `<a href="/uploads/ricevute/${i.ricevuta_bonifico}" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+          }
+        }
+        
+        // Bottone segna pagato (solo se sospesa)
+        if (stato === 'sospesa') {
+          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Segna pagato">💰</button>`;
+        }
+        
+        azioniHtml += `<button onclick="modifica(${i.id})">✏️</button>`;
+        azioniHtml += `<button onclick="elimina(${i.id})">🗑️</button>`;
+        
+        return `<tr>
+          <td><strong>${codice(i.id)}</strong></td>
+          <td>${i.cognome}</td>
+          <td>${i.nome}</td>
+          <td style="max-width:200px;font-size:0.85rem">${i.categoria || ''}</td>
+          <td>€${calcolaTotale(i)}</td>
+          <td>${getStatoBadge(i)}</td>
+          <td>${azioniHtml}</td>
+        </tr>`;
+      }).join('');
 
+      const sospese = iscritti.filter(i => (i.stato || 'sospesa') === 'sospesa').length;
+      const verifica = iscritti.filter(i => i.stato === 'verifica').length;
+      const confermate = iscritti.filter(i => i.stato === 'confermata' || i.pagamento).length;
+      
       document.getElementById('totale').textContent = `Totale: ${iscritti.length}`;
-      document.getElementById('pagati').textContent = `Pagati: ${iscritti.filter(i => i.pagamento).length}`;
-      document.getElementById('navette').textContent = `Navette: ${iscritti.filter(i => i.navetta).length}`;
+      document.getElementById('pagati').textContent = `Confermate: ${confermate} | In Verifica: ${verifica}`;
+      document.getElementById('navette').textContent = `Sospese: ${sospese}`;
+    }
+
+    function calcolaTotale(i) {
+      // Calcola totale basato su discipline
+      const numDisc = numDiscipline(i.categoria);
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
+      // Aggiungi felpa se presente nelle note
+      if (i.note && i.note.includes('Felpa:')) totale += 30;
+      return totale;
     }
 
     document.getElementById('search').addEventListener('input', render);
     document.getElementById('filter-pagamento').addEventListener('change', render);
     document.getElementById('filter-navetta').addEventListener('change', render);
+    document.getElementById('filter-stato').addEventListener('change', render);
+
+    async function confermaBonifico(id) {
+      if (!confirm('Confermare il pagamento per questa iscrizione?')) return;
+      await fetch(`/api/iscritti/${id}/conferma-bonifico`, { method: 'POST' });
+      carica();
+    }
 
     async function togglePagamento(id, stato) {
       const i = iscritti.find(x => x.id === id);

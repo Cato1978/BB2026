@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carica Ricevuta Bonifico - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <!-- Step 1: Verifica codice -->
+    <section class="form-section" id="step-codice">
+      <h2 data-t="caricaRicevutaTitle">📤 Carica Ricevuta Bonifico</h2>
+      <p data-t="caricaRicevutaDesc">Inserisci il tuo codice iscrizione per caricare la ricevuta del bonifico.</p>
+      
+      <form id="form-codice">
+        <div class="form-row">
+          <input type="text" id="codice" placeholder="Codice iscrizione (es. BB11-0001)" required style="text-transform:uppercase">
+        </div>
+        <button type="submit" data-t="verificaCodice">Verifica Codice</button>
+        <p class="msg" id="msg-codice"></p>
+      </form>
+    </section>
+
+    <!-- Step 2: Upload ricevuta -->
+    <section class="form-section" id="step-upload" style="display:none">
+      <h2>📤 <span data-t="caricaRicevuta">Carica Ricevuta</span></h2>
+      
+      <div style="background:#111;padding:1rem;border-radius:6px;margin-bottom:1.5rem">
+        <p style="margin:0"><strong data-t="iscrizione">Iscrizione:</strong> <span id="info-codice" style="color:#F7AF40"></span></p>
+        <p style="margin:0.5rem 0 0"><strong data-t="atleta">Atleta:</strong> <span id="info-nome"></span></p>
+        <p style="margin:0.5rem 0 0"><strong data-t="statoAttuale">Stato attuale:</strong> <span id="info-stato"></span></p>
+      </div>
+
+      <div id="form-upload-container">
+        <form id="form-upload">
+          <p data-t="uploadInstructions">Carica la ricevuta del bonifico (PDF, JPG o PNG, max 5MB):</p>
+          <div class="form-row">
+            <input type="file" id="file-ricevuta" accept=".pdf,.jpg,.jpeg,.png" required style="background:#111;padding:1rem;border:2px dashed #444;border-radius:6px;width:100%">
+          </div>
+          <button type="submit" data-t="inviaRicevuta">📤 Invia Ricevuta</button>
+          <p class="msg" id="msg-upload"></p>
+        </form>
+      </div>
+
+      <div id="gia-caricata" style="display:none;text-align:center">
+        <p style="color:#F7AF40;font-size:1.2rem" data-t="ricevutaGiaCaricata">✅ Ricevuta già caricata</p>
+        <p data-t="inAttesaVerifica">La tua ricevuta è in attesa di verifica. Riceverai una email quando sarà confermata.</p>
+      </div>
+    </section>
+
+    <!-- Step 3: Conferma -->
+    <section class="info" id="step-conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="ricevutaInviata">Ricevuta Inviata!</span></h2>
+      <p data-t="ricevutaInviataDesc">La tua ricevuta è stata caricata correttamente.</p>
+      <p data-t="ricevutaInviataDesc2">Il nostro team verificherà il pagamento e riceverai una email di conferma.</p>
+      <p style="margin-top:1.5rem"><strong data-t="statoIscrizione">Stato iscrizione:</strong> <span style="background:#f59e0b;color:#000;padding:0.3rem 0.8rem;border-radius:4px" data-t="inVerifica">🔍 In Verifica</span></p>
+    </section>
+
+    <!-- Già confermata -->
+    <section class="info" id="step-confermata" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="iscrizioneGiaConfermata">La tua iscrizione è già stata confermata. Non è necessario caricare la ricevuta.</p>
+      <a href="verifica.html" class="cta-btn" style="margin-top:1rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ info@bustobattle.it</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+
+  <script src="translations.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let currentCodice = '';
+
+    // Check URL params
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const codice = params.get('codice');
+      if (codice) {
+        document.getElementById('codice').value = codice.toUpperCase();
+        verificaCodice(codice.toUpperCase());
+      }
+    });
+
+    document.getElementById('form-codice').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const codice = document.getElementById('codice').value.trim().toUpperCase();
+      verificaCodice(codice);
+    });
+
+    async function verificaCodice(codice) {
+      const msg = document.getElementById('msg-codice');
+      msg.textContent = '';
+
+      if (!codice.match(/^BB11-\d{4}$/)) {
+        msg.textContent = 'Formato codice non valido. Esempio: BB11-0001';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/iscritti/stato/' + codice);
+        const data = await res.json();
+
+        if (!res.ok) {
+          msg.textContent = data.error || 'Codice non trovato';
+          msg.style.color = '#f44336';
+          return;
+        }
+
+        currentCodice = codice;
+
+        // Mostra info
+        document.getElementById('info-codice').textContent = codice;
+        document.getElementById('info-nome').textContent = `${data.nome} ${data.cognome}`;
+        
+        const statoLabels = {
+          'sospesa': '🕐 Sospesa - In attesa pagamento',
+          'verifica': '🔍 In Verifica',
+          'confermata': '✅ Confermata'
+        };
+        const statoColors = {
+          'sospesa': '#f59e0b',
+          'verifica': '#3b82f6',
+          'confermata': '#22c55e'
+        };
+        document.getElementById('info-stato').textContent = statoLabels[data.stato] || data.stato;
+        document.getElementById('info-stato').style.color = statoColors[data.stato] || '#ccc';
+
+        // Mostra sezione corretta
+        document.getElementById('step-codice').style.display = 'none';
+
+        if (data.stato === 'confermata' || data.pagamento === 1) {
+          document.getElementById('step-confermata').style.display = 'block';
+        } else if (data.stato === 'verifica') {
+          document.getElementById('step-upload').style.display = 'block';
+          document.getElementById('form-upload-container').style.display = 'none';
+          document.getElementById('gia-caricata').style.display = 'block';
+        } else {
+          document.getElementById('step-upload').style.display = 'block';
+          document.getElementById('form-upload-container').style.display = 'block';
+          document.getElementById('gia-caricata').style.display = 'none';
+        }
+      } catch (err) {
+        msg.textContent = 'Errore di rete. Riprova.';
+        msg.style.color = '#f44336';
+      }
+    }
+
+    document.getElementById('form-upload').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg-upload');
+      msg.textContent = '';
+
+      const fileInput = document.getElementById('file-ricevuta');
+      if (!fileInput.files.length) {
+        msg.textContent = 'Seleziona un file';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      const file = fileInput.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        msg.textContent = 'File troppo grande (max 5MB)';
+        msg.style.color = '#f44336';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('codice', currentCodice);
+      formData.append('ricevuta', file);
+
+      try {
+        msg.textContent = 'Caricamento in corso...';
+        msg.style.color = '#F7AF40';
+
+        const res = await fetch('/api/iscritti/upload-ricevuta', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById('step-upload').style.display = 'none';
+          document.getElementById('step-conferma').style.display = 'block';
+        } else {
+          msg.textContent = data.error || 'Errore durante il caricamento';
+          msg.style.color = '#f44336';
+        }
+      } catch (err) {
+        msg.textContent = 'Errore di rete. Riprova.';
+        msg.style.color = '#f44336';
+      }
+    });
+  </script>
+</body>
+</html>
