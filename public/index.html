@@ -20,7 +20,7 @@
       width: 100%;
       height: 100%;
       transform-style: preserve-3d;
-      animation: flipAnimation 4s ease-in-out infinite;
+      animation: flipAnimation 10s ease-in-out infinite;
     }
     .flip-front, .flip-back {
       position: absolute;
@@ -44,18 +44,6 @@
       0%, 45% { transform: rotateY(0deg); }
       50%, 95% { transform: rotateY(180deg); }
       100% { transform: rotateY(360deg); }
-    }
-    .edition-label {
-      position: absolute;
-      bottom: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: #F7AF40;
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: bold;
     }
   </style>
 </head>
@@ -89,11 +77,9 @@
           <div class="flipper">
             <div class="flip-front">
               <img src="LogoBB.jpeg" alt="Busto Battle XI">
-              <span class="edition-label">2026</span>
             </div>
             <div class="flip-back">
-              <img src="2019.png" alt="Busto Battle 2019" id="back-image">
-              <span class="edition-label" id="back-label">2019</span>
+              <img src="2019.png" alt="Busto Battle" id="back-image">
             </div>
           </div>
         </div>
@@ -159,16 +145,14 @@
     ];
     let currentEdition = 0;
     
-    // Cambia immagine sul retro ogni ciclo di flip (4 secondi)
+    // Cambia immagine sul retro ogni ciclo di flip (10 secondi)
     setInterval(() => {
       currentEdition = (currentEdition + 1) % oldEditions.length;
       const backImg = document.getElementById('back-image');
-      const backLabel = document.getElementById('back-label');
-      if (backImg && backLabel) {
+      if (backImg) {
         backImg.src = oldEditions[currentEdition].img;
-        backLabel.textContent = oldEditions[currentEdition].year;
       }
-    }, 4000);
+    }, 10000);
   </script>
   <script src="app.js"></script>
 </body>
