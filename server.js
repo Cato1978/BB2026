@@ -704,51 +704,117 @@ app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, (req, res) => {
 async function sendStatusEmail(to, data) {
   const { nome, cognome, codice, stato, categoria } = data;
   
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 5px;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:0;font-family:Arial,sans-serif">Gara Internazionale di Pattinaggio Freestyle</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 10px;font-family:Arial,sans-serif">📅 13-15 Novembre 2026 | 📍 Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:info@bustobattle.it" style="color:#F7AF40">info@bustobattle.it</a>
+      </p>
+    </div>
+  `;
+  
   let subject, html;
   
   if (stato === 'sospesa') {
     subject = `Busto Battle XI - Iscrizione Sospesa - ${codice}`;
     html = `
-      <h2>🕐 Iscrizione Sospesa</h2>
-      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-      <p>La tua iscrizione è stata registrata con codice: <strong>${codice}</strong></p>
-      <p>Discipline: ${categoria || 'N/D'}</p>
-      <hr>
-      <h3>Per completare l'iscrizione:</h3>
-      <p>1. Effettua il bonifico con i seguenti dati:</p>
-      <ul>
-        <li><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</li>
-        <li><strong>Intestatario:</strong> ASD Busto Battle</li>
-        <li><strong>Causale:</strong> ${codice} - ${nome} ${cognome}</li>
-      </ul>
-      <p>2. Carica la ricevuta del bonifico su:</p>
-      <p><a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block">📤 Carica Ricevuta Bonifico</a></p>
-      <hr>
-      <p>Grazie,<br>Busto Battle Team</p>
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🕐 Iscrizione Sospesa</h2>
+          </div>
+          
+          <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è stata registrata con successo!</p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare l'iscrizione:</h3>
+          
+          <p><strong>1. Effettua il bonifico bancario:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
+            <p style="margin:5px 0"><strong>Intestatario:</strong> ASD Busto Battle</p>
+            <p style="margin:5px 0"><strong>Causale:</strong> ${codice} - ${nome} ${cognome}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta del bonifico:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta Bonifico</a>
+          </p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Dopo aver caricato la ricevuta, verificheremo il pagamento e riceverai la conferma via email.</p>
+        </div>
+        ${emailFooter}
+      </div>
     `;
   } else if (stato === 'verifica') {
     subject = `Busto Battle XI - Iscrizione in Verifica - ${codice}`;
     html = `
-      <h2>🔍 Iscrizione in Verifica</h2>
-      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-      <p>Abbiamo ricevuto la ricevuta del bonifico per l'iscrizione <strong>${codice}</strong>.</p>
-      <p>Il nostro team verificherà il pagamento e riceverai una conferma via email.</p>
-      <hr>
-      <p>Grazie per la pazienza,<br>Busto Battle Team</p>
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 Iscrizione in Verifica</h2>
+          </div>
+          
+          <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per la tua iscrizione.</p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice iscrizione:</strong> ${codice}</p>
+          </div>
+          
+          <p>Il nostro team sta verificando il pagamento. Riceverai una email di conferma non appena completata la verifica.</p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Grazie per la pazienza!</p>
+        </div>
+        ${emailFooter}
+      </div>
     `;
   } else if (stato === 'confermata') {
     subject = `Busto Battle XI - Iscrizione Confermata! - ${codice}`;
     html = `
-      <h2>✅ Iscrizione Confermata!</h2>
-      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-      <p>La tua iscrizione <strong>${codice}</strong> è stata confermata!</p>
-      <p>Discipline: ${categoria || 'N/D'}</p>
-      <hr>
-      <p>Ti aspettiamo alla Busto Battle XI!</p>
-      <p>📅 13-15 Novembre 2026</p>
-      <p>📍 Busto Arsizio</p>
-      <hr>
-      <p>A presto,<br>Busto Battle Team</p>
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ Iscrizione Confermata!</h2>
+          </div>
+          
+          <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è stata <strong>confermata</strong>!</p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:1px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:18px;color:#22c55e">🎉 Ti aspettiamo alla Busto Battle XI!</p>
+          </div>
+          
+          <p style="text-align:center">
+            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📅 Vedi il Programma</a>
+          </p>
+        </div>
+        ${emailFooter}
+      </div>
     `;
   }
   
@@ -781,6 +847,31 @@ async function sendStatusEmail(to, data) {
     console.error('Errore invio email stato:', err);
   }
 }
+
+// Endpoint per inviare email di test (solo per admin)
+app.post('/api/test-email', async (req, res) => {
+  const { to, stato } = req.body;
+  
+  if (!to || !stato) {
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato' });
+  }
+  
+  // Dati fittizi per il test
+  const testData = {
+    nome: 'Mario',
+    cognome: 'Rossi',
+    codice: 'BB11-TEST',
+    stato: stato,
+    categoria: 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)'
+  };
+  
+  try {
+    await sendStatusEmail(to, testData);
+    res.json({ ok: true, message: `Email di test (${stato}) inviata a ${to}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- STRIPE CHECKOUT API ---
 app.post('/api/stripe/create-checkout', async (req, res) => {
