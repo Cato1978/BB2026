@@ -834,7 +834,7 @@ async function sendStatusEmail(to, data) {
           <p style="color:#ccc;font-size:14px">Strutture con tariffe speciali / Hotels with special rates:</p>
           
           <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 8px"><strong style="color:#F7AF40">Hotel Ristorante Mazzini ⭐</strong></p>
+            <p style="margin:0 0 8px"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong></p>
             <p style="margin:0;color:#ccc;font-size:13px">Singola €50 | Doppia €70 | Doppia+letto €90</p>
             <p style="margin:8px 0 0;font-size:13px">📞 0331 631715 | 💬 <a href="https://wa.me/393299835000" style="color:#25D366">WhatsApp</a></p>
           </div>
