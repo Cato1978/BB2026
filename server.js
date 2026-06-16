@@ -816,52 +816,54 @@ async function sendStatusEmail(to, data) {
             <p style="margin:10px 0 0;color:#888">📅 13-15 Novembre / November 2026</p>
           </div>
           
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚆 Come Arrivare / How to Get Here</h3>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0;color:#ccc;font-size:13px"><strong>Da Malpensa:</strong> Malpensa Express → Busto Arsizio FN (~15 min)</p>
+            <p style="margin:5px 0 0;color:#ccc;font-size:13px"><strong>Da Milano Cadorna/Centrale:</strong> Treno FN → Busto Arsizio FN (~35 min)</p>
+            <p style="margin:8px 0 0;color:#888;font-size:12px"><em>From Malpensa: Malpensa Express → Busto Arsizio FN (~15 min)<br>From Milan Cadorna/Centrale: FN train → Busto Arsizio FN (~35 min)</em></p>
+          </div>
+          
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">📍 Luoghi della Gara / Competition Venues</h3>
           
           <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 5px"><strong style="color:#F7AF40">E Work Arena</strong></p>
-            <p style="margin:0;color:#ccc;font-size:14px">Classic Slalom • Pairs • Battle</p>
-            <p style="margin:8px 0 0"><a href="https://share.google/gCeC2EL7p2solMIBW" style="color:#F7AF40;font-size:13px">📍 Google Maps →</a></p>
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">E Work Arena</strong> - Classic Slalom • Pairs • Battle</p>
+            <p style="margin:0;color:#888;font-size:12px">🚐 Navetta a pagamento, bus o auto / Paid shuttle, bus or car</p>
+            <p style="margin:5px 0 0"><a href="https://share.google/gCeC2EL7p2solMIBW" style="color:#F7AF40;font-size:12px">📍 Google Maps →</a></p>
           </div>
           
           <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong></p>
-            <p style="margin:0;color:#ccc;font-size:14px">Speed • Slide • Free Jump</p>
-            <p style="margin:8px 0 0"><a href="https://share.google/6E1klmiKIJL51MLUg" style="color:#F7AF40;font-size:13px">📍 Google Maps →</a></p>
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong> - Speed • Slide • Free Jump</p>
+            <p style="margin:0;color:#888;font-size:12px">🚶 200m dalla Stazione FN e dagli hotel / 200m from FN Station and hotels</p>
+            <p style="margin:5px 0 0"><a href="https://share.google/6E1klmiKIJL51MLUg" style="color:#F7AF40;font-size:12px">📍 Google Maps →</a></p>
           </div>
-          
-          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🏨 Hotel Convenzionati / Partner Hotels</h3>
-          <p style="color:#ccc;font-size:14px">Strutture con tariffe speciali / Hotels with special rates:</p>
-          
-          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 8px"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong></p>
-            <p style="margin:0;color:#ccc;font-size:13px">Singola €50 | Doppia €70 | Doppia+letto €90</p>
-            <p style="margin:8px 0 0;font-size:13px">📞 0331 631715 | 💬 <a href="https://wa.me/393299835000" style="color:#25D366">WhatsApp</a></p>
-          </div>
-          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0"><strong style="color:#F7AF40">Tower Hotel</strong></p>
-            <p style="margin:5px 0 0;color:#888;font-size:13px">Dettagli in arrivo / Details coming soon</p>
-          </div>
-          
-          <p style="color:#888;font-size:13px;margin:10px 0">💡 <em>Indica "Busto Battle XI" per la convenzione / Mention "Busto Battle XI" for the special rate</em></p>
-          <p style="color:#ccc;font-size:14px">🚶 PalaCastiglioni raggiungibile a piedi / Walking distance to PalaCastiglioni</p>
           
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚐 Navetta / Shuttle Service</h3>
-          <p style="color:#ccc;font-size:14px">Servizio navetta per E Work Arena / Shuttle service to E Work Arena</p>
+          <p style="color:#ccc;font-size:13px">13-14 Novembre: Stazione FN → E Work Arena (a pagamento su prenotazione)<br><em style="color:#888">Nov 13-14: FN Station → E Work Arena (paid, booking required)</em></p>
           <p style="text-align:center;margin:15px 0">
-            <a href="https://bb2026.onrender.com/navetta.html" style="background:#333;color:#F7AF40;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40">🚐 Prenota / Book Shuttle</a>
+            <a href="https://bb2026.onrender.com/navetta.html" style="background:#333;color:#F7AF40;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40;font-size:13px">🚐 Prenota / Book Shuttle</a>
           </p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🏨 Hotel Convenzionati / Partner Hotels</h3>
+          <p style="color:#888;font-size:12px;margin-bottom:10px">200m dalla Stazione FN (navetta) e ~500m dal PalaCastiglioni</p>
+          
+          <div style="background:#222;padding:12px;border-radius:6px;margin:10px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong> - 📍 Piazza Manzoni 1</p>
+            <p style="margin:5px 0 0;color:#ccc;font-size:12px">Singola €50 | Doppia €70 | Tripla €90</p>
+            <p style="margin:5px 0 0;font-size:12px">📞 0331 631715 | 💬 <a href="https://wa.me/393299835000" style="color:#25D366">WhatsApp</a></p>
+          </div>
+          <div style="background:#222;padding:12px;border-radius:6px;margin:10px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Tower Hotel</strong> <span style="color:#888;font-size:12px">- Dettagli in arrivo / Coming soon</span></p>
+          </div>
+          <p style="color:#888;font-size:12px;margin:8px 0">💡 Indica "Busto Battle XI" per la convenzione / Mention "Busto Battle XI" for special rate</p>
           
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🍽️ Cena Atleti / Athletes Dinner</h3>
-          <p style="color:#ccc;font-size:14px">13 e 14 Novembre / November 13 & 14</p>
-          <p style="text-align:center;margin:15px 0">
-            <a href="https://bb2026.onrender.com/cena.html" style="background:#333;color:#F7AF40;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40">🍽️ Prenota / Book Dinner</a>
-          </p>
+          <p style="color:#ccc;font-size:13px"><strong>Ristorante Albergo Mazzini</strong> - 📍 Piazza Manzoni 1</p>
+          <p style="color:#ccc;font-size:13px">13-14 Novembre | Menu completo: <strong style="color:#F7AF40">€18</strong></p>
           
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🔗 Link Utili / Useful Links</h3>
-          <p style="text-align:center;margin:20px 0">
-            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px">📅 Programma / Schedule</a>
-            <a href="https://bb2026.onrender.com/travel.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px">✈️ Travel Info</a>
+          <p style="text-align:center;margin:15px 0">
+            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">📅 Programma / Schedule</a>
+            <a href="https://bb2026.onrender.com/travel.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">✈️ Travel Info</a>
           </p>
         </div>
         ${emailFooter}
