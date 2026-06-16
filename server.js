@@ -780,7 +780,14 @@ async function sendStatusEmail(to, data) {
             <p style="margin:0"><strong style="color:#F7AF40">Codice iscrizione:</strong> ${codice}</p>
           </div>
           
-          <p>Il nostro team sta verificando il pagamento. Riceverai una email di conferma non appena completata la verifica.</p>
+          <div style="background:#1e3a5f;border:1px solid #3b82f6;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#3b82f6">⏳ Verifica in corso</strong><br>
+              <span style="color:#888;font-size:14px">Il nostro team verificherà il pagamento entro 2-3 giorni lavorativi.</span>
+            </p>
+          </div>
+          
+          <p>Riceverai una email di conferma non appena completata la verifica.</p>
           
           <p style="color:#888;font-size:14px;margin-top:30px">Grazie per la pazienza!</p>
         </div>
@@ -798,19 +805,61 @@ async function sendStatusEmail(to, data) {
           </div>
           
           <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-          <p>La tua iscrizione è stata <strong>confermata</strong>!</p>
+          <p>La tua iscrizione è stata <strong style="color:#22c55e">confermata</strong>! Ti aspettiamo alla Busto Battle XI!</p>
           
           <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
             <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione:</strong> ${codice}</p>
             <p style="margin:0"><strong style="color:#F7AF40">Discipline:</strong> ${categoria || 'N/D'}</p>
           </div>
           
-          <div style="background:#1a3a1a;border:1px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
-            <p style="margin:0;font-size:18px;color:#22c55e">🎉 Ti aspettiamo alla Busto Battle XI!</p>
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:20px;color:#22c55e">🎉 Ci vediamo a Busto Arsizio!</p>
+            <p style="margin:10px 0 0;color:#888">📅 13-15 Novembre 2026</p>
           </div>
           
-          <p style="text-align:center">
-            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📅 Vedi il Programma</a>
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">📍 Luoghi della Gara</h3>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">E Work Arena</strong></p>
+            <p style="margin:0;color:#ccc;font-size:14px">Classic Slalom • Pairs • Battle</p>
+            <p style="margin:8px 0 0"><a href="https://share.google/gCeC2EL7p2solMIBW" style="color:#F7AF40;font-size:13px">📍 Vedi su Google Maps →</a></p>
+          </div>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong></p>
+            <p style="margin:0;color:#ccc;font-size:14px">Speed • Slide • Free Jump</p>
+            <p style="margin:8px 0 0"><a href="https://share.google/6E1klmiKIJL51MLUg" style="color:#F7AF40;font-size:13px">📍 Vedi su Google Maps →</a></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🏨 Hotel Convenzionati</h3>
+          <p style="color:#ccc;font-size:14px">Strutture con tariffe speciali per i partecipanti:</p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong></p>
+          </div>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Tower Hotel</strong></p>
+          </div>
+          
+          <p style="color:#888;font-size:13px;margin:10px 0">💡 <em>Per prenotare con la convenzione, indica "Busto Battle XI" al momento della prenotazione.</em></p>
+          <p style="color:#ccc;font-size:14px">🚶 Dagli hotel è facilmente raggiungibile a piedi il <strong>PalaCastiglioni</strong>.</p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚐 Servizio Navetta</h3>
+          <p style="color:#ccc;font-size:14px">Per raggiungere la <strong>E Work Arena</strong> è disponibile un servizio navetta a pagamento.</p>
+          <p style="text-align:center;margin:15px 0">
+            <a href="https://bb2026.onrender.com/navetta.html" style="background:#333;color:#F7AF40;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40">🚐 Prenota Navetta</a>
+          </p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🍽️ Cena Atleti</h3>
+          <p style="color:#ccc;font-size:14px">Cena sociale per atleti e accompagnatori nelle serate del 13 e 14 Novembre.</p>
+          <p style="text-align:center;margin:15px 0">
+            <a href="https://bb2026.onrender.com/cena.html" style="background:#333;color:#F7AF40;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40">🍽️ Prenota Cena</a>
+          </p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🔗 Link Utili</h3>
+          <p style="text-align:center;margin:20px 0">
+            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px">📅 Programma Gara</a>
+            <a href="https://bb2026.onrender.com/travel.html" style="background:#F7AF40;color:#000;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px">✈️ Travel Info</a>
           </p>
         </div>
         ${emailFooter}
