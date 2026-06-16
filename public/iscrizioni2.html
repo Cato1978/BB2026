@@ -284,7 +284,7 @@
           <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#222;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
           <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
         </div>
-        <p style="margin-top:0.5rem;font-size:0.75rem;color:#888" data-t="commissioniNota">* Il pagamento online include commissioni carta (2% + €0.25)</p>
+        <p style="margin-top:0.5rem;font-size:0.75rem;color:#888" data-t="commissioniNota">* Il pagamento online include commissioni carta (1,5% + €0,25)</p>
         <p class="msg" id="msg"></p>
       </form>
     </section>
@@ -296,7 +296,7 @@
         <p data-t="confermaCommissioniDesc">Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:</p>
         <div style="background:#111;padding:1rem;border-radius:6px;margin:1rem 0">
           <p style="margin:0"><span data-t="importoIscrizione">Importo iscrizione:</span> <strong id="modal-importo-base">€0</strong></p>
-          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (2% + €0.25):</span> <strong id="modal-commissioni" style="color:#f59e0b">€0</strong></p>
+          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (1,5% + €0,25):</span> <strong id="modal-commissioni" style="color:#f59e0b">€0</strong></p>
           <hr style="border-color:#333;margin:0.8rem 0">
           <p style="margin:0;font-size:1.1rem"><span data-t="totaleFinale">Totale da pagare:</span> <strong id="modal-totale" style="color:#F7AF40">€0</strong></p>
         </div>
@@ -433,8 +433,8 @@
       updateTotale();
     }
 
-    // Costanti commissioni
-    const COMMISSIONE_PERCENTUALE = 0.02; // 2%
+    // Costanti commissioni (tariffa standard SEE)
+    const COMMISSIONE_PERCENTUALE = 0.015; // 1.5%
     const COMMISSIONE_FISSA = 0.25; // €0.25
 
     // Calcolo totale
