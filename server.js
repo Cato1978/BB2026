@@ -884,28 +884,34 @@ async function sendStatusEmail(to, data) {
   
   if (!subject) return;
   
-  // Usa il transporter esistente se configurato
+  // Usa Brevo API per inviare email
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    const brevoApiKey = process.env.BREVO_API_KEY;
     
-    if (process.env.SMTP_USER) {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || 'info@bustobattle.it',
-        to,
-        subject,
-        html
+    if (brevoApiKey) {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+          to: [{ email: to }],
+          subject: subject,
+          htmlContent: html
+        })
       });
-      console.log('Email stato inviata:', { to, stato, codice });
+      
+      if (response.ok) {
+        console.log('Email stato inviata via Brevo API:', { to, stato, codice });
+      } else {
+        const errorData = await response.json();
+        console.error('Errore Brevo API:', errorData);
+      }
     } else {
-      console.log('Email non inviata (SMTP non configurato):', { to, stato, codice });
+      console.log('Email non inviata (BREVO_API_KEY non configurata):', { to, stato, codice });
     }
   } catch (err) {
     console.error('Errore invio email stato:', err);
