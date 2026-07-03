@@ -71,7 +71,8 @@ async function initDb() {
   )`);
   // Migrazione: aggiungi colonne se non esistono (per DB esistenti)
   try { db.run('ALTER TABLE iscritti ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
-  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {};
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {};
   db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -628,14 +629,7 @@ app.post('/api/iscritti/conferma-pagamento', (req, res) => {
 
 // Upload ricevuta bonifico
 const uploadRicevute = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(__dirname, 'public', 'uploads', 'ricevute');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'))
-  }),
+  storage: multer.memoryStorage(), // Usa memoria invece di disco
   fileFilter: (req, file, cb) => {
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     cb(null, allowed.includes(file.mimetype));
@@ -655,10 +649,14 @@ app.post('/api/iscritti/upload-ricevuta', uploadRicevute.single('ricevuta'), (re
   const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
   if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
   
-  // Aggiorna stato a "verifica"
-  db.run('UPDATE iscritti SET stato=?, ricevuta_bonifico=? WHERE id=?', ['verifica', req.file.filename, id]);
+  // Salva file come base64 nel database (per evitare problemi filesystem Render)
+  const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  const filename = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  
+  // Aggiorna stato a "verifica" e salva ricevuta come base64
+  db.run('UPDATE iscritti SET stato=?, ricevuta_bonifico=?, ricevuta_base64=? WHERE id=?', ['verifica', filename, base64Data, id]);
   save();
-  console.log('Ricevuta caricata:', { codice, id, file: req.file.filename });
+  console.log('Ricevuta caricata:', { codice, id, filename });
   
   // Invia email conferma ricezione
   if (iscritto.email) {
@@ -679,6 +677,28 @@ app.get('/api/iscritti/stato/:codice', (req, res) => {
   
   const codice = 'BB11-' + String(id).padStart(4, '0');
   res.json({ ...iscritto, codice });
+});
+
+// Visualizza ricevuta (admin)
+app.get('/api/iscritti/:id/ricevuta', requireAdmin, (req, res) => {
+  const id = +req.params.id;
+  const iscritto = all('SELECT ricevuta_base64, ricevuta_bonifico FROM iscritti WHERE id=?', [id])[0];
+  if (!iscritto || !iscritto.ricevuta_base64) {
+    return res.status(404).json({ error: 'Ricevuta non trovata' });
+  }
+  
+  // Estrai mimetype e dati dal base64
+  const matches = iscritto.ricevuta_base64.match(/^data:(.+);base64,(.+)$/);
+  if (!matches) {
+    return res.status(500).json({ error: 'Formato ricevuta non valido' });
+  }
+  
+  const mimetype = matches[1];
+  const data = Buffer.from(matches[2], 'base64');
+  
+  res.setHeader('Content-Type', mimetype);
+  res.setHeader('Content-Disposition', `inline; filename="${iscritto.ricevuta_bonifico || 'ricevuta'}"`);
+  res.send(data);
 });
 
 // Admin: conferma pagamento bonifico

@@ -331,7 +331,7 @@
         if (stato === 'verifica') {
           azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
           if (i.ricevuta_bonifico) {
-            azioniHtml += `<a href="/uploads/ricevute/${i.ricevuta_bonifico}" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+            azioniHtml += `<a href="/api/iscritti/${i.id}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
           }
         }
         
