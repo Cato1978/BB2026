@@ -39,12 +39,191 @@ const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BKmSLTMCb78Qm9ZmSYCnGRdym7iFWT
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'C2DhpRwo6SLXftJGmRmY-lcESP0ndk04V3Z8CKC_cuE';
 webpush.setVapidDetails('mailto:info@bustobattle.it', VAPID_PUBLIC, VAPID_PRIVATE);
 
+// Database - PostgreSQL se DATABASE_URL è presente, altrimenti SQLite
+const usePostgres = !!process.env.DATABASE_URL;
+let db, pgPool;
+
+if (usePostgres) {
+  const { Pool } = require('pg');
+  pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  console.log('Usando PostgreSQL');
+} else {
+  console.log('Usando SQLite');
+}
+
 const DB_DIR = process.env.RENDER ? '/tmp' : path.join(__dirname, 'db');
 const DB_PATH = path.join(DB_DIR, 'gara.db');
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
-let db;
 
 async function initDb() {
+  if (usePostgres) {
+    // PostgreSQL - crea tabelle
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS iscritti (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      data_nascita TEXT,
+      categoria TEXT,
+      societa TEXT,
+      email TEXT,
+      telefono TEXT,
+      navetta INTEGER DEFAULT 0,
+      navetta_dettagli TEXT,
+      pagamento INTEGER DEFAULT 0,
+      stato TEXT DEFAULT 'sospesa',
+      ricevuta_bonifico TEXT,
+      ricevuta_base64 TEXT,
+      note TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      giorno TEXT NOT NULL,
+      ora TEXT NOT NULL,
+      direzione TEXT NOT NULL,
+      num_persone INTEGER NOT NULL DEFAULT 1,
+      codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS risultati (
+      id SERIAL PRIMARY KEY,
+      titolo TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      categoria TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      endpoint TEXT UNIQUE NOT NULL,
+      keys_p256dh TEXT,
+      keys_auth TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      giorno TEXT NOT NULL,
+      num_persone INTEGER NOT NULL DEFAULT 1,
+      note TEXT,
+      codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_ordini (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      codice TEXT,
+      note TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_items (
+      id SERIAL PRIMARY KEY,
+      ordine_id INTEGER NOT NULL,
+      articolo TEXT NOT NULL,
+      taglia TEXT,
+      quantita INTEGER NOT NULL DEFAULT 1,
+      prezzo_unitario REAL NOT NULL
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      ora TEXT NOT NULL,
+      codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
+      id SERIAL PRIMARY KEY,
+      giorno TEXT NOT NULL,
+      ora TEXT NOT NULL,
+      partenza TEXT NOT NULL,
+      arrivo TEXT NOT NULL,
+      posti_max INTEGER DEFAULT 8,
+      costo REAL DEFAULT 2
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS prove_slots (
+      id SERIAL PRIMARY KEY,
+      giorno TEXT NOT NULL,
+      ora_inizio TEXT NOT NULL,
+      ora_fine TEXT NOT NULL,
+      luogo TEXT NOT NULL,
+      posti_max INTEGER DEFAULT 20,
+      costo REAL DEFAULT 10
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'admin',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS page_settings (
+      page TEXT PRIMARY KEY,
+      enabled INTEGER DEFAULT 1,
+      visible INTEGER DEFAULT 1
+    )`);
+    
+    // Seed pagine default
+    const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
+    for (const p of pages) {
+      await pgPool.query('INSERT INTO page_settings (page, enabled, visible) VALUES ($1, 1, 1) ON CONFLICT (page) DO NOTHING', [p]);
+    }
+    
+    // Seed navetta slots
+    const navettaRes = await pgPool.query('SELECT COUNT(*) as c FROM navetta_slots');
+    if (parseInt(navettaRes.rows[0].c) === 0) {
+      const giorni = ['2026-11-13', '2026-11-14'];
+      const ore = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+      for (const g of giorni) {
+        for (const o of ore) {
+          await pgPool.query('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES ($1,$2,$3,$4,$5,$6)',
+            [g, o, 'Stazione FS Busto Arsizio', 'E Work Arena / PalaCastiglioni', 8, 2]);
+        }
+      }
+    }
+    
+    // Seed prove slots
+    const proveRes = await pgPool.query('SELECT COUNT(*) as c FROM prove_slots');
+    if (parseInt(proveRes.rows[0].c) === 0) {
+      const proveSlots = [
+        ['2026-11-14', '08:00', '09:00', 'PalaCastiglioni', 20, 10],
+        ['2026-11-14', '09:00', '10:00', 'PalaCastiglioni', 20, 10],
+        ['2026-11-14', '10:00', '11:00', 'PalaCastiglioni', 20, 10],
+        ['2026-11-14', '11:00', '12:00', 'PalaCastiglioni', 20, 10],
+        ['2026-11-14', '12:00', '13:00', 'PalaCastiglioni', 20, 10],
+      ];
+      for (const [g, oi, of_, l, p, c] of proveSlots) {
+        await pgPool.query('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES ($1,$2,$3,$4,$5,$6)',
+          [g, oi, of_, l, p, c]);
+      }
+    }
+    
+    // Seed admin user
+    const admins = await pgPool.query('SELECT * FROM users WHERE username=$1', ['admin']);
+    if (admins.rows.length === 0) {
+      const hash = bcrypt.hashSync('admin123', 10);
+      await pgPool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hash, 'admin']);
+    }
+    
+    console.log('PostgreSQL inizializzato');
+    return;
+  }
+  
+  // SQLite fallback
   const SQL = await initSqlJs();
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH);
@@ -300,11 +479,15 @@ function seedDemoAthletes() {
 }
 
 function save() {
+  if (usePostgres) return; // PostgreSQL salva automaticamente
   const data = Buffer.from(db.export());
   fs.writeFileSync(DB_PATH, data);
 }
 
 function all(sql, params = []) {
+  if (usePostgres) {
+    throw new Error('Usa allAsync per PostgreSQL');
+  }
   const stmt = db.prepare(sql);
   stmt.bind(params);
   const rows = [];
@@ -313,14 +496,60 @@ function all(sql, params = []) {
   return rows;
 }
 
-app.get('/api/iscritti', (req, res) => {
-  res.json(all('SELECT * FROM iscritti ORDER BY cognome, nome'));
+// Wrapper async per query - funziona con entrambi i database
+async function dbAll(sql, params = []) {
+  if (usePostgres) {
+    // Converti placeholder ? in $1, $2, etc per PostgreSQL
+    let idx = 0;
+    const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    const res = await pgPool.query(pgSql, params);
+    return res.rows;
+  }
+  return all(sql, params);
+}
+
+async function dbRun(sql, params = []) {
+  if (usePostgres) {
+    let idx = 0;
+    const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    const res = await pgPool.query(pgSql, params);
+    return res;
+  }
+  db.run(sql, params);
+  save();
+}
+
+async function dbInsert(sql, params = []) {
+  if (usePostgres) {
+    let idx = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    // Aggiungi RETURNING id per ottenere l'ID inserito
+    if (!pgSql.toLowerCase().includes('returning')) {
+      pgSql += ' RETURNING id';
+    }
+    const res = await pgPool.query(pgSql, params);
+    return res.rows[0]?.id || null;
+  }
+  db.run(sql, params);
+  save();
+  const lastId = all('SELECT last_insert_rowid() as id')[0];
+  return lastId?.id || null;
+}
+
+app.get('/api/iscritti', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- EXPORT EXCEL ISCRITTI ---
 app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
   try {
-    const iscritti = all('SELECT * FROM iscritti ORDER BY cognome, nome');
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
     
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Busto Battle XI';
@@ -476,14 +705,20 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
 });
 
 // --- AUTH API ---
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = all('SELECT * FROM users WHERE username=?', [username])[0];
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Credenziali non valide' });
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const rows = await dbAll('SELECT * FROM users WHERE username=?', [username]);
+    const user = rows[0];
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Credenziali non valide' });
+    }
+    req.session.user = { id: user.id, username: user.username, role: user.role };
+    res.json({ ok: true, username: user.username, role: user.role });
+  } catch (err) {
+    console.error('Errore login:', err);
+    res.status(500).json({ error: err.message });
   }
-  req.session.user = { id: user.id, username: user.username, role: user.role };
-  res.json({ ok: true, username: user.username, role: user.role });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -513,29 +748,45 @@ app.get('/admin.html', (req, res, next) => {
 });
 
 // --- PAGE SETTINGS API ---
-app.get('/api/pages', (req, res) => {
-  res.json(all('SELECT * FROM page_settings'));
+app.get('/api/pages', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM page_settings');
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET pages:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.put('/api/pages/:page', requireAdmin, (req, res) => {
-  const { enabled, visible } = req.body;
-  if (enabled !== undefined) {
-    db.run('UPDATE page_settings SET enabled=? WHERE page=?', [enabled ? 1 : 0, req.params.page]);
+app.put('/api/pages/:page', requireAdmin, async (req, res) => {
+  try {
+    const { enabled, visible } = req.body;
+    if (enabled !== undefined) {
+      await dbRun('UPDATE page_settings SET enabled=? WHERE page=?', [enabled ? 1 : 0, req.params.page]);
+    }
+    if (visible !== undefined) {
+      await dbRun('UPDATE page_settings SET visible=? WHERE page=?', [visible ? 1 : 0, req.params.page]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore PUT pages:', err);
+    res.status(500).json({ error: err.message });
   }
-  if (visible !== undefined) {
-    db.run('UPDATE page_settings SET visible=? WHERE page=?', [visible ? 1 : 0, req.params.page]);
-  }
-  save();
-  res.json({ ok: true });
 });
 
 // --- SIMULAZIONE UTENTE ---
-app.post('/api/admin/simulate', requireAdmin, (req, res) => {
-  const { iscritto_id } = req.body;
-  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [+iscritto_id])[0];
-  if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
-  req.session.simulating = iscritto;
-  res.json({ ok: true, iscritto });
+app.post('/api/admin/simulate', requireAdmin, async (req, res) => {
+  try {
+    const { iscritto_id } = req.body;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [+iscritto_id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    req.session.simulating = iscritto;
+    res.json({ ok: true, iscritto });
+  } catch (err) {
+    console.error('Errore simulate:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/admin/stop-simulate', requireAdmin, (req, res) => {
@@ -548,83 +799,96 @@ app.get('/api/admin/simulating', requireAdmin, (req, res) => {
 });
 
 app.post('/api/iscritti', async (req, res) => {
-  const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove } = req.body;
-  
-  // Validazione età minima (nati dal 2016 o prima)
-  if (data_nascita) {
-    const annoNascita = parseInt(data_nascita.split('-')[0]);
-    if (annoNascita > 2016) {
-      return res.status(400).json({ error: 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)' });
+  try {
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove } = req.body;
+    
+    // Validazione età minima (nati dal 2016 o prima)
+    if (data_nascita) {
+      const annoNascita = parseInt(data_nascita.split('-')[0]);
+      if (annoNascita > 2016) {
+        return res.status(400).json({ error: 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)' });
+      }
     }
-  }
-  
-  db.run(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
-  save();
-  
-  // Ottieni l'ID dell'ultimo inserimento usando last_insert_rowid()
-  const lastId = all('SELECT last_insert_rowid() as id')[0];
-  const id = lastId ? lastId.id : 1;
-  const codice = 'BB11-' + String(id).padStart(4, '0');
-  console.log('Nuovo iscritto:', { id, codice, nome, cognome });
-  
-  // Salva prenotazioni prove pista
-  if (prove && prove.length > 0) {
-    const proveCodice = 'PRV-' + codice;
-    for (const ora of prove) {
-      db.run('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
-        [nome, cognome, email || null, telefono || null, ora, proveCodice]);
+    
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Nuovo iscritto:', { id, codice, nome, cognome });
+    
+    // Salva prenotazioni prove pista
+    if (prove && prove.length > 0) {
+      const proveCodice = 'PRV-' + codice;
+      for (const ora of prove) {
+        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
+          [nome, cognome, email || null, telefono || null, ora, proveCodice]);
+      }
+      console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
     }
-    save();
-    console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
+    
+    // Invio email di conferma
+    if (email) {
+      const discipline = categoria ? categoria.split(', ') : [];
+      const totale = discipline.length * 40;
+      // Usa sendStatusEmail con stato 'sospesa' che usa Brevo API
+      sendStatusEmail(email, { nome, cognome, codice, categoria, stato: 'sospesa' }).catch(console.error);
+    }
+    res.json({ id, codice });
+  } catch (err) {
+    console.error('Errore POST iscritti:', err);
+    res.status(500).json({ error: err.message });
   }
-  
-  // Invio email di conferma
-  if (email) {
-    const discipline = categoria ? categoria.split(', ') : [];
-    const totale = discipline.length * 40;
-    // Usa sendStatusEmail con stato 'sospesa' che usa Brevo API
-    sendStatusEmail(email, { nome, cognome, codice, categoria, stato: 'sospesa' }).catch(console.error);
-  }
-  res.json({ id, codice });
 });
 
-app.put('/api/iscritti/:id', (req, res) => {
-  const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, pagamento, note } = req.body;
-  db.run(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=? WHERE id=?`,
-    [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, req.params.id]);
-  save();
-  res.json({ ok: true });
+app.put('/api/iscritti/:id', async (req, res) => {
+  try {
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, pagamento, note } = req.body;
+    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=? WHERE id=?`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore PUT iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.delete('/api/iscritti/:id', (req, res) => {
-  db.run('DELETE FROM iscritti WHERE id=?', [+req.params.id]);
-  save();
-  res.json({ ok: true });
+app.delete('/api/iscritti/:id', async (req, res) => {
+  try {
+    await dbRun('DELETE FROM iscritti WHERE id=?', [+req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore DELETE iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Conferma pagamento tramite codice (chiamato dopo ritorno da Stripe)
-app.post('/api/iscritti/conferma-pagamento', (req, res) => {
-  const { codice } = req.body;
-  if (!codice) return res.status(400).json({ error: 'Codice mancante' });
-  
-  // Estrai ID dal codice (es. BB11-0101 -> 101)
-  const match = codice.match(/BB11-(\d+)/);
-  if (!match) return res.status(400).json({ error: 'Codice non valido' });
-  
-  const id = parseInt(match[1]);
-  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
-  db.run('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
-  save();
-  console.log('Pagamento Stripe confermato per iscritto:', { codice, id });
-  
-  // Invia email conferma
-  if (iscritto && iscritto.email) {
-    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+app.post('/api/iscritti/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    // Estrai ID dal codice (es. BB11-0101 -> 101)
+    const match = codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    await dbRun('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
+    console.log('Pagamento Stripe confermato per iscritto:', { codice, id });
+    
+    // Invia email conferma
+    if (iscritto && iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma pagamento:', err);
+    res.status(500).json({ error: err.message });
   }
-  
-  res.json({ ok: true });
 });
 
 // Upload ricevuta bonifico
@@ -637,88 +901,110 @@ const uploadRicevute = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
 });
 
-app.post('/api/iscritti/upload-ricevuta', uploadRicevute.single('ricevuta'), (req, res) => {
-  const { codice } = req.body;
-  if (!codice) return res.status(400).json({ error: 'Codice mancante' });
-  if (!req.file) return res.status(400).json({ error: 'File ricevuta mancante' });
-  
-  const match = codice.match(/BB11-(\d+)/);
-  if (!match) return res.status(400).json({ error: 'Codice non valido' });
-  
-  const id = parseInt(match[1]);
-  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
-  if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
-  
-  // Salva file come base64 nel database (per evitare problemi filesystem Render)
-  const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-  const filename = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  
-  // Aggiorna stato a "verifica" e salva ricevuta come base64
-  db.run('UPDATE iscritti SET stato=?, ricevuta_bonifico=?, ricevuta_base64=? WHERE id=?', ['verifica', filename, base64Data, id]);
-  save();
-  console.log('Ricevuta caricata:', { codice, id, filename });
-  
-  // Invia email conferma ricezione
-  if (iscritto.email) {
-    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'verifica' }).catch(console.error);
+app.post('/api/iscritti/upload-ricevuta', uploadRicevute.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    if (!req.file) return res.status(400).json({ error: 'File ricevuta mancante' });
+    
+    const match = codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+    
+    // Salva file come base64 nel database (per evitare problemi filesystem Render)
+    const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const filename = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    
+    // Aggiorna stato a "verifica" e salva ricevuta come base64
+    await dbRun('UPDATE iscritti SET stato=?, ricevuta_bonifico=?, ricevuta_base64=? WHERE id=?', ['verifica', filename, base64Data, id]);
+    console.log('Ricevuta caricata:', { codice, id, filename });
+    
+    // Invia email conferma ricezione
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'verifica' }).catch(console.error);
+    }
+    
+    res.json({ ok: true, stato: 'verifica' });
+  } catch (err) {
+    console.error('Errore upload ricevuta:', err);
+    res.status(500).json({ error: err.message });
   }
-  
-  res.json({ ok: true, stato: 'verifica' });
 });
 
 // Ottieni stato iscrizione per codice (pubblico)
-app.get('/api/iscritti/stato/:codice', (req, res) => {
-  const match = req.params.codice.match(/BB11-(\d+)/);
-  if (!match) return res.status(400).json({ error: 'Codice non valido' });
-  
-  const id = parseInt(match[1]);
-  const iscritto = all('SELECT id, nome, cognome, stato, pagamento, ricevuta_bonifico FROM iscritti WHERE id=?', [id])[0];
-  if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
-  
-  const codice = 'BB11-' + String(id).padStart(4, '0');
-  res.json({ ...iscritto, codice });
+app.get('/api/iscritti/stato/:codice', async (req, res) => {
+  try {
+    const match = req.params.codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT id, nome, cognome, stato, pagamento, ricevuta_bonifico FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    res.json({ ...iscritto, codice });
+  } catch (err) {
+    console.error('Errore stato iscrizione:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Visualizza ricevuta (admin)
-app.get('/api/iscritti/:id/ricevuta', requireAdmin, (req, res) => {
-  const id = +req.params.id;
-  const iscritto = all('SELECT ricevuta_base64, ricevuta_bonifico FROM iscritti WHERE id=?', [id])[0];
-  if (!iscritto || !iscritto.ricevuta_base64) {
-    return res.status(404).json({ error: 'Ricevuta non trovata' });
+app.get('/api/iscritti/:id/ricevuta', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT ricevuta_base64, ricevuta_bonifico FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto || !iscritto.ricevuta_base64) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    // Estrai mimetype e dati dal base64
+    const matches = iscritto.ricevuta_base64.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(500).json({ error: 'Formato ricevuta non valido' });
+    }
+    
+    const mimetype = matches[1];
+    const data = Buffer.from(matches[2], 'base64');
+    
+    res.setHeader('Content-Type', mimetype);
+    res.setHeader('Content-Disposition', `inline; filename="${iscritto.ricevuta_bonifico || 'ricevuta'}"`);
+    res.send(data);
+  } catch (err) {
+    console.error('Errore ricevuta:', err);
+    res.status(500).json({ error: err.message });
   }
-  
-  // Estrai mimetype e dati dal base64
-  const matches = iscritto.ricevuta_base64.match(/^data:(.+);base64,(.+)$/);
-  if (!matches) {
-    return res.status(500).json({ error: 'Formato ricevuta non valido' });
-  }
-  
-  const mimetype = matches[1];
-  const data = Buffer.from(matches[2], 'base64');
-  
-  res.setHeader('Content-Type', mimetype);
-  res.setHeader('Content-Disposition', `inline; filename="${iscritto.ricevuta_bonifico || 'ricevuta'}"`);
-  res.send(data);
 });
 
 // Admin: conferma pagamento bonifico
-app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, (req, res) => {
-  const id = +req.params.id;
-  const iscritto = all('SELECT * FROM iscritti WHERE id=?', [id])[0];
-  if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
-  
-  db.run('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
-  save();
-  
-  const codice = 'BB11-' + String(id).padStart(4, '0');
-  console.log('Bonifico confermato da admin:', { codice, id });
-  
-  // Invia email conferma
-  if (iscritto.email) {
-    sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    await dbRun('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Bonifico confermato da admin:', { codice, id });
+    
+    // Invia email conferma
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma bonifico:', err);
+    res.status(500).json({ error: err.message });
   }
-  
-  res.json({ ok: true });
 });
 
 // Funzione per inviare email di stato
