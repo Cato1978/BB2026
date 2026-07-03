@@ -712,10 +712,21 @@ async function sendStatusEmail(to, data) {
     </div>
   `;
   
-  // Footer comune bilingue
+  // Footer comune bilingue con sponsor
   const emailFooter = `
     <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
-      <p style="color:#888;margin:0 0 10px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 Busto Arsizio (VA), Italy</p>
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 Busto Arsizio (VA), Italy</p>
+      
+      <div style="margin:20px 0;padding:15px 0;border-top:1px solid #333">
+        <p style="color:#666;margin:0 0 10px;font-size:11px;font-family:Arial,sans-serif">SPONSORS</p>
+        <a href="https://www.fr-skates.com" target="_blank" style="display:inline-block;margin:0 15px">
+          <img src="https://bb2026.onrender.com/Fr.webp" alt="FR Skates" style="height:50px">
+        </a>
+        <a href="https://www.tmc.it" target="_blank" style="display:inline-block;margin:0 15px">
+          <img src="https://bb2026.onrender.com/tmc.png" alt="TMC" style="height:40px;filter:invert(1)">
+        </a>
+      </div>
+      
       <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
         <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
         <a href="mailto:info@bustobattle.it" style="color:#F7AF40">info@bustobattle.it</a>
@@ -902,11 +913,11 @@ async function sendStatusEmail(to, data) {
 }
 
 // Endpoint per inviare email di test (solo per admin)
-app.post('/api/test-email', async (req, res) => {
-  const { to, stato } = req.body;
+app.get('/api/test-email', async (req, res) => {
+  const { to, stato } = req.query;
   
   if (!to || !stato) {
-    return res.status(400).json({ error: 'Parametri mancanti: to, stato' });
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata' });
   }
   
   // Dati fittizi per il test
