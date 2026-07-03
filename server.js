@@ -583,7 +583,8 @@ app.post('/api/iscritti', async (req, res) => {
   if (email) {
     const discipline = categoria ? categoria.split(', ') : [];
     const totale = discipline.length * 40;
-    sendConfirmationEmail(email, { nome, cognome, codice, categoria, totale }).catch(console.error);
+    // Usa sendStatusEmail con stato 'sospesa' che usa Brevo API
+    sendStatusEmail(email, { nome, cognome, codice, categoria, stato: 'sospesa' }).catch(console.error);
   }
   res.json({ id, codice });
 });
