@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><title>Aggiungi Test</title></head>
+<body>
+<h1>Aggiunta iscritto test</h1>
+<button onclick="aggiungi()">Aggiungi iscritto test</button>
+<div id="result"></div>
+<script>
+async function aggiungi() {
+  const res = await fetch('/api/iscritti', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nome: 'Test',
+      cognome: 'Utente',
+      email: 'amicocatoblepa78@gmail.com',
+      telefono: '3331234567',
+      categoria: 'Speed Slalom',
+      societa: 'Test Club',
+      data_nascita: '1990-01-01'
+    })
+  });
+  const data = await res.json();
+  document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+  alert('Iscritto aggiunto! Codice: ' + data.codice);
+}
+</script>
+</body>
+</html>
