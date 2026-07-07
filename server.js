@@ -37,7 +37,7 @@ const upload = multer({
 // Web Push config - genera le tue chiavi con: npx web-push generate-vapid-keys
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BKmSLTMCb78Qm9ZmSYCnGRdym7iFWTzzSdjR93FHROgewYYbPiLup6n_3wdf3vYklg0tEvxzp7ANfqg7dNQr988';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'C2DhpRwo6SLXftJGmRmY-lcESP0ndk04V3Z8CKC_cuE';
-webpush.setVapidDetails('mailto:info@bustobattle.it', VAPID_PUBLIC, VAPID_PRIVATE);
+webpush.setVapidDetails('mailto:bustobattle@gmail.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
 // Database - PostgreSQL se DATABASE_URL è presente, altrimenti SQLite
 const usePostgres = !!process.env.DATABASE_URL;
@@ -1068,7 +1068,7 @@ async function sendStatusEmail(to, data) {
       
       <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
         <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
-        <a href="mailto:info@bustobattle.it" style="color:#F7AF40">info@bustobattle.it</a>
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
       </p>
     </div>
   `;
@@ -1247,7 +1247,7 @@ async function sendStatusEmail(to, data) {
             <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
           </p>
           
-          <p style="color:#888;font-size:14px;margin-top:30px">Se hai domande, contattaci a <a href="mailto:info@bustobattle.it" style="color:#F7AF40">info@bustobattle.it</a><br><em>If you have questions, contact us at info@bustobattle.it</em></p>
+          <p style="color:#888;font-size:14px;margin-top:30px">Se hai domande, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a><br><em>If you have questions, contact us at bustobattle@gmail.com</em></p>
         </div>
         ${emailFooter}
       </div>
@@ -1805,7 +1805,7 @@ async function sendConfirmationEmail(to, { nome, cognome, codice, categoria, tot
 async function sendContactEmail({ nome, email, oggetto, messaggio }) {
   await transporter.sendMail({
     from: '"Busto Battle XI" <noreply@bustobattle.it>',
-    to: 'info@bustobattle.it',
+    to: 'bustobattle@gmail.com',
     replyTo: email,
     subject: `[Contatto] ${oggetto}`,
     html: `<p><strong>Da:</strong> ${nome} (${email})</p><p><strong>Oggetto:</strong> ${oggetto}</p><p>${messaggio}</p>`
