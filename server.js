@@ -1166,6 +1166,17 @@ async function sendStatusEmail(to, data) {
             <p style="margin:10px 0 0;color:#888">📅 13-15 Novembre / November 2026</p>
           </div>
           
+          ${(categoria && (categoria.includes('Classic Slalom') || categoria.includes('Pair Slalom'))) ? `
+          <div style="background:#2d1f3d;border:2px solid #9333ea;padding:20px;border-radius:6px;margin:20px 0">
+            <h3 style="color:#9333ea;margin:0 0 15px">🎵 Invia la tua musica / Send your music</h3>
+            <p style="margin:0;color:#f0f0f0">Se sei iscritto a <strong>Classic Slalom</strong> o <strong>Pair Slalom</strong>, invia il file musicale a:<br><em style="color:#888">If you registered for <strong>Classic Slalom</strong> or <strong>Pair Slalom</strong>, send your music file to:</em></p>
+            <p style="margin:15px 0;text-align:center">
+              <a href="mailto:bustobattle@gmail.com?subject=Musica ${codice} - ${nome} ${cognome}" style="background:#9333ea;color:#fff;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📧 bustobattle@gmail.com</a>
+            </p>
+            <p style="margin:0;color:#888;font-size:13px">📝 Oggetto / Subject: <strong style="color:#ccc">"Musica - ${nome} ${cognome}"</strong></p>
+          </div>
+          ` : ''}
+          
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚆 Come Arrivare / How to Get Here</h3>
           <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
             <p style="margin:0;color:#ccc;font-size:13px"><strong>Da Malpensa:</strong> Malpensa Express → Busto Arsizio FN (~15 min)</p>
