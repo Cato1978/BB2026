@@ -1803,13 +1803,54 @@ async function sendConfirmationEmail(to, { nome, cognome, codice, categoria, tot
 }
 
 async function sendContactEmail({ nome, email, oggetto, messaggio }) {
-  await transporter.sendMail({
-    from: '"Busto Battle XI" <noreply@bustobattle.it>',
-    to: 'bustobattle@gmail.com',
-    replyTo: email,
-    subject: `[Contatto] ${oggetto}`,
-    html: `<p><strong>Da:</strong> ${nome} (${email})</p><p><strong>Oggetto:</strong> ${oggetto}</p><p>${messaggio}</p>`
-  });
+  // Usa Brevo API per inviare email
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  
+  if (!brevoApiKey) {
+    console.log('Email contatto non inviata (BREVO_API_KEY non configurata):', { nome, email, oggetto });
+    return;
+  }
+  
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+        to: [{ email: 'bustobattle@gmail.com' }],
+        replyTo: { email: email, name: nome },
+        subject: `[Contatto BB XI] ${oggetto}`,
+        htmlContent: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#111;color:#f0f0f0;border-radius:8px;overflow:hidden">
+            <div style="background:#1a1a1a;padding:20px;text-align:center">
+              <h1 style="color:#F7AF40;margin:0">📬 Nuovo Messaggio</h1>
+            </div>
+            <div style="padding:20px">
+              <p><strong style="color:#F7AF40">Da:</strong> ${nome}</p>
+              <p><strong style="color:#F7AF40">Email:</strong> <a href="mailto:${email}" style="color:#F7AF40">${email}</a></p>
+              <p><strong style="color:#F7AF40">Oggetto:</strong> ${oggetto}</p>
+              <div style="background:#222;padding:15px;border-radius:6px;margin-top:15px">
+                <p style="margin:0;white-space:pre-wrap">${messaggio}</p>
+              </div>
+            </div>
+          </div>
+        `
+      })
+    });
+    
+    if (response.ok) {
+      console.log('Email contatto inviata via Brevo API:', { nome, email, oggetto });
+    } else {
+      const errorData = await response.json();
+      console.error('Errore Brevo API (contatto):', errorData);
+    }
+  } catch (err) {
+    console.error('Errore invio email contatto:', err);
+  }
 }
 
 initDb().then(() => {
