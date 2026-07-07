@@ -172,12 +172,12 @@ td button {
 .modal-content h3 { color: #F7AF40; margin-bottom: 1rem; }
 
 /* Hero & Locandina */
-.hero { display: flex; justify-content: center; padding: 2rem 1rem; }
+.hero { display: flex; justify-content: center; padding: 1rem 1rem; }
 
 .locandina {
   background: transparent;
   border: none;
-  padding: 3rem;
+  padding: 1.5rem;
   text-align: center;
   max-width: 700px;
   width: 100%;
@@ -186,7 +186,7 @@ td button {
 .hero-logo {
   width: 400px;
   height: auto;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   border-radius: 8px;
 }
 
@@ -196,26 +196,26 @@ td button {
   color: #F7AF40;
   font-size: 1.6rem;
   letter-spacing: 3px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 .event-details p {
-  padding: 0.5rem 0;
+  padding: 0.3rem 0;
   color: #ccc;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-family: 'Montserrat', sans-serif;
   font-weight: 400;
 }
 
 .cta-btn {
   display: inline-block;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   background: #F7AF40;
   color: #000;
-  padding: 0.8rem 2rem;
+  padding: 0.7rem 1.8rem;
   border-radius: 6px;
   text-decoration: none;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .cta-btn:hover { background: #ffc560; }
@@ -224,24 +224,24 @@ td button {
 .countdown {
   display: flex;
   justify-content: center;
-  gap: 1.5rem;
-  margin-top: 2rem;
+  gap: 1.2rem;
+  margin-top: 1rem;
 }
 
 .countdown-item { text-align: center; }
 .countdown-item .number {
-  font-size: 2rem;
+  font-size: 1.6rem;
   font-weight: bold;
   color: #F7AF40;
 }
-.countdown-item .label { font-size: 0.8rem; color: #999; }
+.countdown-item .label { font-size: 0.75rem; color: #999; }
 
 /* Footer */
 footer {
   background: #000;
-  padding: 1.5rem;
+  padding: 1rem;
   text-align: center;
-  margin-top: 3rem;
+  margin-top: 1.5rem;
 }
 
 .footer-content { color: #999; }
