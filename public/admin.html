@@ -867,30 +867,41 @@
     });
 
     // --- PAGINE ---
+    // Pagine realmente esistenti nel sito
     const pageNames = {
       iscrizioni: 'Iscrizioni',
       verifica: 'Verifica Iscrizione',
       programma: 'Programma',
       hotel: 'Hotel',
       travel: 'Travel Suggestions',
-      navetta: 'Navetta',
-      maglia: 'Merchandising',
       risultati: 'Risultati',
       contact: 'Contatti',
-      cena: 'Cena Atleti'
+      faq: 'FAQ'
     };
+    
+    // Pagine valide (quelle che esistono realmente)
+    const validPages = Object.keys(pageNames);
 
     async function caricaPagine() {
       const div = document.getElementById('pagine-list');
       div.innerHTML = 'Caricamento...';
       const res = await fetch('/api/pages');
-      const pages = await res.json();
+      let pages = await res.json();
+      // Filtra solo le pagine realmente esistenti
+      pages = pages.filter(p => validPages.includes(p.page));
       if (!pages.length) { div.innerHTML = '<p>Nessuna pagina trovata</p>'; return; }
       div.innerHTML = '';
       pages.forEach(p => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px;flex-wrap:wrap;gap:0.5rem';
         const visible = p.visible !== undefined ? p.visible : 1;
+        
+        // Messaggio speciale per iscrizioni disattivate
+        let extraInfo = '';
+        if (p.page === 'iscrizioni' && !p.enabled) {
+          extraInfo = '<div style="width:100%;margin-top:0.5rem;padding:0.5rem;background:#1a1a1a;border:1px solid #f59e0b;border-radius:4px;color:#f59e0b;font-size:0.85rem">📅 Messaggio mostrato: "Le iscrizioni apriranno il 21 Luglio 2026"</div>';
+        }
+        
         row.innerHTML = `
           <span style="color:#f0f0f0;font-weight:600;min-width:140px">${pageNames[p.page] || p.page}</span>
           <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
@@ -903,6 +914,7 @@
               ${visible ? '🙈 Nascondi' : '👁️ Mostra'}
             </button>
           </div>
+          ${extraInfo}
         `;
         row.querySelector('.btn-toggle-enabled').addEventListener('click', function() {
           togglePage(this.dataset.page, this.dataset.enabled === '1' ? false : true);

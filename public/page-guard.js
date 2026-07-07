@@ -44,15 +44,18 @@
       }
       
       // Messaggio personalizzato per le iscrizioni
-      if (currentPage === 'iscrizioni') {
+      if (currentPage === 'iscrizioni' || currentPage === 'iscrizioni2') {
         const iscrizioniTitle = lang === 'en' ? '📝 Registration' : '📝 Iscrizioni';
         const iscrizioniText = lang === 'en' 
-          ? 'Registrations will open soon. Download the app and enable notifications to be notified as soon as they open!'
-          : 'Le iscrizioni apriranno a breve. Scarica la app e attiva le notifiche per essere avvisato non appena apriranno!';
+          ? 'Registrations will open on July 21, 2026. Download the app and enable notifications to be notified as soon as they open!'
+          : 'Le iscrizioni apriranno il 21 Luglio 2026. Scarica la app e attiva le notifiche per essere avvisato non appena apriranno!';
         
         document.querySelector('main').innerHTML = `
           <div style="text-align:center;padding:3rem 1rem;max-width:600px;margin:0 auto">
             <h2 style="color:#F7AF40;margin-bottom:1rem">${iscrizioniTitle}</h2>
+            <div style="background:#1a1a1a;border:2px solid #F7AF40;padding:2rem;border-radius:12px;margin:1.5rem 0">
+              <p style="color:#F7AF40;font-size:1.5rem;font-weight:700;margin:0">📅 21 ${lang === 'en' ? 'July' : 'Luglio'} 2026</p>
+            </div>
             <p style="color:#ccc;font-size:1.1rem;line-height:1.6">${iscrizioniText}</p>
             <a href="index.html" style="display:inline-block;margin-top:1.5rem;background:#F7AF40;color:#000;padding:0.8rem 2rem;border-radius:6px;text-decoration:none;font-weight:700">← ${lang === 'en' ? 'Back to Home' : 'Torna alla Home'}</a>
           </div>
