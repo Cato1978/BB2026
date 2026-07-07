@@ -1736,27 +1736,40 @@ app.get('/api/push/vapidPublicKey', (req, res) => {
   res.json({ key: VAPID_PUBLIC });
 });
 
-app.post('/api/push/subscribe', (req, res) => {
-  const { endpoint, keys } = req.body;
-  if (!endpoint || !keys) return res.status(400).json({ error: 'Subscription invalida' });
-  db.run('INSERT OR IGNORE INTO push_subscriptions (endpoint, keys_p256dh, keys_auth) VALUES (?, ?, ?)',
-    [endpoint, keys.p256dh, keys.auth]);
-  save();
-  res.json({ ok: true });
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys) return res.status(400).json({ error: 'Subscription invalida' });
+    
+    if (usePostgres) {
+      await pgPool.query(
+        'INSERT INTO push_subscriptions (endpoint, keys_p256dh, keys_auth) VALUES ($1, $2, $3) ON CONFLICT (endpoint) DO UPDATE SET keys_p256dh = $2, keys_auth = $3',
+        [endpoint, keys.p256dh, keys.auth]
+      );
+    } else {
+      db.run('INSERT OR REPLACE INTO push_subscriptions (endpoint, keys_p256dh, keys_auth) VALUES (?, ?, ?)',
+        [endpoint, keys.p256dh, keys.auth]);
+      save();
+    }
+    console.log('Push subscription salvata:', endpoint.substring(0, 50) + '...');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Push subscribe error:', err);
+    res.status(500).json({ error: 'Errore salvataggio subscription' });
+  }
 });
 
 // --- NOTIFICA MANUALE ---
-app.post('/api/push/send', requireAdmin, (req, res) => {
+app.post('/api/push/send', requireAdmin, async (req, res) => {
   try {
     const { title, body } = req.body;
     if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
     
     let subs;
     try {
-      subs = all('SELECT * FROM push_subscriptions');
+      subs = await dbAll('SELECT * FROM push_subscriptions');
     } catch (dbErr) {
       console.error('DB error fetching subscriptions:', dbErr);
-      // Se la tabella non esiste, restituisci 0 invii
       return res.json({ ok: true, sent: 0 });
     }
     
@@ -1764,6 +1777,7 @@ app.post('/api/push/send', requireAdmin, (req, res) => {
       return res.json({ ok: true, sent: 0 });
     }
     
+    console.log(`Invio notifica a ${subs.length} utenti: "${title}"`);
     const payload = JSON.stringify({ title, body, url: '/risultati.html' });
     let sent = 0;
     for (const sub of subs) {
@@ -1772,11 +1786,11 @@ app.post('/api/push/send', requireAdmin, (req, res) => {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
         };
-        webpush.sendNotification(pushSub, payload).catch(err => {
-          console.error('Push error for endpoint:', sub.endpoint, err.statusCode || err.message);
-          if (err.statusCode === 410) {
-            db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
-            save();
+        webpush.sendNotification(pushSub, payload).catch(async err => {
+          console.error('Push error for endpoint:', sub.endpoint.substring(0, 50), err.statusCode || err.message);
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            // Subscription scaduta, rimuovi
+            await dbRun('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
           }
         });
         sent++;
