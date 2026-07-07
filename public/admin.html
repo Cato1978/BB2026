@@ -799,15 +799,34 @@
     document.getElementById('form-notifica').addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(e.target);
-      const res = await fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: fd.get('title'), body: fd.get('body') })
-      });
-      if (res.ok) {
-        const result = await res.json();
-        alert(`✅ Notifica inviata a ${result.sent} utenti!`);
-        e.target.reset();
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Invio in corso...';
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: fd.get('title'), body: fd.get('body') })
+        });
+        if (res.ok) {
+          const result = await res.json();
+          if (result.sent > 0) {
+            alert(`✅ Notifica inviata con successo a ${result.sent} utenti!`);
+          } else {
+            alert('⚠️ Nessun utente ha installato l\'app. La notifica non è stata inviata a nessuno.');
+          }
+          e.target.reset();
+        } else {
+          const err = await res.json();
+          alert('❌ Errore: ' + (err.error || 'Invio fallito'));
+        }
+      } catch (err) {
+        alert('❌ Errore di rete: ' + err.message);
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
       }
     });
 
