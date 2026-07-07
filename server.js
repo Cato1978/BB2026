@@ -798,6 +798,20 @@ app.get('/api/admin/simulating', requireAdmin, (req, res) => {
   res.json({ simulating: req.session.simulating || null });
 });
 
+// Endpoint temporaneo per aggiungere iscritto test
+app.get('/api/add-test-user', async (req, res) => {
+  try {
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, stato)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Test', 'Utente', '1990-01-01', 'Speed Slalom', 'Test Club', 'amicocatoblepa78@gmail.com', '3331234567', 'confermata']);
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    res.json({ ok: true, id, codice, email: 'amicocatoblepa78@gmail.com' });
+  } catch (err) {
+    console.error('Errore add-test-user:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/iscritti', async (req, res) => {
   try {
     const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove } = req.body;
