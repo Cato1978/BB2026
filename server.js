@@ -1294,10 +1294,10 @@ async function sendStatusEmail(to, data) {
 
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
-  const { to, stato, nome, cognome, motivo } = req.query;
+  const { to, stato, nome, cognome, motivo, categoria } = req.query;
   
   if (!to || !stato) {
-    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto. Per rigettata aggiungere &motivo=...' });
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto. Per rigettata aggiungere &motivo=... Per testare musica: &categoria=Classic Slalom (SENIOR)' });
   }
   
   // Dati per il test (usa parametri o default)
@@ -1306,7 +1306,7 @@ app.get('/api/test-email', async (req, res) => {
     cognome: cognome || 'Rossi',
     codice: 'BB11-TEST',
     stato: stato,
-    categoria: 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)',
+    categoria: categoria || 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)',
     motivo: motivo || 'Importo non corrispondente'
   };
   
