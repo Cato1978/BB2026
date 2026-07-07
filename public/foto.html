@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foto - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .gallery-item {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      aspect-ratio: 4/3;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .gallery-item:hover {
+      transform: scale(1.02);
+    }
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .gallery-item .caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 1rem 0.8rem 0.5rem;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox.active {
+      display: flex;
+    }
+    .lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+    }
+    .edition-tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .edition-tab {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #ccc;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .edition-tab.active {
+      background: #F7AF40;
+      color: #000;
+      border-color: #F7AF40;
+    }
+    .coming-soon {
+      text-align: center;
+      padding: 3rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="info">
+      <h2 style="color:#F7AF40;margin-bottom:1rem">📸 Foto</h2>
+      
+      <div class="edition-tabs">
+        <button class="edition-tab active" onclick="showEdition('2026')">2026</button>
+        <button class="edition-tab" onclick="showEdition('2019')">2019</button>
+        <button class="edition-tab" onclick="showEdition('2016')">2016</button>
+        <button class="edition-tab" onclick="showEdition('2015')">2015</button>
+        <button class="edition-tab" onclick="showEdition('2014')">2014</button>
+        <button class="edition-tab" onclick="showEdition('2013')">2013</button>
+      </div>
+
+      <div id="gallery-2026" class="gallery-section">
+        <div class="coming-soon">
+          <p style="font-size:1.2rem;margin-bottom:0.5rem">📷 Le foto dell'edizione 2026 saranno caricate dopo l'evento</p>
+          <p>13-14-15 Novembre 2026</p>
+        </div>
+      </div>
+
+      <div id="gallery-2019" class="gallery-section" style="display:none">
+        <div class="gallery">
+          <div class="gallery-item" onclick="openLightbox('2019.png')">
+            <img src="2019.png" alt="Busto Battle 2019">
+            <div class="caption">Busto Battle 2019</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gallery-2016" class="gallery-section" style="display:none">
+        <div class="gallery">
+          <div class="gallery-item" onclick="openLightbox('2016.jpg')">
+            <img src="2016.jpg" alt="Busto Battle 2016">
+            <div class="caption">Busto Battle 2016</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gallery-2015" class="gallery-section" style="display:none">
+        <div class="gallery">
+          <div class="gallery-item" onclick="openLightbox('2015.jpg')">
+            <img src="2015.jpg" alt="Busto Battle 2015">
+            <div class="caption">Busto Battle 2015</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gallery-2014" class="gallery-section" style="display:none">
+        <div class="gallery">
+          <div class="gallery-item" onclick="openLightbox('2014.png')">
+            <img src="2014.png" alt="Busto Battle 2014">
+            <div class="caption">Busto Battle 2014</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gallery-2013" class="gallery-section" style="display:none">
+        <div class="gallery">
+          <div class="gallery-item" onclick="openLightbox('2013.png')">
+            <img src="2013.png" alt="Busto Battle 2013">
+            <div class="caption">Busto Battle 2013</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">×</button>
+    <img id="lightbox-img" src="" alt="">
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattlexi/" target="_blank">📸 Instagram</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+
+  <script src="translations.js"></script>
+  <script>
+    function showEdition(year) {
+      // Hide all
+      document.querySelectorAll('.gallery-section').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.edition-tab').forEach(t => t.classList.remove('active'));
+      
+      // Show selected
+      document.getElementById('gallery-' + year).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('active');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    // Close lightbox on ESC
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+</body>
+</html>
