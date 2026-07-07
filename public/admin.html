@@ -196,7 +196,7 @@
   </div>
 
   <div id="section-notifiche" style="display:none">
-    <h3>📢 Invia Notifica Manuale</h3>
+    <h3>📢 Invia Notifica Push</h3>
     <p style="color:#888;margin:0.5rem 0">Invia una notifica push a tutti gli utenti che hanno installato l'app.</p>
     <form id="form-notifica" style="margin:1rem 0">
       <div class="form-row">
@@ -205,8 +205,29 @@
       <div class="form-row">
         <input type="text" name="body" placeholder="Messaggio" required>
       </div>
-      <button type="submit">📨 Invia a tutti</button>
+      <button type="submit">📨 Invia Push</button>
     </form>
+
+    <hr style="border-color:#333;margin:2rem 0">
+
+    <h3>📧 Invia Email a tutti gli Iscritti</h3>
+    <p style="color:#888;margin:0.5rem 0">Invia un'email a tutti gli iscritti che hanno fornito un indirizzo email.</p>
+    <form id="form-email-massa" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="oggetto" placeholder="Oggetto email" required>
+      </div>
+      <div class="form-row">
+        <textarea name="messaggio" placeholder="Messaggio (puoi usare {nome} e {cognome} per personalizzare)" required style="min-height:150px"></textarea>
+      </div>
+      <div class="form-row" style="align-items:center">
+        <label style="color:#888;display:flex;align-items:center;gap:0.5rem">
+          <input type="checkbox" name="soloConfermati" checked>
+          Solo iscritti confermati
+        </label>
+      </div>
+      <button type="submit">📧 Invia Email a tutti</button>
+    </form>
+    <div id="email-result" style="margin-top:1rem"></div>
   </div>
 
   <div id="section-simula" style="display:none">
@@ -835,6 +856,60 @@
         }
       } catch (err) {
         alert('❌ Errore: ' + err.message);
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    // --- EMAIL DI MASSA ---
+    document.getElementById('form-email-massa').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      const resultDiv = document.getElementById('email-result');
+      
+      if (!confirm('Sei sicuro di voler inviare questa email a tutti gli iscritti?')) return;
+      
+      btn.textContent = '⏳ Invio in corso...';
+      btn.disabled = true;
+      resultDiv.innerHTML = '<p style="color:#F7AF40">⏳ Invio email in corso, attendere...</p>';
+      
+      try {
+        const res = await fetch('/api/email/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oggetto: fd.get('oggetto'),
+            messaggio: fd.get('messaggio'),
+            soloConfermati: fd.get('soloConfermati') === 'on'
+          })
+        });
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          if (res.status === 401 || res.status === 403) {
+            alert('❌ Sessione scaduta. Effettua di nuovo il login.');
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Risposta non valida dal server');
+        }
+        
+        const result = await res.json();
+        if (res.ok) {
+          resultDiv.innerHTML = `<p style="color:#22c55e">✅ Email inviate con successo a ${result.sent} iscritti!</p>`;
+          if (result.errors > 0) {
+            resultDiv.innerHTML += `<p style="color:#f59e0b">⚠️ ${result.errors} email non inviate (errori)</p>`;
+          }
+          e.target.reset();
+          e.target.querySelector('[name="soloConfermati"]').checked = true;
+        } else {
+          resultDiv.innerHTML = `<p style="color:#ef4444">❌ Errore: ${result.error || 'Invio fallito'}</p>`;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<p style="color:#ef4444">❌ Errore: ${err.message}</p>`;
       } finally {
         btn.textContent = originalText;
         btn.disabled = false;

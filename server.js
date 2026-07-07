@@ -1816,6 +1816,104 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// --- EMAIL BROADCAST ---
+app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
+  try {
+    const { oggetto, messaggio, soloConfermati } = req.body;
+    if (!oggetto || !messaggio) {
+      return res.status(400).json({ error: 'Oggetto e messaggio richiesti' });
+    }
+    
+    // Recupera iscritti con email
+    let iscritti;
+    if (soloConfermati) {
+      iscritti = await dbAll("SELECT * FROM iscritti WHERE email IS NOT NULL AND email != '' AND (stato = 'confermata' OR pagamento = 1)");
+    } else {
+      iscritti = await dbAll("SELECT * FROM iscritti WHERE email IS NOT NULL AND email != ''");
+    }
+    
+    if (!iscritti || iscritti.length === 0) {
+      return res.json({ ok: true, sent: 0, errors: 0 });
+    }
+    
+    console.log(`Invio email broadcast a ${iscritti.length} iscritti: "${oggetto}"`);
+    
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (!brevoApiKey) {
+      return res.status(500).json({ error: 'BREVO_API_KEY non configurata' });
+    }
+    
+    let sent = 0;
+    let errors = 0;
+    
+    for (const iscritto of iscritti) {
+      try {
+        // Personalizza il messaggio
+        const messaggioPersonalizzato = messaggio
+          .replace(/\{nome\}/g, iscritto.nome)
+          .replace(/\{cognome\}/g, iscritto.cognome);
+        
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+            to: [{ email: iscritto.email, name: `${iscritto.nome} ${iscritto.cognome}` }],
+            bcc: [{ email: 'bustobattle@gmail.com' }],
+            subject: oggetto,
+            htmlContent: `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#111;color:#f0f0f0;border-radius:8px;overflow:hidden">
+                <div style="background:#1a1a1a;padding:20px;text-align:center;border-bottom:3px solid #F7AF40">
+                  <h1 style="color:#F7AF40;margin:0;font-size:24px">🏆 Busto Battle XI</h1>
+                  <p style="color:#888;margin:5px 0 0 0;font-size:14px">13-14-15 Novembre 2026 | Busto Arsizio</p>
+                </div>
+                <div style="padding:25px">
+                  <p style="margin:0 0 15px 0">Ciao <strong style="color:#F7AF40">${iscritto.nome}</strong>,</p>
+                  <div style="background:#1a1a1a;padding:20px;border-radius:6px;border-left:4px solid #F7AF40;white-space:pre-wrap;line-height:1.6">${messaggioPersonalizzato}</div>
+                </div>
+                <div style="background:#0a0a0a;padding:20px;text-align:center;border-top:1px solid #222">
+                  <p style="margin:0;color:#888;font-size:12px">
+                    📧 bustobattle@gmail.com | 📸 @bustobattle
+                  </p>
+                  <p style="margin:10px 0 0 0;color:#666;font-size:11px">
+                    Ricevi questa email perché sei iscritto a Busto Battle XI
+                  </p>
+                </div>
+              </div>
+            `
+          })
+        });
+        
+        if (response.ok) {
+          sent++;
+        } else {
+          const errorData = await response.json();
+          console.error(`Errore invio email a ${iscritto.email}:`, errorData);
+          errors++;
+        }
+        
+        // Piccola pausa per evitare rate limiting
+        await new Promise(r => setTimeout(r, 100));
+        
+      } catch (err) {
+        console.error(`Errore invio email a ${iscritto.email}:`, err.message);
+        errors++;
+      }
+    }
+    
+    console.log(`Email broadcast completato: ${sent} inviate, ${errors} errori`);
+    res.json({ ok: true, sent, errors });
+    
+  } catch (err) {
+    console.error('Email broadcast error:', err);
+    res.status(500).json({ error: 'Errore invio email: ' + err.message });
+  }
+});
+
 async function sendConfirmationEmail(to, { nome, cognome, codice, categoria, totale }) {
   await transporter.sendMail({
     from: '"Busto Battle XI" <noreply@bustobattle.it>',
