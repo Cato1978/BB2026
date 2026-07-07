@@ -1007,6 +1007,38 @@ app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, async (req, res) =
   }
 });
 
+// Admin: rigetta ricevuta bonifico
+app.post('/api/iscritti/:id/rigetta-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const { motivo } = req.body;
+    
+    if (!motivo || !motivo.trim()) {
+      return res.status(400).json({ error: 'Motivo del rigetto obbligatorio' });
+    }
+    
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    // Resetta stato a sospesa e rimuovi ricevuta per permettere nuovo upload
+    await dbRun('UPDATE iscritti SET stato=?, ricevuta_bonifico=NULL, ricevuta_base64=NULL WHERE id=?', ['sospesa', id]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Ricevuta rigettata da admin:', { codice, id, motivo });
+    
+    // Invia email rigetto
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'rigettata', motivo }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore rigetto bonifico:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Funzione per inviare email di stato
 async function sendStatusEmail(to, data) {
   const { nome, cognome, codice, stato, categoria } = data;
@@ -1175,6 +1207,40 @@ async function sendStatusEmail(to, data) {
         ${emailFooter}
       </div>
     `;
+  } else if (stato === 'rigettata') {
+    const motivo = data.motivo || 'Motivo non specificato';
+    subject = `Busto Battle XI - Ricevuta Non Valida / Invalid Receipt - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Ricevuta Non Valida / Invalid Receipt</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta del bonifico che hai caricato per la tua iscrizione <strong style="color:#ef4444">non è stata accettata</strong>.<br><em style="color:#888">The bank transfer receipt you uploaded for your registration <strong style="color:#ef4444">has not been accepted</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#3d1515;border:2px solid #ef4444;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444;font-weight:bold">📋 Motivo / Reason:</p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivo}</p>
+          </div>
+          
+          <p>Per completare l'iscrizione, carica una nuova ricevuta valida:<br><em style="color:#888">To complete your registration, please upload a new valid receipt:</em></p>
+          
+          <p style="text-align:center;margin:25px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Se hai domande, contattaci a <a href="mailto:info@bustobattle.it" style="color:#F7AF40">info@bustobattle.it</a><br><em>If you have questions, contact us at info@bustobattle.it</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
   }
   
   if (!subject) return;
@@ -1182,6 +1248,7 @@ async function sendStatusEmail(to, data) {
   // Usa Brevo API per inviare email
   try {
     const brevoApiKey = process.env.BREVO_API_KEY;
+    const bccEmail = 'bustobattle@gmail.com'; // Copia di sicurezza
     
     if (brevoApiKey) {
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -1194,13 +1261,14 @@ async function sendStatusEmail(to, data) {
         body: JSON.stringify({
           sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
           to: [{ email: to }],
+          bcc: [{ email: bccEmail }],
           subject: subject,
           htmlContent: html
         })
       });
       
       if (response.ok) {
-        console.log('Email stato inviata via Brevo API:', { to, stato, codice });
+        console.log('Email stato inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
       } else {
         const errorData = await response.json();
         console.error('Errore Brevo API:', errorData);
@@ -1215,10 +1283,10 @@ async function sendStatusEmail(to, data) {
 
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
-  const { to, stato, nome, cognome } = req.query;
+  const { to, stato, nome, cognome, motivo } = req.query;
   
   if (!to || !stato) {
-    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto' });
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto. Per rigettata aggiungere &motivo=...' });
   }
   
   // Dati per il test (usa parametri o default)
@@ -1227,7 +1295,8 @@ app.get('/api/test-email', async (req, res) => {
     cognome: cognome || 'Rossi',
     codice: 'BB11-TEST',
     stato: stato,
-    categoria: 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)'
+    categoria: 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)',
+    motivo: motivo || 'Importo non corrispondente'
   };
   
   try {

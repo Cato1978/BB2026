@@ -267,6 +267,23 @@
     </div>
   </div>
 
+  <div id="modal-rigetto" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3 style="color:#ef4444">❌ Rigetta Ricevuta</h3>
+      <p style="color:#888;margin-bottom:1rem">L'atleta riceverà un'email con il motivo del rigetto e potrà caricare una nuova ricevuta.</p>
+      <form id="form-rigetto">
+        <input type="hidden" id="rigetto-id">
+        <div class="form-row">
+          <textarea id="rigetto-motivo" placeholder="Motivo del rigetto (es: Importo non corrispondente, Documento illeggibile, Causale errata...)" required style="min-height:100px"></textarea>
+        </div>
+        <div class="form-row">
+          <button type="submit" style="background:#ef4444">❌ Rigetta e Invia Email</button>
+          <button type="button" onclick="chiudiModalRigetto()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     // Check auth
     fetch('/api/me').then(r => {
@@ -315,7 +332,8 @@
       const badges = {
         'sospesa': '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>',
         'verifica': '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">🔍 In Verifica</span>',
-        'confermata': '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>'
+        'confermata': '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>',
+        'rigettata': '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">❌ Rigettata</span>'
       };
       return badges[stato] || stato;
     }
@@ -330,6 +348,7 @@
         // Bottone conferma bonifico (solo se in verifica)
         if (stato === 'verifica') {
           azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="rigettaBonifico(${i.id})" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
           if (i.ricevuta_bonifico) {
             azioniHtml += `<a href="/api/iscritti/${i.id}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
           }
@@ -383,6 +402,38 @@
       await fetch(`/api/iscritti/${id}/conferma-bonifico`, { method: 'POST' });
       carica();
     }
+
+    function rigettaBonifico(id) {
+      document.getElementById('rigetto-id').value = id;
+      document.getElementById('rigetto-motivo').value = '';
+      document.getElementById('modal-rigetto').style.display = 'flex';
+    }
+
+    function chiudiModalRigetto() {
+      document.getElementById('modal-rigetto').style.display = 'none';
+    }
+
+    document.getElementById('form-rigetto').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id = document.getElementById('rigetto-id').value;
+      const motivo = document.getElementById('rigetto-motivo').value;
+      if (!motivo.trim()) { alert('Inserisci un motivo'); return; }
+      
+      const res = await fetch(`/api/iscritti/${id}/rigetta-bonifico`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo })
+      });
+      
+      if (res.ok) {
+        alert('✅ Ricevuta rigettata. Email inviata all\'atleta.');
+        chiudiModalRigetto();
+        carica();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
 
     async function togglePagamento(id, stato) {
       const i = iscritti.find(x => x.id === id);
