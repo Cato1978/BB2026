@@ -810,8 +810,20 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: fd.get('title'), body: fd.get('body') })
         });
+        
+        // Se la risposta non è JSON (es: redirect a login)
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          if (res.status === 401 || res.status === 403) {
+            alert('❌ Sessione scaduta. Effettua di nuovo il login.');
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Risposta non valida dal server');
+        }
+        
+        const result = await res.json();
         if (res.ok) {
-          const result = await res.json();
           if (result.sent > 0) {
             alert(`✅ Notifica inviata con successo a ${result.sent} utenti!`);
           } else {
@@ -819,11 +831,10 @@
           }
           e.target.reset();
         } else {
-          const err = await res.json();
-          alert('❌ Errore: ' + (err.error || 'Invio fallito'));
+          alert('❌ Errore: ' + (result.error || 'Invio fallito'));
         }
       } catch (err) {
-        alert('❌ Errore di rete: ' + err.message);
+        alert('❌ Errore: ' + err.message);
       } finally {
         btn.textContent = originalText;
         btn.disabled = false;

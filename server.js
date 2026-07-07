@@ -1746,24 +1746,29 @@ app.post('/api/push/subscribe', (req, res) => {
 });
 
 // --- NOTIFICA MANUALE ---
-app.post('/api/push/send', (req, res) => {
-  const { title, body } = req.body;
-  if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
-  const subs = all('SELECT * FROM push_subscriptions');
-  const payload = JSON.stringify({ title, body, url: '/risultati.html' });
-  for (const sub of subs) {
-    const pushSub = {
-      endpoint: sub.endpoint,
-      keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
-    };
-    webpush.sendNotification(pushSub, payload).catch(err => {
-      if (err.statusCode === 410) {
-        db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
-        save();
-      }
-    });
+app.post('/api/push/send', requireAdmin, (req, res) => {
+  try {
+    const { title, body } = req.body;
+    if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
+    const subs = all('SELECT * FROM push_subscriptions');
+    const payload = JSON.stringify({ title, body, url: '/risultati.html' });
+    for (const sub of subs) {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+      };
+      webpush.sendNotification(pushSub, payload).catch(err => {
+        if (err.statusCode === 410) {
+          db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
+          save();
+        }
+      });
+    }
+    res.json({ ok: true, sent: subs.length });
+  } catch (err) {
+    console.error('Push send error:', err);
+    res.status(500).json({ error: 'Errore invio notifiche' });
   }
-  res.json({ ok: true, sent: subs.length });
 });
 
 // --- EMAIL ---
