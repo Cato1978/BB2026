@@ -1750,24 +1750,44 @@ app.post('/api/push/send', requireAdmin, (req, res) => {
   try {
     const { title, body } = req.body;
     if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
-    const subs = all('SELECT * FROM push_subscriptions');
-    const payload = JSON.stringify({ title, body, url: '/risultati.html' });
-    for (const sub of subs) {
-      const pushSub = {
-        endpoint: sub.endpoint,
-        keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
-      };
-      webpush.sendNotification(pushSub, payload).catch(err => {
-        if (err.statusCode === 410) {
-          db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
-          save();
-        }
-      });
+    
+    let subs;
+    try {
+      subs = all('SELECT * FROM push_subscriptions');
+    } catch (dbErr) {
+      console.error('DB error fetching subscriptions:', dbErr);
+      // Se la tabella non esiste, restituisci 0 invii
+      return res.json({ ok: true, sent: 0 });
     }
-    res.json({ ok: true, sent: subs.length });
+    
+    if (!subs || subs.length === 0) {
+      return res.json({ ok: true, sent: 0 });
+    }
+    
+    const payload = JSON.stringify({ title, body, url: '/risultati.html' });
+    let sent = 0;
+    for (const sub of subs) {
+      try {
+        const pushSub = {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+        };
+        webpush.sendNotification(pushSub, payload).catch(err => {
+          console.error('Push error for endpoint:', sub.endpoint, err.statusCode || err.message);
+          if (err.statusCode === 410) {
+            db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
+            save();
+          }
+        });
+        sent++;
+      } catch (pushErr) {
+        console.error('Push preparation error:', pushErr);
+      }
+    }
+    res.json({ ok: true, sent });
   } catch (err) {
     console.error('Push send error:', err);
-    res.status(500).json({ error: 'Errore invio notifiche' });
+    res.status(500).json({ error: 'Errore invio notifiche: ' + err.message });
   }
 });
 
