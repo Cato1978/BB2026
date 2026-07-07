@@ -47,6 +47,47 @@
       from { transform: rotateY(0deg); }
       to { transform: rotateY(360deg); }
     }
+    
+    /* Mobile: compatta tutto per vedere ISCRIVITI senza scroll */
+    @media (max-width: 600px) {
+      .medal-container {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 0.8rem;
+      }
+      .event-details {
+        margin-bottom: 0.5rem;
+      }
+      .event-details p {
+        margin: 0.2rem 0;
+        font-size: 0.85rem;
+      }
+      .sponsors {
+        margin: 0.8rem 0 !important;
+      }
+      .sponsors img {
+        height: 70px !important;
+      }
+      .sponsors a:last-child img {
+        height: 50px !important;
+      }
+      .cta-btn {
+        padding: 0.8rem 2rem;
+        font-size: 1rem;
+      }
+      .countdown {
+        margin-top: 0.8rem;
+      }
+      .countdown-item .number {
+        font-size: 1.2rem;
+      }
+      .countdown-item .label {
+        font-size: 0.65rem;
+      }
+      .locandina-content {
+        padding: 0.5rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -89,13 +130,13 @@
         </div>
         
         <!-- Sponsor -->
-        <div class="sponsors" style="margin:1.5rem 0">
-          <div style="display:flex;justify-content:center;align-items:center;gap:3rem;flex-wrap:wrap">
+        <div class="sponsors" style="margin:1rem 0">
+          <div style="display:flex;justify-content:center;align-items:center;gap:2rem;flex-wrap:wrap">
             <a href="https://www.fr-skates.com" target="_blank">
-              <img src="Fr.webp" alt="FR Skates" style="height:130px;filter:brightness(1.1)">
+              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:100px;filter:brightness(1.1)">
             </a>
             <a href="https://www.tmc.it" target="_blank">
-              <img src="tmc.png" alt="TMC" style="height:80px;filter:invert(1)">
+              <img src="tmc.png" alt="TMC" class="sponsor-tmc" style="height:60px;filter:invert(1)">
             </a>
           </div>
         </div>
