@@ -191,7 +191,7 @@ async function initDb() {
       for (const g of giorni) {
         for (const o of ore) {
           await pgPool.query('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES ($1,$2,$3,$4,$5,$6)',
-            [g, o, 'Stazione FS Busto Arsizio', 'E Work Arena / PalaCastiglioni', 8, 2]);
+            [g, o, 'Stazione FS Busto Arsizio', 'PalaCastiglioni', 8, 2]);
         }
       }
     }
@@ -365,7 +365,7 @@ async function initDb() {
     for (const g of giorni) {
       for (const o of ore) {
         db.run('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-          [g, o, 'Stazione FS Busto Arsizio', 'E Work Arena / PalaCastiglioni', 8, 2]);
+          [g, o, 'Stazione FS Busto Arsizio', 'PalaCastiglioni', 8, 2]);
       }
     }
   }
@@ -1144,25 +1144,13 @@ async function sendStatusEmail(to, data) {
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">📍 Luoghi della Gara / Competition Venues</h3>
           
           <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 5px"><strong style="color:#F7AF40">E Work Arena</strong> - Classic Slalom • Pairs • Battle</p>
-            <p style="margin:0;color:#888;font-size:12px">🚐 Navetta a pagamento, bus o auto / Paid shuttle, bus or car</p>
-            <p style="margin:5px 0 0"><a href="https://share.google/gCeC2EL7p2solMIBW" style="color:#F7AF40;font-size:12px">📍 Google Maps →</a></p>
-          </div>
-          
-          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
-            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong> - Speed • Slide • Free Jump</p>
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong> - Speed Slalom • Classic Slalom • Battle • Slides • Pair Slalom • Free Jump</p>
             <p style="margin:0;color:#888;font-size:12px">🚶 200m dalla Stazione FN e dagli hotel / 200m from FN Station and hotels</p>
             <p style="margin:5px 0 0"><a href="https://share.google/6E1klmiKIJL51MLUg" style="color:#F7AF40;font-size:12px">📍 Google Maps →</a></p>
           </div>
           
-          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚐 Navetta / Shuttle Service</h3>
-          <p style="color:#ccc;font-size:13px">13-14 Novembre: Stazione FN → E Work Arena (a pagamento su prenotazione)<br><em style="color:#888">Nov 13-14: FN Station → E Work Arena (paid, booking required)</em></p>
-          <p style="text-align:center;margin:15px 0">
-            <a href="https://bb2026.onrender.com/navetta.html" style="background:#333;color:#F7AF40;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;border:1px solid #F7AF40;font-size:13px">🚐 Prenota / Book Shuttle</a>
-          </p>
-          
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🏨 Hotel Convenzionati / Partner Hotels</h3>
-          <p style="color:#888;font-size:12px;margin-bottom:10px">200m dalla Stazione FN (navetta) e ~500m dal PalaCastiglioni</p>
+          <p style="color:#888;font-size:12px;margin-bottom:10px">200m dalla Stazione FN e ~500m dal PalaCastiglioni</p>
           
           <div style="background:#222;padding:12px;border-radius:6px;margin:10px 0">
             <p style="margin:0"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong> - 📍 Piazza Manzoni 1</p>
@@ -1227,16 +1215,16 @@ async function sendStatusEmail(to, data) {
 
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
-  const { to, stato } = req.query;
+  const { to, stato, nome, cognome } = req.query;
   
   if (!to || !stato) {
-    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata' });
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto' });
   }
   
-  // Dati fittizi per il test
+  // Dati per il test (usa parametri o default)
   const testData = {
-    nome: 'Mario',
-    cognome: 'Rossi',
+    nome: nome || 'Mario',
+    cognome: cognome || 'Rossi',
     codice: 'BB11-TEST',
     stato: stato,
     categoria: 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)'

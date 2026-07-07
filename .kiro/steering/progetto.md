@@ -29,7 +29,7 @@ Solo Italiano (IT) e Inglese (EN). Switcher testuale "IT" / "EN" nell'header.
 - verifica.html (verifica iscrizione per cognome)
 - programma.html (programma gara)
 - hotel.html (hotel convenzionati)
-- navetta.html (prenotazione navetta)
+- travel.html (info viaggio e come arrivare)
 - maglia.html (merchandising)
 - contact.html (form contatto)
 - faq.html (domande frequenti)
