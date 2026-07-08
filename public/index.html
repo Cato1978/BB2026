@@ -110,10 +110,10 @@
     /* Desktop styles */
     @media (min-width: 769px) {
       .hero {
-        padding: 2rem 1rem;
+        padding: 0.5rem 1rem;
       }
       .locandina {
-        padding: 2rem;
+        padding: 1rem 2rem;
         max-width: 1200px;
       }
       .mobile-disciplines {
@@ -124,33 +124,40 @@
       }
       .hero-content {
         display: flex !important;
+        margin: 1rem 0;
       }
       .sponsors {
-        margin: 2rem 0 !important;
+        margin: 1rem 0 !important;
       }
       .sponsor-fr {
-        height: 140px !important;
+        height: 100px !important;
       }
       .sponsor-tmc {
-        height: 90px !important;
+        height: 70px !important;
+      }
+      .event-details {
+        margin-bottom: 0.5rem !important;
       }
       .event-details p {
-        font-size: 1.2rem;
-        margin: 0.5rem 0;
+        font-size: 1.1rem;
+        margin: 0.3rem 0;
       }
       .cta-btn {
-        font-size: 1.3rem;
-        padding: 1rem 3rem;
+        font-size: 1.2rem;
+        padding: 0.8rem 2.5rem;
       }
       .countdown {
-        margin-top: 1.5rem;
-        gap: 2rem;
+        margin-top: 1rem;
+        gap: 1.5rem;
       }
       .countdown-item .number {
-        font-size: 2.8rem;
+        font-size: 2.2rem;
       }
       .countdown-item .label {
-        font-size: 1rem;
+        font-size: 0.9rem;
+      }
+      .install-section {
+        margin-top: 1rem !important;
       }
     }
     
@@ -284,7 +291,7 @@
     <div class="locandina">
       <div class="locandina-content">
         
-        <div class="event-details" style="text-align:center;margin-bottom:1rem">
+        <div class="event-details" style="text-align:center;margin-bottom:0.5rem">
           <p data-t="date">📅 13 - 14 - 15 Novembre 2026</p>
           <p>📍 <a href="https://www.google.com/maps/search/?api=1&query=Via+Ariosto+3+Busto+Arsizio" target="_blank" style="color:#ccc;text-decoration:underline">PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</a></p>
         </div>
@@ -356,13 +363,13 @@
         </div>
         
         <!-- Sponsor -->
-        <div class="sponsors" style="margin:1.5rem 0">
-          <div style="display:flex;justify-content:center;align-items:center;gap:3rem;flex-wrap:wrap">
+        <div class="sponsors" style="margin:1rem 0">
+          <div style="display:flex;justify-content:center;align-items:center;gap:2rem;flex-wrap:wrap">
             <a href="https://www.fr-skates.com" target="_blank">
-              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:120px;filter:brightness(1.1)">
+              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:100px;filter:brightness(1.1)">
             </a>
             <a href="https://www.tmc.it" target="_blank">
-              <img src="tmc.png" alt="TMC" class="sponsor-tmc" style="height:70px">
+              <img src="tmc.png" alt="TMC" class="sponsor-tmc" style="height:60px">
             </a>
           </div>
         </div>
@@ -372,12 +379,12 @@
         </div>
         <div class="countdown" id="countdown"></div>
         
-        <div class="install-section" style="margin-top:2rem;text-align:center">
-          <p style="color:#F7AF40;font-weight:700;margin-bottom:0.4rem" data-t="installTitle">Installa l'app Busto Battle</p>
-          <p style="font-size:0.9rem;color:#ccc;margin-bottom:0.5rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
-          <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:0.8rem">
-            <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
-            <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
+        <div class="install-section" style="margin-top:1rem;text-align:center">
+          <p style="color:#F7AF40;font-weight:700;margin-bottom:0.3rem" data-t="installTitle">Installa l'app Busto Battle</p>
+          <p style="font-size:0.85rem;color:#ccc;margin-bottom:0.4rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
+          <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
+            <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
+            <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
           </div>
         </div>
       </div>
