@@ -12,9 +12,9 @@
     /* Medaglia 3D che gira continuamente */
     .medal-container {
       perspective: 1000px;
-      width: 150px;
-      height: 150px;
-      margin: 0 auto 1rem;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 1.5rem;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -48,6 +48,77 @@
       to { transform: rotateY(360deg); }
     }
     
+    /* Discipline con stelline */
+    .disciplines-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1.5rem 0;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .discipline-item {
+      background: rgba(247, 175, 64, 0.1);
+      border: 1px solid rgba(247, 175, 64, 0.3);
+      border-radius: 8px;
+      padding: 0.8rem;
+      text-align: center;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .discipline-item:hover {
+      transform: scale(1.05);
+      background: rgba(247, 175, 64, 0.2);
+    }
+    .discipline-name {
+      color: #f0f0f0;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.3rem;
+    }
+    .discipline-stars {
+      color: #F7AF40;
+      font-size: 1rem;
+    }
+    
+    /* Desktop: layout ampio */
+    @media (min-width: 601px) {
+      .hero {
+        padding: 2rem 1rem;
+      }
+      .locandina {
+        padding: 2rem;
+        max-width: 900px;
+      }
+      .sponsors {
+        margin: 2rem 0 !important;
+      }
+      .sponsor-fr {
+        height: 140px !important;
+      }
+      .sponsor-tmc {
+        height: 90px !important;
+      }
+      .event-details p {
+        font-size: 1.1rem;
+        margin: 0.5rem 0;
+      }
+      .cta-btn {
+        font-size: 1.2rem;
+        padding: 1rem 2.5rem;
+      }
+      .countdown {
+        margin-top: 1.5rem;
+        gap: 2rem;
+      }
+      .countdown-item .number {
+        font-size: 2.5rem;
+      }
+      .countdown-item .label {
+        font-size: 0.9rem;
+      }
+    }
+    
     /* Mobile: compatta tutto per vedere ISCRIVITI senza scroll */
     @media (max-width: 600px) {
       .hero {
@@ -66,6 +137,20 @@
       }
       .event-details p {
         margin: 0.15rem 0;
+        font-size: 0.8rem;
+      }
+      .disciplines-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        margin: 0.8rem 0;
+      }
+      .discipline-item {
+        padding: 0.5rem;
+      }
+      .discipline-name {
+        font-size: 0.75rem;
+      }
+      .discipline-stars {
         font-size: 0.8rem;
       }
       .sponsors {
@@ -144,20 +229,48 @@
             </div>
           </div>
         </div>
+        
         <div class="event-details">
           <p data-t="date">📅 13 - 14 - 15 Novembre 2026</p>
           <p>📍 <a href="https://www.google.com/maps/search/?api=1&query=Via+Ariosto+3+Busto+Arsizio" target="_blank" style="color:#ccc;text-decoration:underline">PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</a></p>
-          <p data-t="disciplines">Speed Slalom • Classic Slalom • Battle • Slides • Pair Slalom • Free Jump</p>
+        </div>
+        
+        <!-- Discipline con stelline -->
+        <div class="disciplines-grid">
+          <div class="discipline-item">
+            <div class="discipline-name">Speed Slalom</div>
+            <div class="discipline-stars">⭐</div>
+          </div>
+          <div class="discipline-item">
+            <div class="discipline-name">Classic Slalom</div>
+            <div class="discipline-stars">⭐</div>
+          </div>
+          <div class="discipline-item">
+            <div class="discipline-name">Battle</div>
+            <div class="discipline-stars">⭐</div>
+          </div>
+          <div class="discipline-item">
+            <div class="discipline-name">Slides</div>
+            <div class="discipline-stars">⭐⭐</div>
+          </div>
+          <div class="discipline-item">
+            <div class="discipline-name">Pair Slalom</div>
+            <div class="discipline-stars">⭐⭐</div>
+          </div>
+          <div class="discipline-item">
+            <div class="discipline-name">Free Jump</div>
+            <div class="discipline-stars">⭐⭐</div>
+          </div>
         </div>
         
         <!-- Sponsor -->
-        <div class="sponsors" style="margin:1rem 0">
-          <div style="display:flex;justify-content:center;align-items:center;gap:2rem;flex-wrap:wrap">
+        <div class="sponsors" style="margin:1.5rem 0">
+          <div style="display:flex;justify-content:center;align-items:center;gap:3rem;flex-wrap:wrap">
             <a href="https://www.fr-skates.com" target="_blank">
-              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:100px;filter:brightness(1.1)">
+              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:120px;filter:brightness(1.1)">
             </a>
             <a href="https://www.tmc.it" target="_blank">
-              <img src="tmc.png" alt="TMC" class="sponsor-tmc" style="height:60px;filter:invert(1)">
+              <img src="tmc.png" alt="TMC" class="sponsor-tmc" style="height:70px;filter:invert(1)">
             </a>
           </div>
         </div>
@@ -165,11 +278,13 @@
         <a href="iscrizioni.html" class="cta-btn" data-t="cta">ISCRIVITI ORA</a>
         <div class="countdown" id="countdown"></div>
         
-        <div class="install-section" style="margin-top:1.5rem;text-align:center">
+        <div class="install-section" style="margin-top:2rem;text-align:center">
           <p style="color:#F7AF40;font-weight:700;margin-bottom:0.4rem" data-t="installTitle">Installa l'app Busto Battle</p>
-          <p style="font-size:0.85rem;color:#ccc;margin-bottom:0.5rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
-          <a href="#" onclick="installApp()" style="display:inline-block;margin-top:0.4rem;background:#F7AF40;color:#000;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
-          <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;margin-top:0.5rem;background:#0088cc;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
+          <p style="font-size:0.9rem;color:#ccc;margin-bottom:0.5rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
+          <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:0.8rem">
+            <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
+            <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.6rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
+          </div>
         </div>
       </div>
     </div>
