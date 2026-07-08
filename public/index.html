@@ -107,6 +107,22 @@
       font-size: 1.3rem;
     }
     
+    /* Sezione bottom con loghi ai lati */
+    .bottom-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+    .sponsor-left, .sponsor-right {
+      display: flex;
+      align-items: center;
+    }
+    .center-section {
+      flex: 0 1 auto;
+    }
+    
     /* Desktop styles */
     @media (min-width: 769px) {
       .hero {
@@ -196,6 +212,22 @@
       }
       .hero-content {
         display: none;
+      }
+      .bottom-section {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .sponsor-left, .sponsor-right {
+        display: none;
+      }
+      .mobile-sponsors {
+        display: flex !important;
+        justify-content: center;
+        gap: 1rem;
+        margin: 0.5rem 0;
+      }
+      .mobile-sponsors img {
+        height: 50px !important;
       }
       .mobile-disciplines {
         display: grid !important;
@@ -362,29 +394,47 @@
           <div class="mobile-discipline"><span>Free Jump</span><span class="stars">⭐⭐</span></div>
         </div>
         
-        <!-- Sponsor -->
-        <div class="sponsors" style="margin:1rem 0">
-          <div style="display:flex;justify-content:center;align-items:center;gap:2rem;flex-wrap:wrap">
+        <!-- Sponsor per mobile -->
+        <div class="mobile-sponsors" style="display:none">
+          <a href="https://www.fr-skates.com" target="_blank">
+            <img src="Fr.webp" alt="FR Skates" style="height:60px;filter:brightness(1.1)">
+          </a>
+          <a href="https://www.tmc.it" target="_blank">
+            <img src="tmc2.png" alt="TMC" style="height:45px">
+          </a>
+        </div>
+        
+        <!-- Sezione con loghi ai lati -->
+        <div class="bottom-section">
+          <!-- FR a sinistra -->
+          <div class="sponsor-left">
             <a href="https://www.fr-skates.com" target="_blank">
-              <img src="Fr.webp" alt="FR Skates" class="sponsor-fr" style="height:100px;filter:brightness(1.1)">
-            </a>
-            <a href="https://www.tmc.it" target="_blank">
-              <img src="tmc2.png" alt="TMC" class="sponsor-tmc" style="height:60px">
+              <img src="Fr.webp" alt="FR Skates" style="height:140px;filter:brightness(1.1)">
             </a>
           </div>
-        </div>
-        
-        <div style="text-align:center">
-          <a href="iscrizioni.html" class="cta-btn" data-t="cta">ISCRIVITI ORA</a>
-        </div>
-        <div class="countdown" id="countdown"></div>
-        
-        <div class="install-section" style="margin-top:1rem;text-align:center">
-          <p style="color:#F7AF40;font-weight:700;margin-bottom:0.3rem" data-t="installTitle">Installa l'app Busto Battle</p>
-          <p style="font-size:0.85rem;color:#ccc;margin-bottom:0.4rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
-          <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
-            <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
-            <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
+          
+          <!-- Centro: ISCRIVITI, countdown, app -->
+          <div class="center-section">
+            <div style="text-align:center">
+              <a href="iscrizioni.html" class="cta-btn" data-t="cta">ISCRIVITI ORA</a>
+            </div>
+            <div class="countdown" id="countdown"></div>
+            
+            <div class="install-section" style="margin-top:1rem;text-align:center">
+              <p style="color:#F7AF40;font-weight:700;margin-bottom:0.3rem" data-t="installTitle">Installa l'app Busto Battle</p>
+              <p style="font-size:0.85rem;color:#ccc;margin-bottom:0.4rem" data-t="installDesc">Ricevi notifiche live sulla gara!</p>
+              <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
+                <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
+                <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
+              </div>
+            </div>
+          </div>
+          
+          <!-- TMC a destra -->
+          <div class="sponsor-right">
+            <a href="https://www.tmc.it" target="_blank">
+              <img src="tmc2.png" alt="TMC" style="height:100px">
+            </a>
           </div>
         </div>
       </div>
@@ -406,11 +456,13 @@
     if (window.innerWidth <= 600) {
       document.querySelector('.mobile-only').style.display = 'block';
       document.querySelector('.mobile-disciplines').style.display = 'grid';
+      document.querySelector('.mobile-sponsors').style.display = 'flex';
     }
     window.addEventListener('resize', () => {
       const mobile = window.innerWidth <= 600;
       document.querySelector('.mobile-only').style.display = mobile ? 'block' : 'none';
       document.querySelector('.mobile-disciplines').style.display = mobile ? 'grid' : 'none';
+      document.querySelector('.mobile-sponsors').style.display = mobile ? 'flex' : 'none';
     });
 
     function updateCountdown() {
