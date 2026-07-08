@@ -31,16 +31,6 @@
       height: 100%;
       object-fit: cover;
     }
-    .gallery-item .caption {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(transparent, rgba(0,0,0,0.8));
-      padding: 1rem 0.8rem 0.5rem;
-      color: #fff;
-      font-size: 0.9rem;
-    }
     .lightbox {
       display: none;
       position: fixed;
@@ -68,29 +58,25 @@
       font-size: 2rem;
       cursor: pointer;
     }
-    .edition-tabs {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-bottom: 1.5rem;
-    }
-    .edition-tab {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #ccc;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(247,175,64,0.8);
+      border: none;
+      color: #000;
+      font-size: 2rem;
+      padding: 1rem;
       cursor: pointer;
     }
-    .edition-tab.active {
-      background: #F7AF40;
-      color: #000;
-      border-color: #F7AF40;
-    }
-    .coming-soon {
-      text-align: center;
-      padding: 3rem;
-      color: #888;
+    .lightbox-prev { left: 1rem; }
+    .lightbox-next { right: 1rem; }
+    .section-title {
+      color: #F7AF40;
+      font-size: 1.5rem;
+      margin: 2rem 0 1rem;
+      border-bottom: 2px solid #F7AF40;
+      padding-bottom: 0.5rem;
     }
   </style>
 </head>
@@ -116,64 +102,72 @@
     <section class="info">
       <h2 style="color:#F7AF40;margin-bottom:1rem">📸 Foto</h2>
       
-      <div class="edition-tabs">
-        <button class="edition-tab active" onclick="showEdition('2026')">2026</button>
-        <button class="edition-tab" onclick="showEdition('2019')">2019</button>
-        <button class="edition-tab" onclick="showEdition('2016')">2016</button>
-        <button class="edition-tab" onclick="showEdition('2015')">2015</button>
-        <button class="edition-tab" onclick="showEdition('2014')">2014</button>
-        <button class="edition-tab" onclick="showEdition('2013')">2013</button>
-      </div>
-
-      <div id="gallery-2026" class="gallery-section">
-        <div class="coming-soon">
-          <p style="font-size:1.2rem;margin-bottom:0.5rem">📷 Le foto dell'edizione 2026 saranno caricate dopo l'evento</p>
-          <p>13-14-15 Novembre 2026</p>
+      <!-- 2026 -->
+      <h3 class="section-title">🏆 Busto Battle XI - 2026</h3>
+      <p style="color:#888;text-align:center;padding:2rem">📷 Le foto dell'edizione 2026 saranno caricate dopo l'evento (13-14-15 Novembre 2026)</p>
+      
+      <!-- Edizioni Precedenti -->
+      <h3 class="section-title" data-t="previousEditions">🎞️ Edizioni Precedenti</h3>
+      <div class="gallery" id="gallery-old">
+        <div class="gallery-item" onclick="openLightbox(0)">
+          <img src="2012-1.jpg" alt="Busto Battle">
         </div>
-      </div>
-
-      <div id="gallery-2019" class="gallery-section" style="display:none">
-        <div class="gallery">
-          <div class="gallery-item" onclick="openLightbox('2019.png')">
-            <img src="2019.png" alt="Busto Battle 2019">
-            <div class="caption">Busto Battle 2019</div>
-          </div>
+        <div class="gallery-item" onclick="openLightbox(1)">
+          <img src="2012-2.jpg" alt="Busto Battle">
         </div>
-      </div>
-
-      <div id="gallery-2016" class="gallery-section" style="display:none">
-        <div class="gallery">
-          <div class="gallery-item" onclick="openLightbox('2016.jpg')">
-            <img src="2016.jpg" alt="Busto Battle 2016">
-            <div class="caption">Busto Battle 2016</div>
-          </div>
+        <div class="gallery-item" onclick="openLightbox(2)">
+          <img src="2012-3.jpg" alt="Busto Battle">
         </div>
-      </div>
-
-      <div id="gallery-2015" class="gallery-section" style="display:none">
-        <div class="gallery">
-          <div class="gallery-item" onclick="openLightbox('2015.jpg')">
-            <img src="2015.jpg" alt="Busto Battle 2015">
-            <div class="caption">Busto Battle 2015</div>
-          </div>
+        <div class="gallery-item" onclick="openLightbox(3)">
+          <img src="2012-4.jpg" alt="Busto Battle">
         </div>
-      </div>
-
-      <div id="gallery-2014" class="gallery-section" style="display:none">
-        <div class="gallery">
-          <div class="gallery-item" onclick="openLightbox('2014.png')">
-            <img src="2014.png" alt="Busto Battle 2014">
-            <div class="caption">Busto Battle 2014</div>
-          </div>
+        <div class="gallery-item" onclick="openLightbox(4)">
+          <img src="2012-5.jpg" alt="Busto Battle">
         </div>
-      </div>
-
-      <div id="gallery-2013" class="gallery-section" style="display:none">
-        <div class="gallery">
-          <div class="gallery-item" onclick="openLightbox('2013.png')">
-            <img src="2013.png" alt="Busto Battle 2013">
-            <div class="caption">Busto Battle 2013</div>
-          </div>
+        <div class="gallery-item" onclick="openLightbox(5)">
+          <img src="2012-6.jpg" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(6)">
+          <img src="2012-7.jpg" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(7)">
+          <img src="2012-8.jpg" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(8)">
+          <img src="2012-9.jpg" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(9)">
+          <img src="2012-10.jpg" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(10)">
+          <img src="IMG_1261.JPG" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(11)">
+          <img src="IMG_1292.JPG" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(12)">
+          <img src="IMG_1303.JPG" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(13)">
+          <img src="IMG_1323.JPG" alt="Busto Battle">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(14)">
+          <img src="2019.png" alt="Busto Battle 2019">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(15)">
+          <img src="2016.jpg" alt="Busto Battle 2016">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(16)">
+          <img src="2015.jpg" alt="Busto Battle 2015">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(17)">
+          <img src="2014.png" alt="Busto Battle 2014">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(18)">
+          <img src="2013.png" alt="Busto Battle 2013">
+        </div>
+        <div class="gallery-item" onclick="openLightbox(19)">
+          <img src="2011.png" alt="Busto Battle 2011">
         </div>
       </div>
 
@@ -181,9 +175,11 @@
   </main>
 
   <!-- Lightbox -->
-  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
     <button class="lightbox-close" onclick="closeLightbox()">×</button>
+    <button class="lightbox-nav lightbox-prev" onclick="navLightbox(-1, event)">❮</button>
     <img id="lightbox-img" src="" alt="">
+    <button class="lightbox-nav lightbox-next" onclick="navLightbox(1, event)">❯</button>
   </div>
 
   <footer>
@@ -198,28 +194,36 @@
 
   <script src="translations.js"></script>
   <script>
-    function showEdition(year) {
-      // Hide all
-      document.querySelectorAll('.gallery-section').forEach(s => s.style.display = 'none');
-      document.querySelectorAll('.edition-tab').forEach(t => t.classList.remove('active'));
-      
-      // Show selected
-      document.getElementById('gallery-' + year).style.display = 'block';
-      event.target.classList.add('active');
-    }
+    const photos = [
+      '2012-1.jpg', '2012-2.jpg', '2012-3.jpg', '2012-4.jpg', '2012-5.jpg',
+      '2012-6.jpg', '2012-7.jpg', '2012-8.jpg', '2012-9.jpg', '2012-10.jpg',
+      'IMG_1261.JPG', 'IMG_1292.JPG', 'IMG_1303.JPG', 'IMG_1323.JPG',
+      '2019.png', '2016.jpg', '2015.jpg', '2014.png', '2013.png', '2011.png'
+    ];
+    let currentIndex = 0;
 
-    function openLightbox(src) {
-      document.getElementById('lightbox-img').src = src;
+    function openLightbox(index) {
+      currentIndex = index;
+      document.getElementById('lightbox-img').src = photos[index];
       document.getElementById('lightbox').classList.add('active');
     }
 
-    function closeLightbox() {
-      document.getElementById('lightbox').classList.remove('active');
+    function closeLightbox(e) {
+      if (!e || e.target.id === 'lightbox') {
+        document.getElementById('lightbox').classList.remove('active');
+      }
     }
 
-    // Close lightbox on ESC
+    function navLightbox(dir, e) {
+      e.stopPropagation();
+      currentIndex = (currentIndex + dir + photos.length) % photos.length;
+      document.getElementById('lightbox-img').src = photos[currentIndex];
+    }
+
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') navLightbox(-1, e);
+      if (e.key === 'ArrowRight') navLightbox(1, e);
     });
   </script>
 </body>
