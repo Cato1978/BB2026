@@ -1666,32 +1666,37 @@ app.delete('/api/prove/slots/:id', requireAdmin, (req, res) => {
 });
 
 // Reset e ricrea tutti gli slot prove pista
-app.post('/api/prove/reset-slots', requireAdmin, (req, res) => {
-  db.run('DELETE FROM prove_slots');
-  const proveSlots = [
-    // Giovedì 12 Novembre (pre-qualifiche)
-    ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
-    ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
-    ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
-    ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
-    ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
-    ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
-    // Venerdì 13 Novembre
-    ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
-    ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
-    ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
-    ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
-    // Sabato 14 Novembre
-    ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
-    ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
-    ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
-  ];
-  for (const [g, oi, of, l, p, c] of proveSlots) {
-    db.run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-      [g, oi, of, l, p, c]);
+app.post('/api/prove/reset-slots', requireAdmin, async (req, res) => {
+  try {
+    await run('DELETE FROM prove_slots');
+    const proveSlots = [
+      // Giovedì 12 Novembre (pre-qualifiche)
+      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
+      // Venerdì 13 Novembre
+      ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+      // Sabato 14 Novembre
+      ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+    ];
+    for (const [g, oi, of, l, p, c] of proveSlots) {
+      await run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of, l, p, c]);
+    }
+    save();
+    res.json({ ok: true, message: 'Slot prove pista resettati con successo', count: proveSlots.length });
+  } catch (err) {
+    console.error('Errore reset slot:', err);
+    res.status(500).json({ error: 'Errore durante il reset degli slot' });
   }
-  save();
-  res.json({ ok: true, message: 'Slot prove pista resettati con successo', count: proveSlots.length });
 });
 
 app.get('/api/prove/config', (req, res) => {
