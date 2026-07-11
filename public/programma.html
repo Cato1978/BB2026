@@ -8,6 +8,53 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#F7AF40">
+  <style>
+    .avviso-speciale {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      border: 2px solid #F7AF40;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    .avviso-speciale p {
+      margin: 0;
+      color: #F7AF40;
+      font-weight: 600;
+    }
+    .programma-giorno {
+      margin-bottom: 2rem;
+    }
+    .programma-giorno h3 {
+      color: #F7AF40;
+      border-bottom: 2px solid #F7AF40;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .programma-item {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.8rem;
+      background: #1a1a1a;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      align-items: center;
+    }
+    .programma-item .ora {
+      color: #F7AF40;
+      font-weight: 600;
+      min-width: 120px;
+    }
+    .programma-item .evento {
+      flex: 1;
+      font-weight: 500;
+    }
+    .programma-item .luogo {
+      color: #888;
+      font-size: 0.9rem;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -30,39 +77,76 @@
     <section class="info">
       <h2 data-t="programmaTitle">📋 Programma Gara</h2>
 
+      <!-- Giovedì 12 Novembre -->
+      <div class="programma-giorno">
+        <h3>📅 Giovedì 12 Novembre</h3>
+        <div class="programma-item">
+          <span class="ora">dalle 17:00</span>
+          <span class="evento">Possibili pre-qualifiche Classic Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+      </div>
+
+      <!-- Venerdì 13 Novembre -->
       <div class="programma-giorno">
         <h3>📅 Venerdì 13 Novembre</h3>
         <div class="programma-item">
-          <span class="ora">08:00 - 18:00</span>
+          <span class="ora">Mattina</span>
           <span class="evento">Classic Slalom</span>
           <span class="luogo">📍 PalaCastiglioni</span>
         </div>
+        <div class="programma-item">
+          <span class="ora">Pomeriggio</span>
+          <span class="evento">Pair Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora">A seguire</span>
+          <span class="evento">Free Jump</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
       </div>
 
+      <!-- Sabato 14 Novembre -->
       <div class="programma-giorno">
         <h3>📅 Sabato 14 Novembre</h3>
         <div class="programma-item">
-          <span class="ora">08:00 - 12:00</span>
-          <span class="evento">Battle & Pairs</span>
+          <span class="ora">Mattina</span>
+          <span class="evento">Battle</span>
           <span class="luogo">📍 PalaCastiglioni</span>
         </div>
         <div class="programma-item">
-          <span class="ora">08:00 - 12:00</span>
-          <span class="evento">Prova Pista Speed</span>
+          <span class="ora">A seguire</span>
+          <span class="evento">🏆 Cerimonia Premiazioni Battle & Pair Slalom</span>
           <span class="luogo">📍 PalaCastiglioni</span>
         </div>
         <div class="programma-item">
-          <span class="ora">13:00 - 17:00</span>
-          <span class="evento">Free Jump & Slide</span>
+          <span class="ora">Pomeriggio</span>
+          <span class="evento">Slides</span>
           <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora">A seguire</span>
+          <span class="evento">🏆 Cerimonia Premiazioni Slides</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        
+        <div class="avviso-speciale">
+          <p>🎉 I vincitori di Pair Slalom e Battle saranno invitati al festival serale presso l'E-Work Arena</p>
         </div>
       </div>
 
+      <!-- Domenica 15 Novembre -->
       <div class="programma-giorno">
         <h3>📅 Domenica 15 Novembre</h3>
         <div class="programma-item">
-          <span class="ora">08:00 - 18:00</span>
-          <span class="evento">Gara Speed</span>
+          <span class="ora">All day</span>
+          <span class="evento">Speed Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora">A seguire</span>
+          <span class="evento">🏆 Cerimonia Premiazioni Speed Slalom</span>
           <span class="luogo">📍 PalaCastiglioni</span>
         </div>
       </div>
@@ -73,11 +157,10 @@
   <footer>
     <div class="footer-content">
       <div class="social-links">
-        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
-        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+        <a href="https://www.instagram.com/bustobattlexi/" target="_blank">📸 Instagram</a>
       </div>
       <p class="footer-email">✉️ bustobattle@gmail.com</p>
-      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
     </div>
   </footer>
   <script src="translations.js"></script>
