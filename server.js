@@ -1668,7 +1668,7 @@ app.delete('/api/prove/slots/:id', requireAdmin, (req, res) => {
 // Reset e ricrea tutti gli slot prove pista
 app.post('/api/prove/reset-slots', requireAdmin, async (req, res) => {
   try {
-    await run('DELETE FROM prove_slots');
+    await dbRun('DELETE FROM prove_slots');
     const proveSlots = [
       // Giovedì 12 Novembre (pre-qualifiche)
       ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
@@ -1687,84 +1687,107 @@ app.post('/api/prove/reset-slots', requireAdmin, async (req, res) => {
       ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
     ];
-    for (const [g, oi, of, l, p, c] of proveSlots) {
-      await run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-        [g, oi, of, l, p, c]);
+    for (const [g, oi, of_, l, p, c] of proveSlots) {
+      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of_, l, p, c]);
     }
-    save();
     res.json({ ok: true, message: 'Slot prove pista resettati con successo', count: proveSlots.length });
   } catch (err) {
     console.error('Errore reset slot:', err);
-    res.status(500).json({ error: 'Errore durante il reset degli slot' });
+    res.status(500).json({ error: 'Errore durante il reset degli slot: ' + err.message });
   }
 });
 
-app.get('/api/prove/config', (req, res) => {
-  const slots = all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
-  const first = slots[0] || {};
-  res.json({
-    giorno: first.giorno || '2026-11-14',
-    slots: slots.map(s => ({ ora: `${s.ora_inizio}-${s.ora_fine}`, luogo: s.luogo, posti_max: s.posti_max, costo: s.costo })),
-    posti_max: first.posti_max || 20,
-    costo_ora: first.costo || 10
-  });
-});
-
-app.get('/api/prove/disponibilita', (req, res) => {
-  const slots = all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
-  const result = {};
-  for (const slot of slots) {
-    const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
-    const rows = all('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
-    const occupati = rows[0]?.tot || 0;
-    result[ora] = {
-      posti: slot.posti_max - occupati,
-      luogo: slot.luogo,
-      costo: slot.costo,
-      posti_max: slot.posti_max
-    };
+app.get('/api/prove/config', async (req, res) => {
+  try {
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    const first = slots[0] || {};
+    res.json({
+      giorno: first.giorno || '2026-11-14',
+      slots: slots.map(s => ({ ora: `${s.ora_inizio}-${s.ora_fine}`, luogo: s.luogo, posti_max: s.posti_max, costo: s.costo })),
+      posti_max: first.posti_max || 20,
+      costo_ora: first.costo || 10
+    });
+  } catch (err) {
+    console.error('Errore prove config:', err);
+    res.status(500).json({ error: err.message });
   }
-  res.json(result);
 });
 
-app.post('/api/prove/prenota', (req, res) => {
+app.get('/api/prove/disponibilita', async (req, res) => {
+  try {
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    const result = {};
+    for (const slot of slots) {
+      const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
+      const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+      const occupati = rows[0]?.tot || 0;
+      result[ora] = {
+        posti: slot.posti_max - occupati,
+        luogo: slot.luogo,
+        costo: slot.costo,
+        posti_max: slot.posti_max,
+        giorno: slot.giorno
+      };
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('Errore prove disponibilita:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/prove/prenota', async (req, res) => {
   const { nome, cognome, email, telefono, sessioni } = req.body;
   if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
   if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
 
-  // Verifica disponibilità
-  let totale = 0;
-  for (const ora of sessioni) {
-    const parts = ora.split('-');
-    const slot = all('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]])[0];
-    if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
-    
-    const rows = all('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
-    const occupati = rows[0]?.tot || 0;
-    if (occupati >= slot.posti_max) {
-      return res.status(400).json({ error: `Sessione ${ora} esaurita` });
+  try {
+    // Verifica disponibilità
+    let totale = 0;
+    for (const ora of sessioni) {
+      const parts = ora.split('-');
+      const slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]]);
+      const slot = slots[0];
+      if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
+      
+      const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+      const occupati = rows[0]?.tot || 0;
+      if (occupati >= slot.posti_max) {
+        return res.status(400).json({ error: `Sessione ${ora} esaurita` });
+      }
+      totale += slot.costo;
     }
-    totale += slot.costo;
-  }
 
-  const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
-  for (const ora of sessioni) {
-    db.run('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
-      [nome, cognome, email || null, telefono || null, ora, codice]);
-  }
-  save();
+    const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
+    for (const ora of sessioni) {
+      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, ora, codice]);
+    }
 
-  res.json({ codice, totale, sessioni });
+    res.json({ codice, totale, sessioni });
+  } catch (err) {
+    console.error('Errore prenotazione prove:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/prove/prenotazioni', (req, res) => {
-  res.json(all('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome'));
+app.get('/api/prove/prenotazioni', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.delete('/api/prove/prenotazioni/:codice', (req, res) => {
-  db.run('DELETE FROM prove_prenotazioni WHERE codice=?', [req.params.codice]);
-  save();
-  res.json({ ok: true });
+app.delete('/api/prove/prenotazioni/:codice', async (req, res) => {
+  try {
+    await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [req.params.codice]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- CENA ATLETI API ---
