@@ -1638,51 +1638,64 @@ app.delete('/api/merch/ordini/:codice', (req, res) => {
 });
 
 // --- PROVE PISTA API ---
-app.get('/api/prove/slots', (req, res) => {
-  res.json(all('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio'));
-});
-
-app.post('/api/prove/slots', requireAdmin, (req, res) => {
-  const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
-  if (!giorno || !ora_inizio || !ora_fine || !luogo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
-  db.run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-    [giorno, ora_inizio, ora_fine, luogo, posti_max || 10, costo || 5]);
-  save();
-  res.json({ ok: true });
-});
-
-app.put('/api/prove/slots/:id', requireAdmin, (req, res) => {
-  const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
-  db.run('UPDATE prove_slots SET giorno=?, ora_inizio=?, ora_fine=?, luogo=?, posti_max=?, costo=? WHERE id=?',
-    [giorno, ora_inizio, ora_fine, luogo, posti_max, costo, +req.params.id]);
-  save();
-  res.json({ ok: true });
-});
-
-app.delete('/api/prove/slots/:id', requireAdmin, (req, res) => {
-  db.run('DELETE FROM prove_slots WHERE id=?', [+req.params.id]);
-  save();
-  res.json({ ok: true });
-});
-
-// Reset e ricrea tutti gli slot prove pista
-app.post('/api/prove/reset-slots', requireAdmin, async (req, res) => {
+app.get('/api/prove/slots', async (req, res) => {
   try {
+    const rows = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/prove/slots', requireAdmin, async (req, res) => {
+  try {
+    const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
+    if (!giorno || !ora_inizio || !ora_fine || !luogo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+      [giorno, ora_inizio, ora_fine, luogo, posti_max || 10, costo || 5]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/prove/slots/:id', requireAdmin, async (req, res) => {
+  try {
+    const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
+    await dbRun('UPDATE prove_slots SET giorno=?, ora_inizio=?, ora_fine=?, luogo=?, posti_max=?, costo=? WHERE id=?',
+      [giorno, ora_inizio, ora_fine, luogo, posti_max, costo, +req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/prove/slots/:id', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('DELETE FROM prove_slots WHERE id=?', [+req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per forzare reset slot (interno)
+app.post('/api/prove/force-reset', async (req, res) => {
+  try {
+    // Prima elimina tutti gli slot esistenti
     await dbRun('DELETE FROM prove_slots');
+    // Poi inserisce i nuovi
     const proveSlots = [
-      // Giovedì 12 Novembre (pre-qualifiche)
       ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
       ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
       ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
-      // Venerdì 13 Novembre
       ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
       ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
       ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
-      // Sabato 14 Novembre
       ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
       ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
       ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
@@ -1691,10 +1704,10 @@ app.post('/api/prove/reset-slots', requireAdmin, async (req, res) => {
       await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
         [g, oi, of_, l, p, c]);
     }
-    res.json({ ok: true, message: 'Slot prove pista resettati con successo', count: proveSlots.length });
+    res.json({ ok: true, count: proveSlots.length });
   } catch (err) {
-    console.error('Errore reset slot:', err);
-    res.status(500).json({ error: 'Errore durante il reset degli slot: ' + err.message });
+    console.error('Force reset error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

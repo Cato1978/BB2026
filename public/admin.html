@@ -144,9 +144,6 @@
       </form>
     </div>
     <h4 style="color:#F7AF40;margin-bottom:0.5rem">Slot configurati:</h4>
-    <div style="margin-bottom:1rem">
-      <button onclick="resetProveSlots()" style="background:#d9534f;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer">🔄 Reset tutti gli slot (carica nuovi)</button>
-    </div>
     <div id="prove-slots-list" style="margin-bottom:1rem"></div>
     <hr style="border-color:#333;margin:1.5rem 0">
     <h3>📋 Prenotazioni Prove Pista</h3>
@@ -702,18 +699,6 @@
       if (!confirm('Eliminare questo slot prove?')) return;
       await fetch('/api/prove/slots/' + id, { method: 'DELETE' });
       caricaProve();
-    }
-
-    async function resetProveSlots() {
-      if (!confirm('⚠️ Questo eliminerà TUTTI gli slot esistenti e caricherà i nuovi slot predefiniti (12-13-14 Novembre). Continuare?')) return;
-      const res = await fetch('/api/prove/reset-slots', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        alert('✅ ' + data.message + ' (' + data.count + ' slot creati)');
-        caricaProve();
-      } else {
-        alert('❌ Errore durante il reset degli slot');
-      }
     }
 
     document.getElementById('form-add-prove-slot').addEventListener('submit', async e => {
