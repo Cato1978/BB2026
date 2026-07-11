@@ -383,20 +383,43 @@
         container.innerHTML = '<p style="color:#888">Nessuno slot prove disponibile</p>';
         return;
       }
-      container.innerHTML = entries.map(([ora, data]) => {
-        const posti = typeof data === 'object' ? data.posti : data;
-        const luogo = typeof data === 'object' ? data.luogo : 'PalaCastiglioni';
-        const postiMax = typeof data === 'object' ? data.posti_max : 20;
-        const esaurito = posti <= 0;
-        const quasi = posti > 0 && posti <= 5;
-        const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
-        return `<label style="${esaurito ? 'opacity:0.5;cursor:not-allowed' : ''}">
-          <input type="checkbox" name="prove" value="${ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''}>
-          <span>${ora}</span>
-          <small style="color:${color};margin-left:0.3rem">(${posti}/${postiMax})</small>
-          <small style="color:#888;display:block;font-size:0.75rem">📍 ${luogo}</small>
-        </label>`;
-      }).join('');
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
+      for (const [ora, data] of entries) {
+        const giorno = data.giorno || '2026-11-14';
+        if (!perGiorno[giorno]) perGiorno[giorno] = [];
+        perGiorno[giorno].push({ ora, ...data });
+      }
+      
+      // Formatta giorno
+      const formatGiorno = (g) => {
+        const [anno, mese, gg] = g.split('-');
+        const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const d = new Date(+anno, +mese - 1, +gg);
+        return `${giorni[d.getDay()]} ${gg}/${mese}`;
+      };
+      
+      // Ordina i giorni
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      let html = '';
+      for (const giorno of giorniOrdinati) {
+        html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40">📅 ${formatGiorno(giorno)}</strong></div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem;width:100%">`;
+        for (const slot of perGiorno[giorno]) {
+          const esaurito = slot.posti <= 0;
+          const quasi = slot.posti > 0 && slot.posti <= 3;
+          const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
+          html += `<label style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.8rem;background:#222;border:1px solid #444;border-radius:4px;color:#ccc;cursor:${esaurito ? 'not-allowed' : 'pointer'};font-size:0.9rem;${esaurito ? 'opacity:0.5' : ''}">
+            <input type="checkbox" name="prove" value="${slot.ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''}>
+            <span>${slot.ora}</span>
+            <small style="color:${color};margin-left:0.3rem">(${slot.posti}/${slot.posti_max})</small>
+          </label>`;
+        }
+        html += '</div>';
+      }
+      container.innerHTML = html;
     }
 
     // Carica al load
