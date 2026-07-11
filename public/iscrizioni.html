@@ -257,10 +257,10 @@
         </div>
 
         <div class="taglia-section">
-          <h3 data-t="proveTitle">Prenotazione Prove Pista (opzionale)</h3>
-          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="proveDesc">Sabato 14 Novembre mattina @ PalaCastiglioni</p>
-          <p style="color:#F7AF40;font-weight:600;margin-bottom:0.8rem" data-t="proveCosto">€10 per ogni ora selezionata</p>
-          <p style="color:#888;font-size:0.8rem;margin-bottom:0.8rem" data-t="proveMax">Max 20 persone per sessione</p>
+          <h3 data-t="proveTitle">🛼 Prenotazione Prove Pista (opzionale)</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="proveDesc">12-13-14 Novembre @ PalaCastiglioni</p>
+          <p style="color:#F7AF40;font-weight:600;margin-bottom:0.8rem" data-t="proveCosto">€5 per ogni slot selezionato</p>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.8rem" data-t="proveMax">Posti limitati per sessione</p>
           <div class="prove-grid" id="prove-container">
             <!-- Popolato dinamicamente -->
           </div>
@@ -365,7 +365,7 @@
     const PREZZO_PRIMA = 50;
     const PREZZO_ALTRE = 30;
     const PREZZO_FELPA = 30;
-    const PREZZO_PROVA_ORA = 10;
+    const PREZZO_PROVA_ORA = 5;
 
     let proveDisponibilita = {};
 
@@ -473,7 +473,7 @@
           dettaglio.push('Felpa: €' + PREZZO_FELPA);
         }
         if (oreProve > 0) {
-          dettaglio.push(`Prove: ${oreProve} ${oreProve === 1 ? 'ora' : 'ore'} × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
+          dettaglio.push(`Prove: ${oreProve} slot × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
         }
         document.getElementById('dettaglio-totale').textContent = dettaglio.join(' | ');
 
