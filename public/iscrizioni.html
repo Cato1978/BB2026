@@ -380,6 +380,8 @@
       }
     }
 
+    const SPECIALITA_PROVE = ['Classic Slalom', 'Speed Slalom', 'Slides'];
+
     function renderProveSlots() {
       const container = document.getElementById('prove-container');
       const entries = Object.entries(proveDisponibilita);
@@ -410,20 +412,34 @@
       let html = '';
       for (const giorno of giorniOrdinati) {
         html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40">📅 ${formatGiorno(giorno)}</strong></div>`;
-        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem;width:100%">`;
         for (const slot of perGiorno[giorno]) {
           const esaurito = slot.posti <= 0;
           const quasi = slot.posti > 0 && slot.posti <= 3;
           const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
-          html += `<label style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.8rem;background:#222;border:1px solid #444;border-radius:4px;color:#ccc;cursor:${esaurito ? 'not-allowed' : 'pointer'};font-size:0.9rem;${esaurito ? 'opacity:0.5' : ''}">
-            <input type="checkbox" name="prove" value="${slot.ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''}>
-            <span>${slot.ora}</span>
-            <small style="color:${color};margin-left:0.3rem">(${slot.posti}/${slot.posti_max})</small>
-          </label>`;
+          const slotId = `prova-${slot.ora.replace(/:/g, '')}`;
+          html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:#222;border:1px solid #333;border-radius:4px;margin:0.3rem 0;flex-wrap:wrap;${esaurito ? 'opacity:0.5' : ''}">
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:${esaurito ? 'not-allowed' : 'pointer'};min-width:140px">
+              <input type="checkbox" id="${slotId}" name="prove" value="${slot.ora}" onchange="toggleProvaSlot('${slot.ora}')" ${esaurito ? 'disabled' : ''}>
+              <span>${slot.ora}</span>
+              <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
+            </label>
+            <select id="spec-${slotId}" onchange="updateTotale()" disabled style="padding:0.3rem;background:#111;color:#f0f0f0;border:1px solid #444;border-radius:4px;font-size:0.85rem">
+              <option value="">-- Specialità --</option>
+              ${SPECIALITA_PROVE.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>`;
         }
-        html += '</div>';
       }
       container.innerHTML = html;
+    }
+
+    function toggleProvaSlot(ora) {
+      const slotId = `prova-${ora.replace(/:/g, '')}`;
+      const checkbox = document.getElementById(slotId);
+      const select = document.getElementById(`spec-${slotId}`);
+      select.disabled = !checkbox.checked;
+      if (!checkbox.checked) select.value = '';
+      updateTotale();
     }
 
     // Carica al load
@@ -667,9 +683,24 @@
         disciplineConCategoria.push(`${cb.value} (${sel.value})`);
       });
 
-      // Ore prove
+      // Ore prove con specialità
       const oreProveChecked = document.querySelectorAll('input[name="prove"]:checked');
-      const oreProve = Array.from(oreProveChecked).map(cb => cb.value);
+      const oreProve = [];
+      const oreProveDettaglio = [];
+      for (const cb of oreProveChecked) {
+        const ora = cb.value;
+        const slotId = `prova-${ora.replace(/:/g, '')}`;
+        const specSelect = document.getElementById(`spec-${slotId}`);
+        const specialita = specSelect ? specSelect.value : '';
+        if (!specialita) {
+          msg.textContent = getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la specialità per lo slot ${ora}`;
+          msg.style.color = '#f44336';
+          document.getElementById('btn-bonifico').disabled = false;
+          return;
+        }
+        oreProve.push(ora);
+        oreProveDettaglio.push(`${ora} (${specialita})`);
+      }
 
       const numDiscipline = checkedBoxes.length;
       const totaleGare = PREZZO_PRIMA + (numDiscipline - 1) * PREZZO_ALTRE;
@@ -687,7 +718,7 @@
         noteFinali.push(`Felpa: ${tagliaFelpa}`);
       }
       if (oreProve.length > 0) {
-        noteFinali.push(`Prove: ${oreProve.join(', ')}`);
+        noteFinali.push(`Prove: ${oreProveDettaglio.join(', ')}`);
       }
       const noteUtente = document.getElementById('note').value.trim();
       if (noteUtente) {

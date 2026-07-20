@@ -16,28 +16,21 @@
       padding: 1rem;
       margin-bottom: 1rem;
     }
-    .atleta-card.expanded {
-      border-color: #F7AF40;
-    }
+    .atleta-card.expanded { border-color: #F7AF40; }
     .atleta-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
     }
-    .atleta-header h4 {
-      margin: 0;
-      color: #F7AF40;
-    }
+    .atleta-header h4 { margin: 0; color: #F7AF40; }
     .atleta-content {
       display: none;
       margin-top: 1rem;
       padding-top: 1rem;
       border-top: 1px solid #333;
     }
-    .atleta-card.expanded .atleta-content {
-      display: block;
-    }
+    .atleta-card.expanded .atleta-content { display: block; }
     .remove-atleta {
       background: #dc2626;
       color: white;
@@ -47,32 +40,42 @@
       cursor: pointer;
       font-size: 0.8rem;
     }
-    .prove-grid label {
-      display: inline-flex;
+    .slot-row {
+      display: flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.4rem 0.7rem;
+      gap: 0.5rem;
+      padding: 0.5rem;
       background: #222;
-      border: 1px solid #444;
+      border: 1px solid #333;
       border-radius: 4px;
-      color: #ccc;
-      cursor: pointer;
-      font-size: 0.85rem;
-      margin: 0.2rem;
+      margin: 0.3rem 0;
+      flex-wrap: wrap;
     }
-    .prove-grid label:hover {
-      border-color: #F7AF40;
-    }
-    .prove-grid label:has(input:checked) {
+    .slot-row:has(input:checked) {
       border-color: #F7AF40;
       background: #2a2a1a;
     }
+    .slot-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .slot-row select {
+      padding: 0.3rem;
+      background: #111;
+      color: #f0f0f0;
+      border: 1px solid #444;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .slot-row select:disabled { opacity: 0.4; }
     .giorno-header {
-      margin-top: 0.8rem;
-      margin-bottom: 0.3rem;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
       color: #F7AF40;
       font-weight: 600;
-      font-size: 0.95rem;
     }
     .add-atleta-btn {
       width: 100%;
@@ -85,17 +88,9 @@
       cursor: pointer;
       margin-bottom: 1rem;
     }
-    .add-atleta-btn:hover {
-      background: #2a2a1a;
-    }
-    .atleta-summary {
-      font-size: 0.85rem;
-      color: #888;
-    }
-    .atleta-summary .slots-count {
-      color: #4ade80;
-      font-weight: 600;
-    }
+    .add-atleta-btn:hover { background: #2a2a1a; }
+    .atleta-summary { font-size: 0.85rem; color: #888; }
+    .atleta-summary .slots-count { color: #4ade80; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -127,7 +122,6 @@
     <section class="form-section">
       <h2 data-t="provePageForm">Prenotazioni</h2>
       
-      <!-- Dati contatto principale -->
       <div style="background:#111;padding:1rem;border-radius:6px;margin-bottom:1.5rem">
         <h4 style="color:#F7AF40;margin:0 0 0.8rem" data-t="provePageContatto">📧 Contatto per la prenotazione</h4>
         <div class="form-row">
@@ -136,7 +130,6 @@
         </div>
       </div>
 
-      <!-- Lista atleti -->
       <div id="atleti-container"></div>
       
       <button type="button" class="add-atleta-btn" onclick="aggiungiAtleta()">
@@ -152,14 +145,11 @@
       <p class="msg" id="msg"></p>
     </section>
 
-    <!-- Conferma prenotazione -->
     <section class="info" id="conferma" style="display:none;text-align:center">
       <h2 style="color:#4CAF50">✅ <span data-t="provePageConfermata">Prenotazione Confermata!</span></h2>
       <p data-t="provePageCodice">Il tuo codice di prenotazione è:</p>
       <p id="codice-prenotazione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
-      
       <div id="riepilogo-atleti" style="text-align:left;margin:1.5rem 0"></div>
-      
       <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
         <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
         <p style="margin:0.3rem 0;color:#ccc"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
@@ -167,7 +157,6 @@
         <p style="margin:0.3rem 0;color:#ccc"><strong data-t="causale">Causale:</strong> <span id="causale-bonifico"></span></p>
         <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
       </div>
-      
       <p style="margin-top:1.5rem;color:#888;font-size:0.9rem" data-t="provePageEmailConferma">Riceverai una email di conferma con i dettagli della prenotazione.</p>
     </section>
   </main>
@@ -186,16 +175,15 @@
   <script src="app.js"></script>
   <script>
     const PREZZO_SLOT = 5;
+    const SPECIALITA = ['Classic Slalom', 'Speed Slalom', 'Slides'];
     let proveDisponibilita = {};
     let atletaCounter = 0;
     let atleti = [];
 
-    // Carica disponibilità prove
     async function caricaProveDisponibilita() {
       try {
         const res = await fetch('/api/prove/disponibilita');
         proveDisponibilita = await res.json();
-        // Aggiungi primo atleta automaticamente
         aggiungiAtleta();
       } catch (e) {
         console.error('Errore caricamento prove:', e);
@@ -206,7 +194,6 @@
       const entries = Object.entries(proveDisponibilita);
       if (!entries.length) return '<p style="color:#888">Nessuno slot disponibile</p>';
       
-      // Raggruppa per giorno
       const perGiorno = {};
       for (const [ora, data] of entries) {
         const giorno = data.giorno || '2026-11-14';
@@ -222,22 +209,28 @@
       };
       
       const giorniOrdinati = Object.keys(perGiorno).sort();
-      
       let html = '';
+      
       for (const giorno of giorniOrdinati) {
         html += `<div class="giorno-header">📅 ${formatGiorno(giorno)}</div>`;
-        html += `<div class="prove-grid">`;
         for (const slot of perGiorno[giorno]) {
           const esaurito = slot.posti <= 0;
           const quasi = slot.posti > 0 && slot.posti <= 3;
           const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
-          html += `<label style="${esaurito ? 'opacity:0.5;cursor:not-allowed' : ''}">
-            <input type="checkbox" name="prove-${atletaId}" value="${slot.ora}" onchange="updateAtletaSlots(${atletaId})" ${esaurito ? 'disabled' : ''}>
-            <span>${slot.ora}</span>
-            <small style="color:${color}">(${slot.posti})</small>
-          </label>`;
+          const slotId = `slot-${atletaId}-${slot.ora.replace(/:/g, '')}`;
+          
+          html += `<div class="slot-row" style="${esaurito ? 'opacity:0.5' : ''}">
+            <label>
+              <input type="checkbox" id="${slotId}" data-ora="${slot.ora}" onchange="toggleSlot(${atletaId}, '${slot.ora}', this)" ${esaurito ? 'disabled' : ''}>
+              <span>${slot.ora}</span>
+              <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
+            </label>
+            <select id="spec-${slotId}" onchange="updateSpecialita(${atletaId}, '${slot.ora}', this)" disabled>
+              <option value="">-- Specialità --</option>
+              ${SPECIALITA.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>`;
         }
-        html += '</div>';
       }
       return html;
     }
@@ -245,8 +238,7 @@
     function aggiungiAtleta() {
       atletaCounter++;
       const id = atletaCounter;
-      const atleta = { id, nome: '', cognome: '', slots: [] };
-      atleti.push(atleta);
+      atleti.push({ id, nome: '', cognome: '', slots: [] });
       
       const container = document.getElementById('atleti-container');
       const card = document.createElement('div');
@@ -262,34 +254,28 @@
         </div>
         <div class="atleta-content">
           <div class="form-row">
-            <input type="text" id="nome-${id}" placeholder="Nome *" oninput="updateAtletaNome(${id})" required>
-            <input type="text" id="cognome-${id}" placeholder="Cognome *" oninput="updateAtletaNome(${id})" required>
+            <input type="text" id="nome-${id}" placeholder="Nome *" oninput="updateAtletaNome(${id})">
+            <input type="text" id="cognome-${id}" placeholder="Cognome *" oninput="updateAtletaNome(${id})">
           </div>
-          <h4 style="color:#888;margin:1rem 0 0.5rem;font-size:0.9rem">Seleziona slot:</h4>
+          <h4 style="color:#888;margin:1rem 0 0.5rem;font-size:0.9rem">Seleziona slot e specialità:</h4>
           <div id="slots-${id}">${renderSlotsPerAtleta(id)}</div>
         </div>
       `;
       container.appendChild(card);
       
-      // Chiudi altri atleti
       atleti.forEach(a => {
-        if (a.id !== id) {
-          document.getElementById(`atleta-${a.id}`)?.classList.remove('expanded');
-        }
+        if (a.id !== id) document.getElementById(`atleta-${a.id}`)?.classList.remove('expanded');
       });
-      
       updateTotale();
     }
 
     function toggleAtleta(id) {
-      const card = document.getElementById(`atleta-${id}`);
-      card.classList.toggle('expanded');
+      document.getElementById(`atleta-${id}`).classList.toggle('expanded');
     }
 
     function rimuoviAtleta(id, event) {
       event.stopPropagation();
       if (atleti.length <= 1) return;
-      
       atleti = atleti.filter(a => a.id !== id);
       document.getElementById(`atleta-${id}`).remove();
       updateTotale();
@@ -298,46 +284,55 @@
     function updateAtletaNome(id) {
       const nome = document.getElementById(`nome-${id}`).value.trim();
       const cognome = document.getElementById(`cognome-${id}`).value.trim();
-      const display = document.getElementById(`nome-display-${id}`);
-      display.textContent = nome || cognome ? `${nome} ${cognome}`.trim() : 'Nuovo atleta';
-      
+      document.getElementById(`nome-display-${id}`).textContent = nome || cognome ? `${nome} ${cognome}`.trim() : 'Nuovo atleta';
       const atleta = atleti.find(a => a.id === id);
-      if (atleta) {
-        atleta.nome = nome;
-        atleta.cognome = cognome;
-      }
+      if (atleta) { atleta.nome = nome; atleta.cognome = cognome; }
+    }
+
+    function toggleSlot(atletaId, ora, checkbox) {
+      const slotId = `slot-${atletaId}-${ora.replace(/:/g, '')}`;
+      const select = document.getElementById(`spec-${slotId}`);
+      select.disabled = !checkbox.checked;
+      if (!checkbox.checked) select.value = '';
+      updateAtletaSlots(atletaId);
+    }
+
+    function updateSpecialita(atletaId, ora, select) {
+      updateAtletaSlots(atletaId);
     }
 
     function updateAtletaSlots(id) {
-      const checkboxes = document.querySelectorAll(`input[name="prove-${id}"]:checked`);
-      const slots = Array.from(checkboxes).map(cb => cb.value);
-      
       const atleta = atleti.find(a => a.id === id);
-      if (atleta) atleta.slots = slots;
+      if (!atleta) return;
+      
+      atleta.slots = [];
+      const checkboxes = document.querySelectorAll(`#atleta-${id} input[type="checkbox"]:checked`);
+      checkboxes.forEach(cb => {
+        const ora = cb.dataset.ora;
+        const slotId = `slot-${id}-${ora.replace(/:/g, '')}`;
+        const spec = document.getElementById(`spec-${slotId}`).value;
+        atleta.slots.push({ ora, specialita: spec });
+      });
       
       const summary = document.getElementById(`summary-${id}`);
-      summary.innerHTML = slots.length > 0 
-        ? `<span class="slots-count">${slots.length} slot</span> · €${slots.length * PREZZO_SLOT}`
+      summary.innerHTML = atleta.slots.length > 0 
+        ? `<span class="slots-count">${atleta.slots.length} slot</span> · €${atleta.slots.length * PREZZO_SLOT}`
         : '';
-      
       updateTotale();
     }
 
     function updateTotale() {
       let totaleSlots = 0;
       let dettagli = [];
-      
       atleti.forEach(a => {
         if (a.slots.length > 0) {
           totaleSlots += a.slots.length;
-          const nomeDisplay = a.nome || a.cognome ? `${a.nome} ${a.cognome}`.trim() : `Atleta ${a.id}`;
-          dettagli.push(`${nomeDisplay}: ${a.slots.length} slot`);
+          const nome = a.nome || a.cognome ? `${a.nome} ${a.cognome}`.trim() : `Atleta ${a.id}`;
+          dettagli.push(`${nome}: ${a.slots.length} slot`);
         }
       });
-      
       const totale = totaleSlots * PREZZO_SLOT;
       const box = document.getElementById('totale-box');
-      
       if (totaleSlots > 0) {
         box.style.display = 'block';
         document.getElementById('totale').textContent = '€' + totale;
@@ -360,7 +355,6 @@
         return;
       }
 
-      // Valida atleti
       const atletiValidi = atleti.filter(a => a.slots.length > 0);
       if (atletiValidi.length === 0) {
         msg.textContent = 'Seleziona almeno uno slot per almeno un atleta';
@@ -370,18 +364,26 @@
 
       for (const a of atletiValidi) {
         if (!a.nome || !a.cognome) {
-          msg.textContent = `Inserisci nome e cognome per l'atleta con slot selezionati`;
+          msg.textContent = `Inserisci nome e cognome per tutti gli atleti con slot selezionati`;
           msg.style.color = '#f44336';
           return;
+        }
+        // Verifica specialità
+        for (const s of a.slots) {
+          if (!s.specialita) {
+            msg.textContent = `Seleziona la specialità per tutti gli slot di ${a.nome} ${a.cognome}`;
+            msg.style.color = '#f44336';
+            return;
+          }
         }
       }
 
       try {
-        // Invia prenotazioni per ogni atleta
         const codici = [];
         let totale = 0;
         
         for (const a of atletiValidi) {
+          const sessioni = a.slots.map(s => `${s.ora} (${s.specialita})`);
           const res = await fetch('/api/prove/prenota', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -390,7 +392,8 @@
               cognome: a.cognome,
               email,
               telefono,
-              sessioni: a.slots
+              sessioni: a.slots.map(s => s.ora),
+              note: a.slots.map(s => `${s.ora}: ${s.specialita}`).join(', ')
             })
           });
 
@@ -405,24 +408,21 @@
           totale += data.totale;
         }
 
-        // Mostra conferma
         document.querySelector('.form-section').style.display = 'none';
         document.querySelector('.info').style.display = 'none';
         document.getElementById('conferma').style.display = 'block';
-        
-        // Codice principale (primo atleta)
         document.getElementById('codice-prenotazione').textContent = codici[0].codice;
         
-        // Riepilogo atleti
         let riepilogoHtml = '<h4 style="color:#F7AF40;margin-bottom:0.5rem">📋 Riepilogo prenotazioni:</h4>';
         codici.forEach(c => {
+          const dettagliSlot = c.slots.map(s => `${s.ora} - ${s.specialita}`).join('<br>');
           riepilogoHtml += `<div style="background:#1a1a1a;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem">
-            <strong>${c.nome} ${c.cognome}</strong> · ${c.slots.length} slot · €${c.totale}<br>
-            <small style="color:#888">Codice: ${c.codice}</small>
+            <strong>${c.nome} ${c.cognome}</strong> · €${c.totale}<br>
+            <small style="color:#888">${dettagliSlot}</small><br>
+            <small style="color:#F7AF40">Codice: ${c.codice}</small>
           </div>`;
         });
         document.getElementById('riepilogo-atleti').innerHTML = riepilogoHtml;
-        
         document.getElementById('causale-bonifico').textContent = `Prove Pista - ${codici[0].codice}`;
         document.getElementById('importo-bonifico').textContent = '€' + totale;
 
@@ -432,7 +432,6 @@
       }
     }
 
-    // Carica al load
     caricaProveDisponibilita();
   </script>
 </body>
