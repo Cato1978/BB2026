@@ -175,7 +175,7 @@
   <script src="app.js"></script>
   <script>
     const PREZZO_SLOT = 5;
-    const SPECIALITA = ['Classic Slalom', 'Speed Slalom', 'Slides'];
+    const SPECIALITA = ['Classic Slalom', 'Speed Slalom', 'Slides', 'Free Jump'];
     let proveDisponibilita = {};
     let atletaCounter = 0;
     let atleti = [];
@@ -350,28 +350,28 @@
       const telefono = document.getElementById('telefono-contatto').value.trim();
       
       if (!email) {
-        msg.textContent = 'Inserisci una email di contatto';
+        msg.textContent = getLang() === 'en' ? 'Enter a contact email' : 'Inserisci una email di contatto';
         msg.style.color = '#f44336';
         return;
       }
 
       const atletiValidi = atleti.filter(a => a.slots.length > 0);
       if (atletiValidi.length === 0) {
-        msg.textContent = 'Seleziona almeno uno slot per almeno un atleta';
+        msg.textContent = getLang() === 'en' ? 'Select at least one slot for at least one athlete' : 'Seleziona almeno uno slot per almeno un atleta';
         msg.style.color = '#f44336';
         return;
       }
 
       for (const a of atletiValidi) {
         if (!a.nome || !a.cognome) {
-          msg.textContent = `Inserisci nome e cognome per tutti gli atleti con slot selezionati`;
+          msg.textContent = getLang() === 'en' ? 'Enter name and surname for all athletes with selected slots' : 'Inserisci nome e cognome per tutti gli atleti con slot selezionati';
           msg.style.color = '#f44336';
           return;
         }
         // Verifica specialità
         for (const s of a.slots) {
           if (!s.specialita) {
-            msg.textContent = `Seleziona la specialità per tutti gli slot di ${a.nome} ${a.cognome}`;
+            msg.textContent = getLang() === 'en' ? `Select discipline for all slots of ${a.nome} ${a.cognome}` : `Seleziona la specialità per tutti gli slot di ${a.nome} ${a.cognome}`;
             msg.style.color = '#f44336';
             return;
           }
