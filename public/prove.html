@@ -9,47 +9,92 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#F7AF40">
   <style>
-    .prove-grid {
+    .atleta-card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .atleta-card.expanded {
+      border-color: #F7AF40;
+    }
+    .atleta-header {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .atleta-header h4 {
+      margin: 0;
+      color: #F7AF40;
+    }
+    .atleta-content {
+      display: none;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #333;
+    }
+    .atleta-card.expanded .atleta-content {
+      display: block;
+    }
+    .remove-atleta {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
     }
     .prove-grid label {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.5rem 0.8rem;
+      padding: 0.4rem 0.7rem;
       background: #222;
       border: 1px solid #444;
       border-radius: 4px;
       color: #ccc;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      margin: 0.2rem;
     }
     .prove-grid label:hover {
       border-color: #F7AF40;
     }
-    .prove-grid input:checked + span {
-      color: #F7AF40;
-    }
     .prove-grid label:has(input:checked) {
       border-color: #F7AF40;
-      background: #1a1a1a;
+      background: #2a2a1a;
     }
     .giorno-header {
-      width: 100%;
-      margin-top: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    .giorno-header strong {
+      margin-top: 0.8rem;
+      margin-bottom: 0.3rem;
       color: #F7AF40;
-      font-size: 1.1rem;
+      font-weight: 600;
+      font-size: 0.95rem;
     }
-    .slots-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+    .add-atleta-btn {
       width: 100%;
+      padding: 1rem;
+      background: #222;
+      border: 2px dashed #F7AF40;
+      color: #F7AF40;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    .add-atleta-btn:hover {
+      background: #2a2a1a;
+    }
+    .atleta-summary {
+      font-size: 0.85rem;
+      color: #888;
+    }
+    .atleta-summary .slots-count {
+      color: #4ade80;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -73,36 +118,38 @@
   <main class="page-content">
     <section class="info">
       <h2 data-t="provePageTitle">🛼 Prenotazione Prove Pista</h2>
-      <p data-t="provePageDesc">Prenota il tuo slot per provare la pista prima della gara.</p>
+      <p data-t="provePageDesc">Prenota gli slot per provare la pista prima della gara.</p>
       <p style="color:#F7AF40;font-weight:600" data-t="provePageCosto">€5 per ogni slot selezionato</p>
       <p style="color:#888;font-size:0.9rem" data-t="provePageLuogo">📍 PalaCastiglioni - Via Ariosto 3, Busto Arsizio</p>
+      <p style="color:#888;font-size:0.9rem;margin-top:0.5rem" data-t="provePageMulti">💡 Puoi prenotare per più atleti in un'unica operazione</p>
     </section>
 
     <section class="form-section">
-      <h2 data-t="provePageForm">Dati per la prenotazione</h2>
-      <form id="form-prove">
+      <h2 data-t="provePageForm">Prenotazioni</h2>
+      
+      <!-- Dati contatto principale -->
+      <div style="background:#111;padding:1rem;border-radius:6px;margin-bottom:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 0.8rem" data-t="provePageContatto">📧 Contatto per la prenotazione</h4>
         <div class="form-row">
-          <input type="text" id="nome" data-t="nomePlaceholder" placeholder="Nome *" required>
-          <input type="text" id="cognome" data-t="cognomePlaceholder" placeholder="Cognome *" required>
+          <input type="email" id="email-contatto" placeholder="Email *" required>
+          <input type="tel" id="telefono-contatto" data-t="telefonoPlaceholder" placeholder="Telefono">
         </div>
-        <div class="form-row">
-          <input type="email" id="email" placeholder="Email *" required>
-          <input type="tel" id="telefono" data-t="telefonoPlaceholder" placeholder="Telefono">
-        </div>
+      </div>
 
-        <h3 style="color:#F7AF40;margin:1.5rem 0 1rem" data-t="provePageSlots">Seleziona gli slot</h3>
-        <div class="prove-grid" id="prove-container">
-          <p style="color:#888">Caricamento slot disponibili...</p>
-        </div>
+      <!-- Lista atleti -->
+      <div id="atleti-container"></div>
+      
+      <button type="button" class="add-atleta-btn" onclick="aggiungiAtleta()">
+        ➕ <span data-t="provePageAggiungi">Aggiungi Atleta</span>
+      </button>
 
-        <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
-          <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
-          <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
-        </div>
+      <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
+        <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
+        <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
+      </div>
 
-        <button type="submit" style="width:100%;background:#F7AF40;color:#000;border:none;padding:1rem;font-size:1.1rem;border-radius:6px;cursor:pointer;margin-top:1rem" data-t="provePageSubmit">📄 Prenota e paga con Bonifico</button>
-        <p class="msg" id="msg"></p>
-      </form>
+      <button type="button" onclick="submitPrenotazione()" style="width:100%;background:#F7AF40;color:#000;border:none;padding:1rem;font-size:1.1rem;border-radius:6px;cursor:pointer" data-t="provePageSubmit">📄 Prenota e paga con Bonifico</button>
+      <p class="msg" id="msg"></p>
     </section>
 
     <!-- Conferma prenotazione -->
@@ -110,6 +157,8 @@
       <h2 style="color:#4CAF50">✅ <span data-t="provePageConfermata">Prenotazione Confermata!</span></h2>
       <p data-t="provePageCodice">Il tuo codice di prenotazione è:</p>
       <p id="codice-prenotazione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      
+      <div id="riepilogo-atleti" style="text-align:left;margin:1.5rem 0"></div>
       
       <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
         <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
@@ -138,26 +187,24 @@
   <script>
     const PREZZO_SLOT = 5;
     let proveDisponibilita = {};
+    let atletaCounter = 0;
+    let atleti = [];
 
     // Carica disponibilità prove
     async function caricaProveDisponibilita() {
       try {
         const res = await fetch('/api/prove/disponibilita');
         proveDisponibilita = await res.json();
-        renderProveSlots();
+        // Aggiungi primo atleta automaticamente
+        aggiungiAtleta();
       } catch (e) {
         console.error('Errore caricamento prove:', e);
-        document.getElementById('prove-container').innerHTML = '<p style="color:#ef4444">Errore nel caricamento degli slot</p>';
       }
     }
 
-    function renderProveSlots() {
-      const container = document.getElementById('prove-container');
+    function renderSlotsPerAtleta(atletaId) {
       const entries = Object.entries(proveDisponibilita);
-      if (!entries.length) {
-        container.innerHTML = '<p style="color:#888">Nessuno slot prove disponibile</p>';
-        return;
-      }
+      if (!entries.length) return '<p style="color:#888">Nessuno slot disponibile</p>';
       
       // Raggruppa per giorno
       const perGiorno = {};
@@ -167,7 +214,6 @@
         perGiorno[giorno].push({ ora, ...data });
       }
       
-      // Formatta giorno
       const formatGiorno = (g) => {
         const [anno, mese, gg] = g.split('-');
         const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
@@ -175,91 +221,219 @@
         return `${giorni[d.getDay()]} ${gg}/${mese}`;
       };
       
-      // Ordina i giorni
       const giorniOrdinati = Object.keys(perGiorno).sort();
       
       let html = '';
       for (const giorno of giorniOrdinati) {
-        html += `<div class="giorno-header"><strong>📅 ${formatGiorno(giorno)}</strong></div>`;
-        html += `<div class="slots-container">`;
+        html += `<div class="giorno-header">📅 ${formatGiorno(giorno)}</div>`;
+        html += `<div class="prove-grid">`;
         for (const slot of perGiorno[giorno]) {
           const esaurito = slot.posti <= 0;
           const quasi = slot.posti > 0 && slot.posti <= 3;
           const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
           html += `<label style="${esaurito ? 'opacity:0.5;cursor:not-allowed' : ''}">
-            <input type="checkbox" name="prove" value="${slot.ora}" onchange="updateTotale()" ${esaurito ? 'disabled' : ''}>
+            <input type="checkbox" name="prove-${atletaId}" value="${slot.ora}" onchange="updateAtletaSlots(${atletaId})" ${esaurito ? 'disabled' : ''}>
             <span>${slot.ora}</span>
-            <small style="color:${color};margin-left:0.3rem">(${slot.posti}/${slot.posti_max})</small>
+            <small style="color:${color}">(${slot.posti})</small>
           </label>`;
         }
         html += '</div>';
       }
-      container.innerHTML = html;
+      return html;
     }
 
-    // Carica al load
-    caricaProveDisponibilita();
+    function aggiungiAtleta() {
+      atletaCounter++;
+      const id = atletaCounter;
+      const atleta = { id, nome: '', cognome: '', slots: [] };
+      atleti.push(atleta);
+      
+      const container = document.getElementById('atleti-container');
+      const card = document.createElement('div');
+      card.className = 'atleta-card expanded';
+      card.id = `atleta-${id}`;
+      card.innerHTML = `
+        <div class="atleta-header" onclick="toggleAtleta(${id})">
+          <h4>👤 Atleta ${id}: <span id="nome-display-${id}" style="color:#ccc;font-weight:normal">Nuovo atleta</span></h4>
+          <div>
+            <span class="atleta-summary" id="summary-${id}"></span>
+            ${atleti.length > 1 ? `<button class="remove-atleta" onclick="rimuoviAtleta(${id}, event)">✕</button>` : ''}
+          </div>
+        </div>
+        <div class="atleta-content">
+          <div class="form-row">
+            <input type="text" id="nome-${id}" placeholder="Nome *" oninput="updateAtletaNome(${id})" required>
+            <input type="text" id="cognome-${id}" placeholder="Cognome *" oninput="updateAtletaNome(${id})" required>
+          </div>
+          <h4 style="color:#888;margin:1rem 0 0.5rem;font-size:0.9rem">Seleziona slot:</h4>
+          <div id="slots-${id}">${renderSlotsPerAtleta(id)}</div>
+        </div>
+      `;
+      container.appendChild(card);
+      
+      // Chiudi altri atleti
+      atleti.forEach(a => {
+        if (a.id !== id) {
+          document.getElementById(`atleta-${a.id}`)?.classList.remove('expanded');
+        }
+      });
+      
+      updateTotale();
+    }
+
+    function toggleAtleta(id) {
+      const card = document.getElementById(`atleta-${id}`);
+      card.classList.toggle('expanded');
+    }
+
+    function rimuoviAtleta(id, event) {
+      event.stopPropagation();
+      if (atleti.length <= 1) return;
+      
+      atleti = atleti.filter(a => a.id !== id);
+      document.getElementById(`atleta-${id}`).remove();
+      updateTotale();
+    }
+
+    function updateAtletaNome(id) {
+      const nome = document.getElementById(`nome-${id}`).value.trim();
+      const cognome = document.getElementById(`cognome-${id}`).value.trim();
+      const display = document.getElementById(`nome-display-${id}`);
+      display.textContent = nome || cognome ? `${nome} ${cognome}`.trim() : 'Nuovo atleta';
+      
+      const atleta = atleti.find(a => a.id === id);
+      if (atleta) {
+        atleta.nome = nome;
+        atleta.cognome = cognome;
+      }
+    }
+
+    function updateAtletaSlots(id) {
+      const checkboxes = document.querySelectorAll(`input[name="prove-${id}"]:checked`);
+      const slots = Array.from(checkboxes).map(cb => cb.value);
+      
+      const atleta = atleti.find(a => a.id === id);
+      if (atleta) atleta.slots = slots;
+      
+      const summary = document.getElementById(`summary-${id}`);
+      summary.innerHTML = slots.length > 0 
+        ? `<span class="slots-count">${slots.length} slot</span> · €${slots.length * PREZZO_SLOT}`
+        : '';
+      
+      updateTotale();
+    }
 
     function updateTotale() {
-      const slots = document.querySelectorAll('input[name="prove"]:checked').length;
-      const totale = slots * PREZZO_SLOT;
+      let totaleSlots = 0;
+      let dettagli = [];
+      
+      atleti.forEach(a => {
+        if (a.slots.length > 0) {
+          totaleSlots += a.slots.length;
+          const nomeDisplay = a.nome || a.cognome ? `${a.nome} ${a.cognome}`.trim() : `Atleta ${a.id}`;
+          dettagli.push(`${nomeDisplay}: ${a.slots.length} slot`);
+        }
+      });
+      
+      const totale = totaleSlots * PREZZO_SLOT;
       const box = document.getElementById('totale-box');
       
-      if (slots > 0) {
+      if (totaleSlots > 0) {
         box.style.display = 'block';
         document.getElementById('totale').textContent = '€' + totale;
-        document.getElementById('dettaglio-totale').textContent = `${slots} slot × €${PREZZO_SLOT}`;
+        document.getElementById('dettaglio-totale').textContent = dettagli.join(' | ') + ` · €${PREZZO_SLOT}/slot`;
       } else {
         box.style.display = 'none';
       }
     }
 
-    // Submit form
-    document.getElementById('form-prove').addEventListener('submit', async e => {
-      e.preventDefault();
+    async function submitPrenotazione() {
       const msg = document.getElementById('msg');
       msg.textContent = '';
 
-      const nome = document.getElementById('nome').value.trim();
-      const cognome = document.getElementById('cognome').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const telefono = document.getElementById('telefono').value.trim();
+      const email = document.getElementById('email-contatto').value.trim();
+      const telefono = document.getElementById('telefono-contatto').value.trim();
       
-      const sessioni = Array.from(document.querySelectorAll('input[name="prove"]:checked')).map(cb => cb.value);
-      
-      if (sessioni.length === 0) {
-        msg.textContent = getLang() === 'en' ? 'Select at least one slot' : 'Seleziona almeno uno slot';
+      if (!email) {
+        msg.textContent = 'Inserisci una email di contatto';
         msg.style.color = '#f44336';
         return;
       }
 
-      try {
-        const res = await fetch('/api/prove/prenota', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, cognome, email, telefono, sessioni })
-        });
+      // Valida atleti
+      const atletiValidi = atleti.filter(a => a.slots.length > 0);
+      if (atletiValidi.length === 0) {
+        msg.textContent = 'Seleziona almeno uno slot per almeno un atleta';
+        msg.style.color = '#f44336';
+        return;
+      }
 
-        const data = await res.json();
-        if (!res.ok) {
-          msg.textContent = data.error || 'Errore nella prenotazione';
+      for (const a of atletiValidi) {
+        if (!a.nome || !a.cognome) {
+          msg.textContent = `Inserisci nome e cognome per l'atleta con slot selezionati`;
           msg.style.color = '#f44336';
           return;
+        }
+      }
+
+      try {
+        // Invia prenotazioni per ogni atleta
+        const codici = [];
+        let totale = 0;
+        
+        for (const a of atletiValidi) {
+          const res = await fetch('/api/prove/prenota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nome: a.nome,
+              cognome: a.cognome,
+              email,
+              telefono,
+              sessioni: a.slots
+            })
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            msg.textContent = data.error || 'Errore nella prenotazione';
+            msg.style.color = '#f44336';
+            return;
+          }
+          
+          codici.push({ ...a, codice: data.codice, totale: data.totale });
+          totale += data.totale;
         }
 
         // Mostra conferma
         document.querySelector('.form-section').style.display = 'none';
         document.querySelector('.info').style.display = 'none';
         document.getElementById('conferma').style.display = 'block';
-        document.getElementById('codice-prenotazione').textContent = data.codice;
-        document.getElementById('causale-bonifico').textContent = `Prove Pista - ${data.codice} - ${cognome}`;
-        document.getElementById('importo-bonifico').textContent = '€' + data.totale;
+        
+        // Codice principale (primo atleta)
+        document.getElementById('codice-prenotazione').textContent = codici[0].codice;
+        
+        // Riepilogo atleti
+        let riepilogoHtml = '<h4 style="color:#F7AF40;margin-bottom:0.5rem">📋 Riepilogo prenotazioni:</h4>';
+        codici.forEach(c => {
+          riepilogoHtml += `<div style="background:#1a1a1a;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem">
+            <strong>${c.nome} ${c.cognome}</strong> · ${c.slots.length} slot · €${c.totale}<br>
+            <small style="color:#888">Codice: ${c.codice}</small>
+          </div>`;
+        });
+        document.getElementById('riepilogo-atleti').innerHTML = riepilogoHtml;
+        
+        document.getElementById('causale-bonifico').textContent = `Prove Pista - ${codici[0].codice}`;
+        document.getElementById('importo-bonifico').textContent = '€' + totale;
 
       } catch (err) {
         msg.textContent = 'Errore di connessione';
         msg.style.color = '#f44336';
       }
-    });
+    }
+
+    // Carica al load
+    caricaProveDisponibilita();
   </script>
 </body>
 </html>
