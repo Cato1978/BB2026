@@ -235,7 +235,37 @@
       return html;
     }
 
+    function validaAtletaCorrente() {
+      // Trova l'ultimo atleta con slots selezionati
+      const atletiConSlots = atleti.filter(a => a.slots.length > 0);
+      for (const a of atletiConSlots) {
+        if (!a.nome || !a.cognome) {
+          const msgText = getLang() === 'en' 
+            ? `Enter name and surname for Athlete ${a.id} before adding another` 
+            : `Inserisci nome e cognome per l'Atleta ${a.id} prima di aggiungerne un altro`;
+          alert(msgText);
+          document.getElementById(`nome-${a.id}`)?.focus();
+          return false;
+        }
+        for (const s of a.slots) {
+          if (!s.specialita) {
+            const msgText = getLang() === 'en' 
+              ? `Select discipline for all slots of Athlete ${a.id} before adding another` 
+              : `Seleziona la specialità per tutti gli slot dell'Atleta ${a.id} prima di aggiungerne un altro`;
+            alert(msgText);
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
     function aggiungiAtleta() {
+      // Valida atleti esistenti prima di aggiungerne uno nuovo (skip se è il primo)
+      if (atleti.length > 0 && !validaAtletaCorrente()) {
+        return;
+      }
+      
       atletaCounter++;
       const id = atletaCounter;
       atleti.push({ id, nome: '', cognome: '', slots: [] });
