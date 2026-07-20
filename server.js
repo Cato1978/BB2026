@@ -1143,8 +1143,9 @@ async function sendStatusEmail(to, data) {
           
           <p><strong>1. Effettua il bonifico bancario / Make a bank transfer:</strong></p>
           <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
-            <p style="margin:5px 0"><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
-            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> ASD Busto Battle</p>
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
             <p style="margin:5px 0"><strong>Causale / Reference:</strong> ${codice} - ${nome} ${cognome}</p>
           </div>
           
@@ -1809,8 +1810,9 @@ ${note ? `\nNote: ${note}` : ''}
 💰 TOTALE DA PAGARE: €${totale}
 
 💳 ISTRUZIONI PAGAMENTO
-IBAN: IT00 0000 0000 0000 0000 0000 000
-Intestatario: ASD Busto Battle
+IBAN: IT54Y0326822800052416865080
+Banca: Banca Sella
+Intestatario: Accademia Bustese Pattinaggio ASD
 Causale: Prove Pista - ${codice} - ${cognome}
 Importo: €${totale}
 
@@ -1842,8 +1844,9 @@ Il Team Busto Battle XI`,
               
               <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
                 <h3 style="color:#F7AF40;margin-top:0">💳 Istruzioni Pagamento</h3>
-                <p><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
-                <p><strong>Intestatario:</strong> ASD Busto Battle</p>
+                <p><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+                <p><strong>Banca:</strong> Banca Sella</p>
+                <p><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
                 <p><strong>Causale:</strong> Prove Pista - ${codice} - ${cognome}</p>
                 <p><strong>Importo:</strong> €${totale}</p>
               </div>
