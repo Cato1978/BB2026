@@ -144,8 +144,13 @@ async function initDb() {
       telefono TEXT,
       ora TEXT NOT NULL,
       codice TEXT,
+      stato TEXT DEFAULT 'sospesa',
+      note TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    // Migrazione: aggiungi colonne se non esistono
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
       giorno TEXT NOT NULL,
@@ -329,8 +334,13 @@ async function initDb() {
     telefono TEXT,
     ora TEXT NOT NULL,
     codice TEXT,
+    stato TEXT DEFAULT 'sospesa',
+    note TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  // Migrazione: aggiungi colonne se non esistono
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     giorno TEXT NOT NULL,
@@ -1751,7 +1761,7 @@ app.get('/api/prove/disponibilita', async (req, res) => {
 });
 
 app.post('/api/prove/prenota', async (req, res) => {
-  const { nome, cognome, email, telefono, sessioni } = req.body;
+  const { nome, cognome, email, telefono, sessioni, note } = req.body;
   if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
   if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
 
@@ -1774,8 +1784,81 @@ app.post('/api/prove/prenota', async (req, res) => {
 
     const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
     for (const ora of sessioni) {
-      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
-        [nome, cognome, email || null, telefono || null, ora, codice]);
+      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice, stato, note) VALUES (?,?,?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, ora, codice, 'sospesa', note || null]);
+    }
+
+    // Invia email di prenotazione in attesa
+    if (email && transporter) {
+      const sessioniList = sessioni.map(s => `• ${s}`).join('\n');
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: email,
+          subject: `🛼 Prenotazione Prove Pista in Attesa - ${codice}`,
+          text: `Ciao ${nome} ${cognome},
+
+La tua prenotazione prove pista è IN ATTESA DI CONFERMA.
+
+📋 RIEPILOGO PRENOTAZIONE
+Codice: ${codice}
+Slot prenotati:
+${sessioniList}
+${note ? `\nNote: ${note}` : ''}
+
+💰 TOTALE DA PAGARE: €${totale}
+
+💳 ISTRUZIONI PAGAMENTO
+IBAN: IT00 0000 0000 0000 0000 0000 000
+Intestatario: ASD Busto Battle
+Causale: Prove Pista - ${codice} - ${cognome}
+Importo: €${totale}
+
+⚠️ La prenotazione sarà confermata dopo la ricezione del pagamento.
+
+📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
+
+Per informazioni: bustobattle@gmail.com
+
+Ci vediamo in pista! 🛼
+Il Team Busto Battle XI`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#f59e0b">⏳ Prenotazione Prove Pista in Attesa</h2>
+              <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
+              <p>La tua prenotazione prove pista è <strong style="color:#f59e0b">IN ATTESA DI CONFERMA</strong>.</p>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot prenotati:</strong></p>
+                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                ${note ? `<p><strong>Note:</strong> ${note}</p>` : ''}
+                <p style="font-size:1.2em;color:#F7AF40"><strong>Totale: €${totale}</strong></p>
+              </div>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">💳 Istruzioni Pagamento</h3>
+                <p><strong>IBAN:</strong> IT00 0000 0000 0000 0000 0000 000</p>
+                <p><strong>Intestatario:</strong> ASD Busto Battle</p>
+                <p><strong>Causale:</strong> Prove Pista - ${codice} - ${cognome}</p>
+                <p><strong>Importo:</strong> €${totale}</p>
+              </div>
+              
+              <p style="color:#f59e0b">⚠️ La prenotazione sarà confermata dopo la ricezione del pagamento.</p>
+              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore invio email prove:', emailErr);
+      }
     }
 
     res.json({ codice, totale, sessioni });
@@ -1799,6 +1882,153 @@ app.delete('/api/prove/prenotazioni/:codice', async (req, res) => {
     await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [req.params.codice]);
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Conferma prova pista (admin)
+app.post('/api/prove/prenotazioni/:codice/conferma', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    // Prendi le info della prenotazione
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    
+    // Invia email di conferma
+    if (first.email && transporter) {
+      const sessioni = rows.map(r => r.ora);
+      const totale = sessioni.length * 5; // €5 per slot
+      
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: first.email,
+          subject: `✅ Prova Pista Prenotata - ${codice}`,
+          text: `Ciao ${first.nome} ${first.cognome},
+
+La tua prenotazione prove pista è stata CONFERMATA!
+
+📋 RIEPILOGO
+Codice: ${codice}
+Slot prenotati:
+${sessioni.map(s => `• ${s}`).join('\n')}
+${first.note ? `\nNote: ${first.note}` : ''}
+
+💰 Totale pagato: €${totale}
+
+📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
+
+Per informazioni: bustobattle@gmail.com
+
+Ci vediamo in pista! 🛼
+Il Team Busto Battle XI`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#22c55e">✅ Prova Pista Prenotata!</h2>
+              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
+              <p>La tua prenotazione prove pista è stata <strong style="color:#22c55e">CONFERMATA</strong>!</p>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot prenotati:</strong></p>
+                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                ${first.note ? `<p><strong>Note:</strong> ${first.note}</p>` : ''}
+                <p style="font-size:1.2em;color:#22c55e"><strong>Totale pagato: €${totale}</strong></p>
+              </div>
+              
+              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore invio email conferma prove:', emailErr);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Prenotazione confermata' });
+  } catch (err) {
+    console.error('Errore conferma prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Annulla prova pista (admin) - libera gli slot
+app.put('/api/prove/prenotazioni/:codice/annulla', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    // Prendi le info prima di cancellare
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Elimina la prenotazione (libera gli slot)
+    await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [codice]);
+    
+    // Invia email di annullamento
+    if (first.email && transporter) {
+      const sessioni = rows.map(r => r.ora);
+      
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: first.email,
+          subject: `❌ Prenotazione Prova Pista Annullata - ${codice}`,
+          text: `Ciao ${first.nome} ${first.cognome},
+
+La tua prenotazione prove pista è stata ANNULLATA.
+
+📋 Dettagli prenotazione annullata:
+Codice: ${codice}
+Slot: ${sessioni.join(', ')}
+
+Se ritieni sia un errore o hai domande, contattaci a bustobattle@gmail.com
+
+Il Team Busto Battle XI`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#ef4444">❌ Prenotazione Annullata</h2>
+              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
+              <p>La tua prenotazione prove pista è stata <strong style="color:#ef4444">ANNULLATA</strong>.</p>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Dettagli</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot:</strong> ${sessioni.join(', ')}</p>
+              </div>
+              
+              <p>Se ritieni sia un errore o hai domande, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a></p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore invio email annullamento prove:', emailErr);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Prenotazione annullata e slot liberati' });
+  } catch (err) {
+    console.error('Errore annullamento prove:', err);
     res.status(500).json({ error: err.message });
   }
 });

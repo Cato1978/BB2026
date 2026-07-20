@@ -152,6 +152,13 @@
       <span>Sessioni totali: <strong id="prove-totale-sess">0</strong></span>
       <span>Incasso: <strong id="prove-totale-euro">€0</strong></span>
     </div>
+    <div class="form-row" style="margin-bottom:1rem">
+      <select id="filter-prove-stato">
+        <option value="">Tutti gli stati</option>
+        <option value="sospesa">Sospese</option>
+        <option value="confermata">Confermate</option>
+      </select>
+    </div>
     <div id="prove-disponibilita" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0"></div>
     <table id="tabella-prove">
       <thead>
@@ -162,6 +169,7 @@
           <th>Telefono</th>
           <th>Sessioni</th>
           <th>Totale €</th>
+          <th>Stato</th>
           <th>Azioni</th>
         </tr>
       </thead>
@@ -741,34 +749,96 @@
     }
 
     function renderProve() {
+      const filtroStato = document.getElementById('filter-prove-stato').value;
       const grouped = {};
       provePrenotazioni.forEach(p => {
         if (!grouped[p.codice]) grouped[p.codice] = [];
         grouped[p.codice].push(p);
       });
+      
+      // Filtra per stato
+      const filteredGroups = {};
+      for (const [cod, sessioni] of Object.entries(grouped)) {
+        const stato = sessioni[0].stato || 'sospesa';
+        if (!filtroStato || stato === filtroStato) {
+          filteredGroups[cod] = sessioni;
+        }
+      }
+      
       const tbody = document.querySelector('#tabella-prove tbody');
       let html = '';
-      for (const [cod, sessioni] of Object.entries(grouped)) {
+      for (const [cod, sessioni] of Object.entries(filteredGroups)) {
         const first = sessioni[0];
-        const oreList = sessioni.map(s => s.ora).join(', ');
-        const totale = sessioni.length * proveConfig.costo_ora;
+        const oreList = sessioni.map(s => {
+          const dettaglio = s.note ? ` (${s.note.split(s.ora + ': ')[1]?.split(',')[0] || ''})` : '';
+          return s.ora + dettaglio;
+        }).join('<br>');
+        const totale = sessioni.length * 5; // €5 per slot
+        const stato = first.stato || 'sospesa';
+        
+        // Badge stato
+        let statoBadge = '';
+        if (stato === 'sospesa') {
+          statoBadge = '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>';
+        } else if (stato === 'confermata') {
+          statoBadge = '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>';
+        }
+        
+        // Bottoni azione
+        let azioniHtml = '';
+        if (stato === 'sospesa') {
+          azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma prenotazione" style="background:#22c55e">✅</button>`;
+        }
+        azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">❌</button>`;
+        
         html += `<tr>
           <td><strong>${cod}</strong></td>
           <td>${first.cognome} ${first.nome}</td>
           <td>${first.email || '-'}</td>
           <td>${first.telefono || '-'}</td>
-          <td>${oreList}</td>
+          <td style="font-size:0.85rem">${oreList}</td>
           <td>€${totale}</td>
-          <td><button onclick="eliminaProva('${cod}')" title="Elimina">🗑️</button></td>
+          <td>${statoBadge}</td>
+          <td>${azioniHtml}</td>
         </tr>`;
       }
       tbody.innerHTML = html;
       
       const numPrenotazioni = Object.keys(grouped).length;
       const totSessioni = provePrenotazioni.length;
-      document.getElementById('prove-totale-pren').textContent = numPrenotazioni;
+      const sospeseCount = Object.values(grouped).filter(s => (s[0].stato || 'sospesa') === 'sospesa').length;
+      const confermateCount = Object.values(grouped).filter(s => s[0].stato === 'confermata').length;
+      
+      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${confermateCount} confermate)`;
       document.getElementById('prove-totale-sess').textContent = totSessioni;
-      document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * proveConfig.costo_ora);
+      document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * 5);
+    }
+    
+    // Event listener per filtro stato prove
+    document.getElementById('filter-prove-stato')?.addEventListener('change', renderProve);
+
+    async function confermaProva(codice) {
+      if (!confirm('Confermare questa prenotazione? Verrà inviata email di conferma.')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/conferma`, { method: 'POST' });
+      if (res.ok) {
+        alert('✅ Prenotazione confermata! Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function annullaProva(codice) {
+      if (!confirm('Annullare questa prenotazione? Gli slot saranno liberati e verrà inviata email di annullamento.')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/annulla`, { method: 'PUT' });
+      if (res.ok) {
+        alert('❌ Prenotazione annullata. Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
     }
 
     async function eliminaProva(codice) {
