@@ -236,25 +236,38 @@
     }
 
     function validaAtletaCorrente() {
-      // Trova l'ultimo atleta con slots selezionati
-      const atletiConSlots = atleti.filter(a => a.slots.length > 0);
-      for (const a of atletiConSlots) {
-        if (!a.nome || !a.cognome) {
-          const msgText = getLang() === 'en' 
-            ? `Enter name and surname for Athlete ${a.id} before adding another` 
-            : `Inserisci nome e cognome per l'Atleta ${a.id} prima di aggiungerne un altro`;
-          alert(msgText);
-          document.getElementById(`nome-${a.id}`)?.focus();
-          return false;
+      // Controlla tutti gli atleti esistenti (tranne quello appena creato vuoto)
+      for (const a of atleti) {
+        const mancanti = [];
+        
+        // Aggiorna i dati dall'input (potrebbero non essere sincronizzati)
+        const nomeInput = document.getElementById(`nome-${a.id}`);
+        const cognomeInput = document.getElementById(`cognome-${a.id}`);
+        if (nomeInput) a.nome = nomeInput.value.trim();
+        if (cognomeInput) a.cognome = cognomeInput.value.trim();
+        
+        if (!a.nome) mancanti.push(getLang() === 'en' ? 'Name' : 'Nome');
+        if (!a.cognome) mancanti.push(getLang() === 'en' ? 'Surname' : 'Cognome');
+        if (a.slots.length === 0) mancanti.push(getLang() === 'en' ? 'at least one slot' : 'almeno uno slot');
+        
+        // Verifica specialità per ogni slot
+        const slotsSenzaSpec = a.slots.filter(s => !s.specialita);
+        if (slotsSenzaSpec.length > 0) {
+          mancanti.push(getLang() === 'en' ? 'discipline for all slots' : 'specialità per tutti gli slot');
         }
-        for (const s of a.slots) {
-          if (!s.specialita) {
-            const msgText = getLang() === 'en' 
-              ? `Select discipline for all slots of Athlete ${a.id} before adding another` 
-              : `Seleziona la specialità per tutti gli slot dell'Atleta ${a.id} prima di aggiungerne un altro`;
-            alert(msgText);
-            return false;
-          }
+        
+        if (mancanti.length > 0) {
+          const nomeAtleta = a.nome || a.cognome || `Atleta ${a.id}`;
+          const msgText = getLang() === 'en' 
+            ? `Complete Athlete ${a.id} (${nomeAtleta}) before adding another.\n\nMissing: ${mancanti.join(', ')}` 
+            : `Completa l'Atleta ${a.id} (${nomeAtleta}) prima di aggiungerne un altro.\n\nManca: ${mancanti.join(', ')}`;
+          alert(msgText);
+          
+          // Focus sul primo campo mancante
+          if (!a.nome && nomeInput) nomeInput.focus();
+          else if (!a.cognome && cognomeInput) cognomeInput.focus();
+          
+          return false;
         }
       }
       return true;
