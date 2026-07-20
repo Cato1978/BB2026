@@ -29,26 +29,10 @@
   <main class="page-content">
     <section class="info">
       <h2 data-t="contactTitle">📬 Contatti</h2>
-      <p>✉️ <a href="mailto:bustobattle@gmail.com">bustobattle@gmail.com</a></p>
+      <p data-t="contactDesc">Per qualsiasi informazione, scrivici a:</p>
+      <p style="font-size:1.3rem;margin:1.5rem 0">✉️ <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40;font-weight:600">bustobattle@gmail.com</a></p>
       <p>📸 <a href="https://www.instagram.com/bustobattle/" target="_blank">@bustobattle</a></p>
       <p>📍 <a href="https://www.google.com/maps/search/?api=1&query=Via+Ariosto+3+Busto+Arsizio" target="_blank" style="color:#F7AF40">PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</a></p>
-    </section>
-    <section class="form-section">
-      <h2 data-t="contactFormTitle">Inviaci un messaggio</h2>
-      <form id="form-contact">
-        <div class="form-row">
-          <input type="text" name="nome" data-t="nome" placeholder="Nome" required>
-          <input type="email" name="email" data-t="email" placeholder="Email" required>
-        </div>
-        <div class="form-row">
-          <input type="text" name="oggetto" data-t="contactSubject" placeholder="Oggetto" required>
-        </div>
-        <div class="form-row">
-          <textarea name="messaggio" data-t="contactMessage" placeholder="Messaggio" required></textarea>
-        </div>
-        <button type="submit" data-t="contactSend">Invia</button>
-      </form>
-      <p id="contact-msg" class="msg"></p>
     </section>
   </main>
   <footer>
@@ -58,36 +42,11 @@
         <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
       </div>
       <p class="footer-email">✉️ bustobattle@gmail.com</p>
-      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
     </div>
   </footer>
   <script src="translations.js"></script>
   <script src="page-guard.js"></script>
-  <script>
-    document.getElementById('form-contact').addEventListener('submit', async e => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: fd.get('nome'),
-          email: fd.get('email'),
-          oggetto: fd.get('oggetto'),
-          messaggio: fd.get('messaggio')
-        })
-      });
-      const msg = document.getElementById('contact-msg');
-      if (res.ok) {
-        msg.style.color = '#16a34a';
-        msg.textContent = T[getLang()].contactOk || 'Messaggio inviato!';
-        e.target.reset();
-      } else {
-        msg.style.color = '#e74c3c';
-        msg.textContent = 'Errore nell\'invio.';
-      }
-    });
-  </script>
   <script src="app.js"></script>
 </body>
 </html>
