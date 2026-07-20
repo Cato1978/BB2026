@@ -279,15 +279,15 @@
         </div>
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
-          <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#222;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
-          <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
+          <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
+          <!-- Pagamento online temporaneamente disabilitato -->
+          <!-- <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button> -->
         </div>
-        <p style="margin-top:0.5rem;font-size:0.75rem;color:#888" data-t="commissioniNota">* Il pagamento online include commissioni carta (1,5% + €0,25)</p>
         <p class="msg" id="msg"></p>
       </form>
     </section>
 
-    <!-- Modal conferma commissioni -->
+    <!-- Modal conferma commissioni (disabilitato) -->
     <div id="modal-commissioni" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
       <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:400px;margin:1rem;border:2px solid #F7AF40">
         <h3 style="color:#F7AF40;margin:0 0 1rem" data-t="confermaCommissioniTitle">💳 Conferma Pagamento Online</h3>
