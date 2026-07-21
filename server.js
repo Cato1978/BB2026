@@ -82,6 +82,7 @@ async function initDb() {
     )`);
     // Migrazione: aggiungi colonna note_admin se non esiste
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -272,6 +273,7 @@ async function initDb() {
   try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -593,11 +595,12 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     
     // Helper per parsing note
     function parseNote(note) {
-      const result = { genere: '', wsId: '', fisr: '', maglia: '', felpa: '' };
+      const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
       if (!note) return result;
       const parts = note.split(' | ');
       for (const p of parts) {
         if (p.startsWith('Genere:')) result.genere = p.replace('Genere:', '').trim();
+        else if (p.startsWith('Nazionalità:')) result.nazionalita = p.replace('Nazionalità:', '').trim();
         else if (p.startsWith('WS ID:')) result.wsId = p.replace('WS ID:', '').trim();
         else if (p.startsWith('FISR:')) result.fisr = p.replace('FISR:', '').trim();
         else if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
@@ -631,6 +634,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       { header: 'Nome', key: 'nome', width: 15 },
       { header: 'Data Nascita', key: 'data_nascita', width: 12 },
       { header: 'Genere', key: 'genere', width: 8 },
+      { header: 'Nazionalità', key: 'nazionalita', width: 12 },
       { header: 'Società', key: 'societa', width: 25 },
       { header: 'Email', key: 'email', width: 30 },
       { header: 'Telefono', key: 'telefono', width: 15 },
@@ -671,6 +675,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
         nome: isc.nome,
         data_nascita: isc.data_nascita,
         genere: note.genere,
+        nazionalita: isc.nazionalita || note.nazionalita || '',
         societa: isc.societa,
         email: isc.email,
         telefono: isc.telefono,
@@ -913,9 +918,9 @@ app.post('/api/iscritti', async (req, res) => {
 
 app.put('/api/iscritti/:id', async (req, res) => {
   try {
-    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
-    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=? WHERE id=?`,
-      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, req.params.id]);
+    const { nome, cognome, data_nascita, categoria, societa, nazionalita, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
+    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, nazionalita=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=? WHERE id=?`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, nazionalita || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore PUT iscritti:', err);

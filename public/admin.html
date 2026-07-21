@@ -275,6 +275,67 @@
         </div>
         <div class="form-row">
           <input type="text" name="societa" placeholder="Società">
+          <select name="nazionalita" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nazionalità --</option>
+            <option value="IT">Italia</option>
+            <option value="FR">Francia</option>
+            <option value="ES">Spagna</option>
+            <option value="DE">Germania</option>
+            <option value="GB">Regno Unito</option>
+            <option value="US">Stati Uniti</option>
+            <option value="PT">Portogallo</option>
+            <option value="NL">Paesi Bassi</option>
+            <option value="BE">Belgio</option>
+            <option value="CH">Svizzera</option>
+            <option value="AT">Austria</option>
+            <option value="PL">Polonia</option>
+            <option value="CZ">Rep. Ceca</option>
+            <option value="SK">Slovacchia</option>
+            <option value="HU">Ungheria</option>
+            <option value="RO">Romania</option>
+            <option value="BG">Bulgaria</option>
+            <option value="GR">Grecia</option>
+            <option value="HR">Croazia</option>
+            <option value="SI">Slovenia</option>
+            <option value="RS">Serbia</option>
+            <option value="UA">Ucraina</option>
+            <option value="RU">Russia</option>
+            <option value="SE">Svezia</option>
+            <option value="NO">Norvegia</option>
+            <option value="DK">Danimarca</option>
+            <option value="FI">Finlandia</option>
+            <option value="IE">Irlanda</option>
+            <option value="LT">Lituania</option>
+            <option value="LV">Lettonia</option>
+            <option value="EE">Estonia</option>
+            <option value="CN">Cina</option>
+            <option value="JP">Giappone</option>
+            <option value="KR">Corea del Sud</option>
+            <option value="TW">Taiwan</option>
+            <option value="TH">Thailandia</option>
+            <option value="MY">Malesia</option>
+            <option value="SG">Singapore</option>
+            <option value="ID">Indonesia</option>
+            <option value="PH">Filippine</option>
+            <option value="IN">India</option>
+            <option value="AU">Australia</option>
+            <option value="NZ">Nuova Zelanda</option>
+            <option value="BR">Brasile</option>
+            <option value="AR">Argentina</option>
+            <option value="MX">Messico</option>
+            <option value="CL">Cile</option>
+            <option value="CO">Colombia</option>
+            <option value="PE">Perù</option>
+            <option value="CA">Canada</option>
+            <option value="ZA">Sudafrica</option>
+            <option value="EG">Egitto</option>
+            <option value="MA">Marocco</option>
+            <option value="IL">Israele</option>
+            <option value="TR">Turchia</option>
+            <option value="OTHER">Altro</option>
+          </select>
+        </div>
+        <div class="form-row">
           <input type="email" name="email" placeholder="Email">
         </div>
         <div class="form-row">
@@ -498,6 +559,7 @@
       form.data_nascita.value = i.data_nascita || '';
       form.categoria.value = i.categoria || '';
       form.societa.value = i.societa || '';
+      form.nazionalita.value = i.nazionalita || '';
       form.email.value = i.email || '';
       form.telefono.value = i.telefono || '';
       form.navetta.checked = !!i.navetta;
@@ -522,6 +584,7 @@
         data_nascita: form.data_nascita.value,
         categoria: form.categoria.value,
         societa: form.societa.value,
+        nazionalita: form.nazionalita.value,
         email: form.email.value,
         telefono: form.telefono.value,
         navetta: form.navetta.checked,

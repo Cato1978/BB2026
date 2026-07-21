@@ -169,6 +169,15 @@
         </div>
 
         <div class="form-row">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem" data-t="nazionalitaLabel">Nazionalità *</label>
+            <select id="nazionalita" required style="width:100%;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+              <option value="" data-t="selezionaNazionalita">-- Seleziona nazionalità --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
           <input type="text" id="world_skate_id" placeholder="World Skate ID">
           <input type="text" id="skate_italia_card" placeholder="Skate Italia Card Number">
         </div>
@@ -382,6 +391,91 @@
     const PREZZO_ALTRE = 30;
     const PREZZO_FELPA = 30;
     const PREZZO_PROVA_ORA = 5;
+
+    // Lista nazionalità
+    const NAZIONALITA = [
+      { code: 'IT', name: 'Italia', nameEn: 'Italy' },
+      { code: 'FR', name: 'Francia', nameEn: 'France' },
+      { code: 'ES', name: 'Spagna', nameEn: 'Spain' },
+      { code: 'DE', name: 'Germania', nameEn: 'Germany' },
+      { code: 'GB', name: 'Regno Unito', nameEn: 'United Kingdom' },
+      { code: 'US', name: 'Stati Uniti', nameEn: 'United States' },
+      { code: 'PT', name: 'Portogallo', nameEn: 'Portugal' },
+      { code: 'NL', name: 'Paesi Bassi', nameEn: 'Netherlands' },
+      { code: 'BE', name: 'Belgio', nameEn: 'Belgium' },
+      { code: 'CH', name: 'Svizzera', nameEn: 'Switzerland' },
+      { code: 'AT', name: 'Austria', nameEn: 'Austria' },
+      { code: 'PL', name: 'Polonia', nameEn: 'Poland' },
+      { code: 'CZ', name: 'Repubblica Ceca', nameEn: 'Czech Republic' },
+      { code: 'SK', name: 'Slovacchia', nameEn: 'Slovakia' },
+      { code: 'HU', name: 'Ungheria', nameEn: 'Hungary' },
+      { code: 'RO', name: 'Romania', nameEn: 'Romania' },
+      { code: 'BG', name: 'Bulgaria', nameEn: 'Bulgaria' },
+      { code: 'GR', name: 'Grecia', nameEn: 'Greece' },
+      { code: 'HR', name: 'Croazia', nameEn: 'Croatia' },
+      { code: 'SI', name: 'Slovenia', nameEn: 'Slovenia' },
+      { code: 'RS', name: 'Serbia', nameEn: 'Serbia' },
+      { code: 'UA', name: 'Ucraina', nameEn: 'Ukraine' },
+      { code: 'RU', name: 'Russia', nameEn: 'Russia' },
+      { code: 'SE', name: 'Svezia', nameEn: 'Sweden' },
+      { code: 'NO', name: 'Norvegia', nameEn: 'Norway' },
+      { code: 'DK', name: 'Danimarca', nameEn: 'Denmark' },
+      { code: 'FI', name: 'Finlandia', nameEn: 'Finland' },
+      { code: 'IE', name: 'Irlanda', nameEn: 'Ireland' },
+      { code: 'LT', name: 'Lituania', nameEn: 'Lithuania' },
+      { code: 'LV', name: 'Lettonia', nameEn: 'Latvia' },
+      { code: 'EE', name: 'Estonia', nameEn: 'Estonia' },
+      { code: 'CN', name: 'Cina', nameEn: 'China' },
+      { code: 'JP', name: 'Giappone', nameEn: 'Japan' },
+      { code: 'KR', name: 'Corea del Sud', nameEn: 'South Korea' },
+      { code: 'TW', name: 'Taiwan', nameEn: 'Taiwan' },
+      { code: 'TH', name: 'Thailandia', nameEn: 'Thailand' },
+      { code: 'MY', name: 'Malesia', nameEn: 'Malaysia' },
+      { code: 'SG', name: 'Singapore', nameEn: 'Singapore' },
+      { code: 'ID', name: 'Indonesia', nameEn: 'Indonesia' },
+      { code: 'PH', name: 'Filippine', nameEn: 'Philippines' },
+      { code: 'IN', name: 'India', nameEn: 'India' },
+      { code: 'AU', name: 'Australia', nameEn: 'Australia' },
+      { code: 'NZ', name: 'Nuova Zelanda', nameEn: 'New Zealand' },
+      { code: 'BR', name: 'Brasile', nameEn: 'Brazil' },
+      { code: 'AR', name: 'Argentina', nameEn: 'Argentina' },
+      { code: 'MX', name: 'Messico', nameEn: 'Mexico' },
+      { code: 'CL', name: 'Cile', nameEn: 'Chile' },
+      { code: 'CO', name: 'Colombia', nameEn: 'Colombia' },
+      { code: 'PE', name: 'Perù', nameEn: 'Peru' },
+      { code: 'CA', name: 'Canada', nameEn: 'Canada' },
+      { code: 'ZA', name: 'Sudafrica', nameEn: 'South Africa' },
+      { code: 'EG', name: 'Egitto', nameEn: 'Egypt' },
+      { code: 'MA', name: 'Marocco', nameEn: 'Morocco' },
+      { code: 'IL', name: 'Israele', nameEn: 'Israel' },
+      { code: 'TR', name: 'Turchia', nameEn: 'Turkey' },
+      { code: 'OTHER', name: 'Altro', nameEn: 'Other' }
+    ];
+
+    function popolaNazionalita() {
+      const select = document.getElementById('nazionalita');
+      if (!select) return;
+      const lang = getLang();
+      select.innerHTML = `<option value="">${lang === 'en' ? '-- Select nationality --' : '-- Seleziona nazionalità --'}</option>`;
+      const italia = NAZIONALITA.find(n => n.code === 'IT');
+      if (italia) {
+        select.innerHTML += `<option value="${italia.code}">${lang === 'en' ? italia.nameEn : italia.name}</option>`;
+      }
+      const altri = NAZIONALITA.filter(n => n.code !== 'IT').sort((a, b) => {
+        const nameA = lang === 'en' ? a.nameEn : a.name;
+        const nameB = lang === 'en' ? b.nameEn : b.name;
+        return nameA.localeCompare(nameB);
+      });
+      for (const n of altri) {
+        select.innerHTML += `<option value="${n.code}">${lang === 'en' ? n.nameEn : n.name}</option>`;
+      }
+    }
+
+    const origSetLangIscr = typeof setLang === 'function' ? setLang : null;
+    if (origSetLangIscr) {
+      setLang = function(l) { origSetLangIscr(l); popolaNazionalita(); };
+    }
+    document.addEventListener('DOMContentLoaded', popolaNazionalita);
 
     let proveDisponibilita = {};
 
