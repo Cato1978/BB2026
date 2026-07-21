@@ -635,7 +635,8 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       { header: 'Maglia', key: 'maglia', width: 8 },
       { header: 'Felpa', key: 'felpa', width: 8 },
       { header: 'Discipline', key: 'discipline', width: 40 },
-      { header: 'Pagamento', key: 'pagamento', width: 10 }
+      { header: 'Pagamento', key: 'pagamento', width: 10 },
+      { header: 'Note', key: 'note_extra', width: 30 }
     ];
     
     // Stile header
@@ -644,6 +645,21 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     
     iscritti.forEach((isc, idx) => {
       const note = parseNote(isc.note);
+      // Estrai note extra (tutto ciò che non è nei campi strutturati)
+      let noteExtra = '';
+      if (isc.note) {
+        const parts = isc.note.split(' | ');
+        const extraParts = parts.filter(p => 
+          !p.startsWith('Genere:') && 
+          !p.startsWith('WS ID:') && 
+          !p.startsWith('FISR:') && 
+          !p.startsWith('Maglia:') && 
+          !p.startsWith('Felpa:') &&
+          !p.startsWith('Prove:')
+        );
+        noteExtra = extraParts.join(' | ');
+      }
+      
       sheetAtleti.addRow({
         num: idx + 1,
         cognome: isc.cognome,
@@ -658,7 +674,8 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
         maglia: note.maglia,
         felpa: note.felpa || '-',
         discipline: isc.categoria,
-        pagamento: isc.pagamento ? 'Sì' : 'No'
+        pagamento: isc.pagamento ? 'Sì' : 'No',
+        note_extra: noteExtra
       });
     });
     
