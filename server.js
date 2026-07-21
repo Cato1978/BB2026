@@ -2410,6 +2410,165 @@ Il Team Busto Battle XI`,
   }
 });
 
+// --- EXPORT EXCEL PROVE PISTA ---
+app.get('/api/prove/export', requireAdmin, async (req, res) => {
+  try {
+    const prenotazioni = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY codice, ora');
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    
+    // Mappa slot per lookup giorno
+    const slotMap = {};
+    for (const s of slots) {
+      const ora = `${s.ora_inizio}-${s.ora_fine}`;
+      slotMap[ora] = s;
+    }
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    workbook.created = new Date();
+    
+    // ========== FOGLIO 1: TUTTE LE PRENOTAZIONI ==========
+    const sheetAll = workbook.addWorksheet('Tutte le Prenotazioni');
+    sheetAll.columns = [
+      { header: 'Codice', key: 'codice', width: 20 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'Giorno', key: 'giorno', width: 12 },
+      { header: 'Orario', key: 'ora', width: 12 },
+      { header: 'Specialità', key: 'specialita', width: 20 },
+      { header: 'Stato', key: 'stato', width: 12 },
+      { header: 'Note', key: 'note', width: 30 },
+      { header: 'Data Prenotazione', key: 'created_at', width: 18 }
+    ];
+    
+    sheetAll.getRow(1).font = { bold: true };
+    sheetAll.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    for (const p of prenotazioni) {
+      const slot = slotMap[p.ora];
+      // Estrai specialità dalle note
+      let specialita = '';
+      if (p.note) {
+        const match = p.note.match(new RegExp(p.ora + ':\\s*([^,]+)'));
+        if (match) specialita = match[1].trim();
+      }
+      
+      sheetAll.addRow({
+        codice: p.codice,
+        cognome: p.cognome,
+        nome: p.nome,
+        email: p.email || '',
+        telefono: p.telefono || '',
+        giorno: slot?.giorno || '',
+        ora: p.ora,
+        specialita: specialita,
+        stato: p.stato || 'sospesa',
+        note: p.note || '',
+        created_at: p.created_at ? new Date(p.created_at).toLocaleDateString('it-IT') : ''
+      });
+    }
+    
+    // ========== FOGLIO 2: RIEPILOGO PER PERSONA ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo per Persona');
+    sheetRiepilogo.columns = [
+      { header: 'Codice', key: 'codice', width: 20 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'N° Sessioni', key: 'num_sessioni', width: 12 },
+      { header: 'Sessioni', key: 'sessioni', width: 50 },
+      { header: 'Totale €', key: 'totale', width: 10 },
+      { header: 'Stato', key: 'stato', width: 12 }
+    ];
+    
+    sheetRiepilogo.getRow(1).font = { bold: true };
+    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    // Raggruppa per codice
+    const grouped = {};
+    for (const p of prenotazioni) {
+      if (!grouped[p.codice]) grouped[p.codice] = [];
+      grouped[p.codice].push(p);
+    }
+    
+    for (const [codice, sessioni] of Object.entries(grouped)) {
+      const first = sessioni[0];
+      const sessioniList = sessioni.map(s => {
+        const slot = slotMap[s.ora];
+        const giorno = slot?.giorno ? slot.giorno.split('-').slice(1).reverse().join('/') : '';
+        let spec = '';
+        if (s.note) {
+          const match = s.note.match(new RegExp(s.ora + ':\\s*([^,]+)'));
+          if (match) spec = ` (${match[1].trim()})`;
+        }
+        return `${giorno} ${s.ora}${spec}`;
+      }).join(', ');
+      
+      sheetRiepilogo.addRow({
+        codice: codice,
+        cognome: first.cognome,
+        nome: first.nome,
+        email: first.email || '',
+        telefono: first.telefono || '',
+        num_sessioni: sessioni.length,
+        sessioni: sessioniList,
+        totale: sessioni.length * 5,
+        stato: first.stato || 'sospesa'
+      });
+    }
+    
+    // ========== FOGLIO 3: PER GIORNO/ORA ==========
+    const sheetPerSlot = workbook.addWorksheet('Per Giorno e Orario');
+    sheetPerSlot.columns = [
+      { header: 'Giorno', key: 'giorno', width: 12 },
+      { header: 'Orario', key: 'ora', width: 12 },
+      { header: 'Luogo', key: 'luogo', width: 20 },
+      { header: 'N° Iscritti', key: 'num', width: 12 },
+      { header: 'Posti Max', key: 'posti_max', width: 12 },
+      { header: 'Partecipanti', key: 'partecipanti', width: 60 }
+    ];
+    
+    sheetPerSlot.getRow(1).font = { bold: true };
+    sheetPerSlot.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    for (const slot of slots) {
+      const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
+      const iscritti = prenotazioni.filter(p => p.ora === ora);
+      const partecipanti = iscritti.map(p => {
+        let spec = '';
+        if (p.note) {
+          const match = p.note.match(new RegExp(ora + ':\\s*([^,]+)'));
+          if (match) spec = ` (${match[1].trim()})`;
+        }
+        return `${p.cognome} ${p.nome}${spec}`;
+      }).join(', ');
+      
+      sheetPerSlot.addRow({
+        giorno: slot.giorno,
+        ora: ora,
+        luogo: slot.luogo,
+        num: iscritti.length,
+        posti_max: slot.posti_max,
+        partecipanti: partecipanti
+      });
+    }
+    
+    // Genera file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=prove_pista_export.xlsx');
+    
+    await workbook.xlsx.write(res);
+    res.end();
+    
+  } catch (err) {
+    console.error('Errore export prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- CENA ATLETI API ---
 app.post('/api/cena/prenota', (req, res) => {
   const { nome, cognome, email, telefono, giorni, num_persone, note } = req.body;

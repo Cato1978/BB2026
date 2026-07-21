@@ -148,10 +148,11 @@
     <div id="prove-slots-list" style="margin-bottom:1rem"></div>
     <hr style="border-color:#333;margin:1.5rem 0">
     <h3>📋 Prenotazioni Prove Pista</h3>
-    <div class="stats">
+    <div class="stats" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
       <span>Prenotazioni: <strong id="prove-totale-pren">0</strong></span>
       <span>Sessioni totali: <strong id="prove-totale-sess">0</strong></span>
       <span>Incasso: <strong id="prove-totale-euro">€0</strong></span>
+      <button onclick="exportProveExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
     </div>
     <div class="form-row" style="margin-bottom:1rem">
       <select id="filter-prove-stato">
@@ -1045,6 +1046,10 @@
       if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
       await fetch('/api/prove/prenotazioni/' + codice, { method: 'DELETE' });
       caricaProve();
+    }
+
+    function exportProveExcel() {
+      window.location.href = '/api/prove/export';
     }
 
     // --- RISULTATI ---
