@@ -146,9 +146,6 @@
     </div>
     <h4 style="color:#F7AF40;margin-bottom:0.5rem">Slot configurati:</h4>
     <div id="prove-slots-list" style="margin-bottom:1rem"></div>
-    <div style="margin-bottom:1rem">
-      <button onclick="aggiornaPostiGiovedi()" style="background:#3b82f6">📅 Aggiorna Gio 12/11 a 20 posti</button>
-    </div>
     <hr style="border-color:#333;margin:1.5rem 0">
     <h3>📋 Prenotazioni Prove Pista</h3>
     <div class="stats" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
@@ -855,22 +852,6 @@
         alert('Errore: ' + err.error);
       }
     });
-
-    async function aggiornaPostiGiovedi() {
-      if (!confirm('Aggiornare tutti gli slot del Giovedì 12/11 a 20 posti?')) return;
-      const res = await fetch('/api/prove/slots/giorno/2026-11-12/posti', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ posti_max: 20 })
-      });
-      if (res.ok) {
-        alert('✅ Slot del Giovedì 12/11 aggiornati a 20 posti!');
-        caricaProve();
-      } else {
-        const err = await res.json();
-        alert('Errore: ' + err.error);
-      }
-    }
 
     // Formatta data per prove pista
     function formatGiorno(g) {
