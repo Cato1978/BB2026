@@ -846,7 +846,7 @@ app.get('/api/add-test-user', async (req, res) => {
 
 app.post('/api/iscritti', async (req, res) => {
   try {
-    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove } = req.body;
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove, paymentMethod } = req.body;
     
     // Validazione età minima (nati dal 2016 o prima)
     if (data_nascita) {
@@ -861,7 +861,7 @@ app.post('/api/iscritti', async (req, res) => {
       [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
     
     const codice = 'BB11-' + String(id).padStart(4, '0');
-    console.log('Nuovo iscritto:', { id, codice, nome, cognome });
+    console.log('Nuovo iscritto:', { id, codice, nome, cognome, paymentMethod });
     
     // Salva prenotazioni prove pista
     if (prove && prove.length > 0) {
@@ -873,8 +873,9 @@ app.post('/api/iscritti', async (req, res) => {
       console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
     }
     
-    // Invio email di conferma
-    if (email) {
+    // Invio email di conferma SOLO per bonifico (non per pagamento online)
+    // Per pagamento online, l'email parte dopo il completamento del pagamento Stripe
+    if (email && paymentMethod !== 'online') {
       const discipline = categoria ? categoria.split(', ') : [];
       const totale = discipline.length * 40;
       // Usa sendStatusEmail con stato 'sospesa' che usa Brevo API
@@ -1767,7 +1768,7 @@ app.get('/api/prove/disponibilita', async (req, res) => {
 });
 
 app.post('/api/prove/prenota', async (req, res) => {
-  const { nome, cognome, email, telefono, sessioni, note } = req.body;
+  const { nome, cognome, email, telefono, sessioni, note, paymentMethod } = req.body;
   if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
   if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
 
@@ -1794,8 +1795,8 @@ app.post('/api/prove/prenota', async (req, res) => {
         [nome, cognome, email || null, telefono || null, ora, codice, 'sospesa', note || null]);
     }
 
-    // Invia email di prenotazione in attesa
-    if (email && transporter) {
+    // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
+    if (email && transporter && paymentMethod !== 'online') {
       const sessioniList = sessioni.map(s => `• ${s}`).join('\n');
       try {
         await transporter.sendMail({

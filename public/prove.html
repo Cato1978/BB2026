@@ -520,7 +520,8 @@
               email,
               telefono,
               sessioni: a.slots.map(s => s.ora),
-              note: a.slots.map(s => `${s.ora}: ${s.specialita}`).join(', ')
+              note: a.slots.map(s => `${s.ora}: ${s.specialita}`).join(', '),
+              paymentMethod: paymentMethod
             })
           });
 

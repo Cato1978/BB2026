@@ -811,6 +811,9 @@
       const btnOnline = document.getElementById('btn-online');
       if (btnOnline) btnOnline.disabled = true;
 
+      // Aggiungi paymentMethod ai dati
+      data.paymentMethod = paymentMethod;
+
       try {
         // Prima registra l'iscritto
         const res = await fetch('/api/iscritti', {
