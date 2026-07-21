@@ -1822,7 +1822,12 @@ app.get('/api/prove/disponibilita', async (req, res) => {
       const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
       // Chiave unica: giorno + ora
       const key = `${slot.giorno}|${ora}`;
-      const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+      // Conta prenotazioni per ora E giorno (se il giorno è specificato nella prenotazione)
+      // Altrimenti conta anche quelle senza giorno per retrocompatibilità
+      const rows = await dbAll(
+        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND (giorno=? OR giorno IS NULL)',
+        [ora, slot.giorno]
+      );
       const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       result[key] = {
         ora: ora,
@@ -1863,10 +1868,10 @@ app.post('/api/prove/prenota', async (req, res) => {
       const slot = slots[0];
       if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
       
-      // Conta prenotazioni per ora E giorno se disponibile
+      // Conta prenotazioni per ora E giorno (incluse quelle senza giorno per retrocompatibilità)
       let rows;
       if (sess.giorno) {
-        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?', [ora, sess.giorno]);
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND (giorno=? OR giorno IS NULL)', [ora, sess.giorno]);
       } else {
         rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
       }
