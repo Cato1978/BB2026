@@ -801,7 +801,8 @@
 
       // Disabilita bottoni durante l'operazione
       document.getElementById('btn-bonifico').disabled = true;
-      document.getElementById('btn-online').disabled = true;
+      const btnOnline = document.getElementById('btn-online');
+      if (btnOnline) btnOnline.disabled = true;
 
       try {
         // Prima registra l'iscritto
@@ -816,7 +817,7 @@
           msg.textContent = result.error || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
           msg.style.color = '#f44336';
           document.getElementById('btn-bonifico').disabled = false;
-          document.getElementById('btn-online').disabled = false;
+          if (btnOnline) btnOnline.disabled = false;
           return;
         }
 
@@ -867,7 +868,7 @@
         msg.textContent = getLang() === 'en' ? 'Network error. Try again.' : 'Errore di rete. Riprova.';
         msg.style.color = '#f44336';
         document.getElementById('btn-bonifico').disabled = false;
-        document.getElementById('btn-online').disabled = false;
+        if (btnOnline) btnOnline.disabled = false;
       }
     }
 
