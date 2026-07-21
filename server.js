@@ -211,13 +211,13 @@ async function initDb() {
     const proveRes = await pgPool.query('SELECT COUNT(*) as c FROM prove_slots');
     if (parseInt(proveRes.rows[0].c) === 0) {
       const proveSlots = [
-        // Giovedì 12 Novembre (pre-qualifiche) - 10 slot ogni mezz'ora dalle 14 alle 17
-        ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
-        ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
-        ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
-        ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
-        ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
-        ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
+        // Giovedì 12 Novembre (pre-qualifiche) - 20 posti ogni mezz'ora dalle 14 alle 17
+        ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
         // Venerdì 13 Novembre
         ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
         ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
@@ -404,13 +404,13 @@ async function initDb() {
   const proveCount = all('SELECT COUNT(*) as c FROM prove_slots')[0].c;
   if (proveCount === 0) {
     const proveSlots = [
-      // Giovedì 12 Novembre (pre-qualifiche) - 10 slot ogni mezz'ora dalle 14 alle 17
-      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
+      // Giovedì 12 Novembre (pre-qualifiche) - 20 posti ogni mezz'ora dalle 14 alle 17
+      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
       // Venerdì 13 Novembre
       ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
       ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
@@ -1766,6 +1766,22 @@ app.delete('/api/prove/slots/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Aggiorna posti max per tutti gli slot di un giorno
+app.put('/api/prove/slots/giorno/:giorno/posti', requireAdmin, async (req, res) => {
+  try {
+    const { giorno } = req.params;
+    const { posti_max } = req.body;
+    if (!posti_max || posti_max < 1) return res.status(400).json({ error: 'posti_max richiesto' });
+    
+    await dbRun('UPDATE prove_slots SET posti_max=? WHERE giorno=?', [posti_max, giorno]);
+    console.log('Aggiornati posti slot:', { giorno, posti_max });
+    res.json({ ok: true, message: `Posti aggiornati a ${posti_max} per ${giorno}` });
+  } catch (err) {
+    console.error('Errore aggiornamento posti slot:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint per forzare reset slot (interno)
 app.post('/api/prove/force-reset', async (req, res) => {
   try {
@@ -1773,12 +1789,12 @@ app.post('/api/prove/force-reset', async (req, res) => {
     await dbRun('DELETE FROM prove_slots');
     // Poi inserisce i nuovi
     const proveSlots = [
-      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 10, 5],
-      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
       ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
       ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
       ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
