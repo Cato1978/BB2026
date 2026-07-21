@@ -307,13 +307,13 @@
     </section>
 
     <!-- Modal conferma commissioni (disabilitato) -->
-    <div id="modal-commissioni" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
+    <div id="modal-commissioni-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
       <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:400px;margin:1rem;border:2px solid #F7AF40">
         <h3 style="color:#F7AF40;margin:0 0 1rem" data-t="confermaCommissioniTitle">💳 Conferma Pagamento Online</h3>
         <p data-t="confermaCommissioniDesc">Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:</p>
         <div style="background:#111;padding:1rem;border-radius:6px;margin:1rem 0">
           <p style="margin:0"><span data-t="importoIscrizione">Importo iscrizione:</span> <strong id="modal-importo-base">€0</strong></p>
-          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (1,5% + €0,25):</span> <strong id="modal-commissioni" style="color:#f59e0b">€0</strong></p>
+          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (1,5% + €0,25):</span> <strong id="modal-commissioni-importo" style="color:#f59e0b">€0</strong></p>
           <hr style="border-color:#333;margin:0.8rem 0">
           <p style="margin:0;font-size:1.1rem"><span data-t="totaleFinale">Totale da pagare:</span> <strong id="modal-totale" style="color:#F7AF40">€0</strong></p>
         </div>
@@ -571,14 +571,14 @@
       const totaleConCommissioni = totale + commissioni;
 
       document.getElementById('modal-importo-base').textContent = '€' + totale;
-      document.getElementById('modal-commissioni').textContent = '€' + commissioni.toFixed(2);
+      document.getElementById('modal-commissioni-importo').textContent = '€' + commissioni.toFixed(2);
       document.getElementById('modal-totale').textContent = '€' + totaleConCommissioni.toFixed(2);
       
-      document.getElementById('modal-commissioni').style.display = 'flex';
+      document.getElementById('modal-commissioni-overlay').style.display = 'flex';
     }
 
     function chiudiModalCommissioni() {
-      document.getElementById('modal-commissioni').style.display = 'none';
+      document.getElementById('modal-commissioni-overlay').style.display = 'none';
     }
 
     function procediPagamentoOnline() {
