@@ -77,8 +77,11 @@ async function initDb() {
       ricevuta_bonifico TEXT,
       ricevuta_base64 TEXT,
       note TEXT,
+      note_admin TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    // Migrazione: aggiungi colonna note_admin se non esiste
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -267,7 +270,8 @@ async function initDb() {
   // Migrazione: aggiungi colonne se non esistono (per DB esistenti)
   try { db.run('ALTER TABLE iscritti ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
-  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {};
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -636,7 +640,8 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       { header: 'Felpa', key: 'felpa', width: 8 },
       { header: 'Discipline', key: 'discipline', width: 40 },
       { header: 'Pagamento', key: 'pagamento', width: 10 },
-      { header: 'Note', key: 'note_extra', width: 30 }
+      { header: 'Note', key: 'note_extra', width: 30 },
+      { header: 'Note Admin', key: 'note_admin', width: 30 }
     ];
     
     // Stile header
@@ -675,7 +680,8 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
         felpa: note.felpa || '-',
         discipline: isc.categoria,
         pagamento: isc.pagamento ? 'Sì' : 'No',
-        note_extra: noteExtra
+        note_extra: noteExtra,
+        note_admin: isc.note_admin || ''
       });
     });
     
@@ -907,9 +913,9 @@ app.post('/api/iscritti', async (req, res) => {
 
 app.put('/api/iscritti/:id', async (req, res) => {
   try {
-    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, pagamento, note } = req.body;
-    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=? WHERE id=?`,
-      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, req.params.id]);
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
+    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=? WHERE id=?`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore PUT iscritti:', err);

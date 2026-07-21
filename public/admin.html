@@ -287,7 +287,12 @@
           <input type="text" name="navetta_dettagli" placeholder="Dettagli navetta">
         </div>
         <div class="form-row">
-          <textarea name="note" placeholder="Note"></textarea>
+          <p style="margin:0 0 0.3rem;color:#888;font-size:0.85rem">Dati iscrizione (non modificabili):</p>
+          <textarea name="note" placeholder="Note iscrizione" readonly style="background:#1a1a1a;color:#888;cursor:not-allowed"></textarea>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">📝 Note Admin:</p>
+          <textarea name="note_admin" placeholder="Note admin (tue annotazioni personali)"></textarea>
         </div>
         <div class="form-row">
           <button type="submit">Salva</button>
@@ -493,6 +498,7 @@
       form.navetta_dettagli.value = i.navetta_dettagli || '';
       form.pagamento.checked = !!i.pagamento;
       form.note.value = i.note || '';
+      form.note_admin.value = i.note_admin || '';
       document.getElementById('modal').style.display = 'flex';
     }
 
@@ -515,7 +521,8 @@
         navetta: form.navetta.checked,
         navetta_dettagli: form.navetta_dettagli.value,
         pagamento: form.pagamento.checked,
-        note: form.note.value
+        note: form.note.value,
+        note_admin: form.note_admin.value
       };
       await fetch(`/api/iscritti/${id}`, {
         method: 'PUT',
