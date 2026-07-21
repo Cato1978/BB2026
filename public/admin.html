@@ -157,6 +157,7 @@
       <select id="filter-prove-stato">
         <option value="">Tutti gli stati</option>
         <option value="sospesa">Sospese</option>
+        <option value="verifica">In Verifica</option>
         <option value="confermata">Confermate</option>
       </select>
     </div>
@@ -853,17 +854,49 @@
 
     function renderProveDisponibilita(disponibilita) {
       const div = document.getElementById('prove-disponibilita');
-      div.innerHTML = Object.entries(disponibilita).map(([ora, data]) => {
-        const posti = typeof data === 'object' ? data.posti : data;
-        const luogo = typeof data === 'object' ? data.luogo : '';
-        const postiMax = typeof data === 'object' ? data.posti_max : proveConfig.posti_max;
-        const color = posti === 0 ? '#ef4444' : posti < 5 ? '#f59e0b' : '#4ade80';
-        return `<div style="padding:0.5rem 1rem;background:#111;border:1px solid #333;border-radius:4px">
-          <strong style="color:#F7AF40">${ora}</strong><br>
-          ${luogo ? `<small style="color:#888">📍 ${luogo}</small><br>` : ''}
-          <span style="color:${color}">${posti}/${postiMax} posti</span>
-        </div>`;
-      }).join('');
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
+      for (const [key, data] of Object.entries(disponibilita)) {
+        const giorno = data.giorno || 'Sconosciuto';
+        if (!perGiorno[giorno]) perGiorno[giorno] = [];
+        perGiorno[giorno].push(data);
+      }
+      
+      // Ordina i giorni
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      // Formatta data
+      const formatGiorno = (g) => {
+        const [anno, mese, gg] = g.split('-');
+        const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const d = new Date(+anno, +mese - 1, +gg);
+        return `${giorni[d.getDay()]} ${gg}/${mese}`;
+      };
+      
+      let html = '';
+      for (const giorno of giorniOrdinati) {
+        html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40;font-size:1.1rem">📅 ${formatGiorno(giorno)}</strong></div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem">`;
+        
+        // Ordina gli slot per ora
+        const slots = perGiorno[giorno].sort((a, b) => a.ora.localeCompare(b.ora));
+        
+        for (const data of slots) {
+          const posti = data.posti;
+          const postiMax = data.posti_max;
+          const luogo = data.luogo || '';
+          const color = posti === 0 ? '#ef4444' : posti < 5 ? '#f59e0b' : '#4ade80';
+          html += `<div style="padding:0.5rem 1rem;background:#111;border:1px solid #333;border-radius:4px">
+            <strong style="color:#F7AF40">${data.ora}</strong><br>
+            ${luogo ? `<small style="color:#888">📍 ${luogo}</small><br>` : ''}
+            <span style="color:${color}">${posti}/${postiMax} posti</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      
+      div.innerHTML = html || '<p style="color:#888">Nessuno slot configurato</p>';
     }
 
     function renderProve() {
@@ -898,16 +931,34 @@
         let statoBadge = '';
         if (stato === 'sospesa') {
           statoBadge = '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>';
+        } else if (stato === 'verifica') {
+          statoBadge = '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">🔍 In Verifica</span>';
         } else if (stato === 'confermata') {
           statoBadge = '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>';
         }
         
         // Bottoni azione
         let azioniHtml = '';
-        if (stato === 'sospesa') {
-          azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma prenotazione" style="background:#22c55e">✅</button>`;
+        
+        // Se in verifica: mostra ricevuta, conferma bonifico, rigetta
+        if (stato === 'verifica') {
+          azioniHtml += `<a href="/api/prove/prenotazioni/${cod}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+          azioniHtml += `<button onclick="confermaBonificoProva('${cod}')" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
-        azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">❌</button>`;
+        
+        // Se confermata: mostra ricevuta se c'è
+        if (stato === 'confermata' && first.ricevuta_bonifico) {
+          azioniHtml += `<a href="/api/prove/prenotazioni/${cod}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+        }
+        
+        // Se sospesa: conferma manuale
+        if (stato === 'sospesa') {
+          azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma manuale" style="background:#22c55e">✅</button>`;
+        }
+        
+        // Sempre: annulla/elimina
+        azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
         
         html += `<tr>
           <td><strong>${cod}</strong></td>
@@ -925,9 +976,10 @@
       const numPrenotazioni = Object.keys(grouped).length;
       const totSessioni = provePrenotazioni.length;
       const sospeseCount = Object.values(grouped).filter(s => (s[0].stato || 'sospesa') === 'sospesa').length;
+      const verificaCount = Object.values(grouped).filter(s => s[0].stato === 'verifica').length;
       const confermateCount = Object.values(grouped).filter(s => s[0].stato === 'confermata').length;
       
-      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${confermateCount} confermate)`;
+      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${verificaCount} verifica, ${confermateCount} confermate)`;
       document.getElementById('prove-totale-sess').textContent = totSessioni;
       document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * 5);
     }
@@ -940,6 +992,36 @@
       const res = await fetch(`/api/prove/prenotazioni/${codice}/conferma`, { method: 'POST' });
       if (res.ok) {
         alert('✅ Prenotazione confermata! Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function confermaBonificoProva(codice) {
+      if (!confirm('Confermare il pagamento bonifico per questa prenotazione?')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/conferma-bonifico`, { method: 'POST' });
+      if (res.ok) {
+        alert('✅ Bonifico confermato! Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function rigettaProva(codice) {
+      const motivo = prompt('Motivo del rigetto (es: Importo errato, Causale mancante, ecc.):');
+      if (!motivo) return;
+      
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/rigetta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo })
+      });
+      if (res.ok) {
+        alert('❌ Ricevuta rigettata. Email inviata all\'utente.');
         caricaProve();
       } else {
         const err = await res.json();

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carica Ricevuta Prove Pista - Busto Battle XI</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html">HOME</a>
+      <a href="iscrizioni.html">ISCRIZIONI</a>
+      <a href="prove.html">PROVE PISTA</a>
+      <a href="programma.html">PROGRAMMA</a>
+      <a href="contact.html">CONTATTI</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <!-- Step 1: Verifica codice -->
+    <section class="form-section" id="step-codice">
+      <h2>📤 Carica Ricevuta - Prove Pista</h2>
+      <p>Inserisci il codice della tua prenotazione prove pista per caricare la ricevuta del bonifico.</p>
+      
+      <form id="form-codice">
+        <div class="form-row">
+          <input type="text" id="codice" placeholder="Codice prenotazione (es. PRV-...)" required style="text-transform:uppercase">
+        </div>
+        <button type="submit">Verifica Codice</button>
+        <p class="msg" id="msg-codice"></p>
+      </form>
+    </section>
+
+    <!-- Step 2: Upload ricevuta -->
+    <section class="form-section" id="step-upload" style="display:none">
+      <h2>📤 Carica Ricevuta</h2>
+      
+      <div style="background:#111;padding:1rem;border-radius:6px;margin-bottom:1.5rem">
+        <p style="margin:0"><strong>Prenotazione:</strong> <span id="info-codice" style="color:#F7AF40"></span></p>
+        <p style="margin:0.5rem 0 0"><strong>Nome:</strong> <span id="info-nome"></span></p>
+        <p style="margin:0.5rem 0 0"><strong>Slot prenotati:</strong> <span id="info-slot"></span></p>
+        <p style="margin:0.5rem 0 0"><strong>Totale:</strong> <span id="info-totale" style="color:#F7AF40"></span></p>
+        <p style="margin:0.5rem 0 0"><strong>Stato attuale:</strong> <span id="info-stato"></span></p>
+      </div>
+
+      <div id="form-upload-container">
+        <form id="form-upload">
+          <p>Carica la ricevuta del bonifico (PDF, JPG o PNG, max 5MB):</p>
+          <div class="form-row">
+            <input type="file" id="file-ricevuta" accept=".pdf,.jpg,.jpeg,.png" required style="background:#111;padding:1rem;border:2px dashed #444;border-radius:6px;width:100%">
+          </div>
+          <button type="submit">📤 Invia Ricevuta</button>
+          <p class="msg" id="msg-upload"></p>
+        </form>
+      </div>
+
+      <div id="gia-caricata" style="display:none;text-align:center">
+        <p style="color:#F7AF40;font-size:1.2rem">✅ Ricevuta già caricata</p>
+        <p>La tua ricevuta è in attesa di verifica. Riceverai una email quando sarà confermata.</p>
+      </div>
+    </section>
+
+    <!-- Step 3: Conferma -->
+    <section class="info" id="step-conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ Ricevuta Inviata!</h2>
+      <p>La tua ricevuta è stata caricata correttamente.</p>
+      <p>Il nostro team verificherà il pagamento e riceverai una email di conferma.</p>
+      <p style="margin-top:1.5rem"><strong>Stato prenotazione:</strong> <span style="background:#3b82f6;color:#fff;padding:0.3rem 0.8rem;border-radius:4px">🔍 In Verifica</span></p>
+    </section>
+
+    <!-- Già confermata -->
+    <section class="info" id="step-confermata" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ Prenotazione Confermata!</h2>
+      <p>La tua prenotazione prove pista è già stata confermata.</p>
+      <p style="margin-top:1rem">📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI</p>
+    </div>
+  </footer>
+
+  <script src="translations.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let currentCodice = '';
+    let prenotazioneData = null;
+
+    // Leggi codice da URL se presente
+    const urlParams = new URLSearchParams(window.location.search);
+    const codiceUrl = urlParams.get('codice');
+    if (codiceUrl) {
+      document.getElementById('codice').value = codiceUrl;
+      setTimeout(() => document.getElementById('form-codice').dispatchEvent(new Event('submit')), 100);
+    }
+
+    document.getElementById('form-codice').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const codice = document.getElementById('codice').value.trim().toUpperCase();
+      const msgEl = document.getElementById('msg-codice');
+      msgEl.textContent = '';
+      msgEl.style.color = '';
+
+      try {
+        const res = await fetch('/api/prove/prenotazioni');
+        const all = await res.json();
+        
+        // Raggruppa per codice
+        const grouped = {};
+        all.forEach(p => {
+          if (!grouped[p.codice]) grouped[p.codice] = [];
+          grouped[p.codice].push(p);
+        });
+        
+        if (!grouped[codice]) {
+          msgEl.textContent = '❌ Codice non trovato. Verifica di aver inserito il codice corretto.';
+          msgEl.style.color = '#e74c3c';
+          return;
+        }
+
+        prenotazioneData = grouped[codice];
+        currentCodice = codice;
+        const first = prenotazioneData[0];
+        const stato = first.stato || 'sospesa';
+
+        // Se già confermata
+        if (stato === 'confermata') {
+          document.getElementById('step-codice').style.display = 'none';
+          document.getElementById('step-confermata').style.display = 'block';
+          return;
+        }
+
+        // Mostra info
+        document.getElementById('info-codice').textContent = codice;
+        document.getElementById('info-nome').textContent = `${first.nome} ${first.cognome}`;
+        document.getElementById('info-slot').textContent = prenotazioneData.map(p => p.ora).join(', ');
+        document.getElementById('info-totale').textContent = `€${prenotazioneData.length * 5}`;
+
+        // Stato
+        let statoBadge = '';
+        if (stato === 'sospesa') {
+          statoBadge = '<span style="background:#f59e0b;color:#000;padding:0.2rem 0.6rem;border-radius:4px">🕐 Sospesa</span>';
+        } else if (stato === 'verifica') {
+          statoBadge = '<span style="background:#3b82f6;color:#fff;padding:0.2rem 0.6rem;border-radius:4px">🔍 In Verifica</span>';
+        }
+        document.getElementById('info-stato').innerHTML = statoBadge;
+
+        // Se già in verifica, mostra messaggio
+        if (stato === 'verifica') {
+          document.getElementById('form-upload-container').style.display = 'none';
+          document.getElementById('gia-caricata').style.display = 'block';
+        } else {
+          document.getElementById('form-upload-container').style.display = 'block';
+          document.getElementById('gia-caricata').style.display = 'none';
+        }
+
+        document.getElementById('step-codice').style.display = 'none';
+        document.getElementById('step-upload').style.display = 'block';
+
+      } catch (err) {
+        msgEl.textContent = '❌ Errore di connessione. Riprova.';
+        msgEl.style.color = '#e74c3c';
+      }
+    });
+
+    document.getElementById('form-upload').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgEl = document.getElementById('msg-upload');
+      const fileInput = document.getElementById('file-ricevuta');
+      
+      if (!fileInput.files[0]) {
+        msgEl.textContent = '❌ Seleziona un file';
+        msgEl.style.color = '#e74c3c';
+        return;
+      }
+
+      const file = fileInput.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        msgEl.textContent = '❌ File troppo grande (max 5MB)';
+        msgEl.style.color = '#e74c3c';
+        return;
+      }
+
+      msgEl.textContent = '⏳ Caricamento in corso...';
+      msgEl.style.color = '#F7AF40';
+
+      const formData = new FormData();
+      formData.append('ricevuta', file);
+
+      try {
+        const res = await fetch(`/api/prove/prenotazioni/${currentCodice}/ricevuta`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          document.getElementById('step-upload').style.display = 'none';
+          document.getElementById('step-conferma').style.display = 'block';
+        } else {
+          const err = await res.json();
+          msgEl.textContent = '❌ ' + (err.error || 'Errore durante il caricamento');
+          msgEl.style.color = '#e74c3c';
+        }
+      } catch (err) {
+        msgEl.textContent = '❌ Errore di connessione. Riprova.';
+        msgEl.style.color = '#e74c3c';
+      }
+    });
+  </script>
+</body>
+</html>

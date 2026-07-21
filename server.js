@@ -155,6 +155,7 @@ async function initDb() {
     // Migrazione: aggiungi colonne se non esistono
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
       giorno TEXT NOT NULL,
@@ -347,6 +348,7 @@ async function initDb() {
   // Migrazione: aggiungi colonne se non esistono
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     giorno TEXT NOT NULL,
@@ -930,7 +932,18 @@ app.put('/api/iscritti/:id', async (req, res) => {
 
 app.delete('/api/iscritti/:id', async (req, res) => {
   try {
-    await dbRun('DELETE FROM iscritti WHERE id=?', [+req.params.id]);
+    const id = +req.params.id;
+    // Prima ottieni il codice per cancellare le prove associate
+    const rows = await dbAll('SELECT id FROM iscritti WHERE id=?', [id]);
+    if (rows.length) {
+      const codice = 'BB11-' + String(id).padStart(4, '0');
+      const proveCodice = 'PRV-' + codice;
+      // Cancella le prenotazioni prove associate
+      await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [proveCodice]);
+      console.log('Cancellate prove associate:', proveCodice);
+    }
+    // Poi cancella l'iscritto
+    await dbRun('DELETE FROM iscritti WHERE id=?', [id]);
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore DELETE iscritti:', err);
@@ -1778,9 +1791,12 @@ app.get('/api/prove/disponibilita', async (req, res) => {
     const result = {};
     for (const slot of slots) {
       const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
+      // Chiave unica: giorno + ora
+      const key = `${slot.giorno}|${ora}`;
       const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
       const occupati = rows[0]?.tot || 0;
-      result[ora] = {
+      result[key] = {
+        ora: ora,
         posti: slot.posti_max - occupati,
         luogo: slot.luogo,
         costo: slot.costo,
@@ -1826,6 +1842,7 @@ app.post('/api/prove/prenota', async (req, res) => {
     // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
     if (email && transporter && paymentMethod !== 'online') {
       const sessioniList = sessioni.map(s => `• ${s}`).join('\n');
+      const linkRicevuta = `https://bustobattle.onrender.com/carica-ricevuta-prove.html?codice=${codice}`;
       try {
         await transporter.sendMail({
           from: '"Busto Battle XI" <bustobattle@gmail.com>',
@@ -1850,7 +1867,11 @@ Intestatario: Accademia Bustese Pattinaggio ASD
 Causale: Prove Pista - ${codice} - ${cognome}
 Importo: €${totale}
 
-⚠️ La prenotazione sarà confermata dopo la ricezione del pagamento.
+📤 DOPO IL PAGAMENTO
+Carica la ricevuta del bonifico qui:
+${linkRicevuta}
+
+⚠️ La prenotazione sarà confermata dopo la verifica del pagamento.
 
 📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
 
@@ -1885,7 +1906,15 @@ Il Team Busto Battle XI`,
                 <p><strong>Importo:</strong> €${totale}</p>
               </div>
               
-              <p style="color:#f59e0b">⚠️ La prenotazione sarà confermata dopo la ricezione del pagamento.</p>
+              <div style="background:#1a4a1a;padding:15px;border-radius:8px;margin:20px 0;border:2px solid #22c55e">
+                <h3 style="color:#22c55e;margin-top:0">📤 Dopo il pagamento</h3>
+                <p>Carica la ricevuta del bonifico per confermare la prenotazione:</p>
+                <p style="text-align:center;margin-top:15px">
+                  <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">📤 Carica Ricevuta</a>
+                </p>
+              </div>
+              
+              <p style="color:#f59e0b">⚠️ La prenotazione sarà confermata dopo la verifica del pagamento.</p>
               <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
             </div>
             <div style="background:#111;padding:15px;text-align:center;color:#888">
@@ -2176,6 +2205,207 @@ Il Team Busto Battle XI`,
     res.json({ ok: true, message: 'Prenotazione annullata e slot liberati' });
   } catch (err) {
     console.error('Errore annullamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload ricevuta bonifico prove pista
+app.post('/api/prove/prenotazioni/:codice/ricevuta', uploadRicevuta.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    // Salva il file path e aggiorna stato a verifica
+    const filePath = req.file.filename;
+    await dbRun('UPDATE prove_prenotazioni SET ricevuta_bonifico=?, stato=? WHERE codice=?', [filePath, 'verifica', codice]);
+    
+    res.json({ ok: true, message: 'Ricevuta caricata, in attesa di verifica' });
+  } catch (err) {
+    console.error('Errore upload ricevuta prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Visualizza ricevuta prove pista
+app.get('/api/prove/prenotazioni/:codice/ricevuta', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT ricevuta_bonifico FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length || !rows[0].ricevuta_bonifico) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    const filePath = path.join(__dirname, 'uploads', rows[0].ricevuta_bonifico);
+    res.sendFile(filePath);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Conferma bonifico prove pista (admin)
+app.post('/api/prove/prenotazioni/:codice/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    
+    // Invia email di conferma
+    if (first.email && transporter) {
+      const sessioni = rows.map(r => r.ora);
+      const totale = sessioni.length * 5;
+      
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: first.email,
+          subject: `✅ Pagamento Confermato - Prova Pista ${codice}`,
+          text: `Ciao ${first.nome} ${first.cognome},
+
+Il tuo pagamento per la prenotazione prove pista è stato CONFERMATO!
+
+📋 Dettagli prenotazione:
+Codice: ${codice}
+Slot prenotati: ${sessioni.join(', ')}
+Totale pagato: €${totale}
+
+📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
+
+A presto!
+Il Team Busto Battle XI`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#22c55e">✅ Pagamento Confermato!</h2>
+              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
+              <p>Il tuo pagamento per la prenotazione prove pista è stato <strong style="color:#22c55e">CONFERMATO</strong>!</p>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot prenotati:</strong></p>
+                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                <p style="font-size:1.2em;color:#22c55e"><strong>Totale pagato: €${totale}</strong></p>
+              </div>
+              
+              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore invio email conferma bonifico prove:', emailErr);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Bonifico confermato' });
+  } catch (err) {
+    console.error('Errore conferma bonifico prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rigetta ricevuta prove pista (admin)
+app.post('/api/prove/prenotazioni/:codice/rigetta', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { motivo } = req.body;
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Torna a stato sospesa e rimuovi ricevuta
+    await dbRun('UPDATE prove_prenotazioni SET stato=?, ricevuta_bonifico=NULL WHERE codice=?', ['sospesa', codice]);
+    
+    // Invia email di rigetto
+    if (first.email && transporter) {
+      const sessioni = rows.map(r => r.ora);
+      const totale = sessioni.length * 5;
+      
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: first.email,
+          subject: `❌ Ricevuta Rifiutata - Prova Pista ${codice}`,
+          text: `Ciao ${first.nome} ${first.cognome},
+
+La ricevuta caricata per la prenotazione prove pista NON è stata accettata.
+
+📋 Motivo del rifiuto:
+${motivo || 'Non specificato'}
+
+📋 Dettagli prenotazione:
+Codice: ${codice}
+Slot prenotati: ${sessioni.join(', ')}
+Totale da pagare: €${totale}
+
+Per favore carica una nuova ricevuta corretta.
+
+💳 Coordinate bancarie:
+IBAN: IT54Y0326822800052416865080
+Banca: Banca Sella
+Intestatario: Accademia Bustese Pattinaggio ASD
+Causale: Prove pista ${codice}
+
+Il Team Busto Battle XI`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#ef4444">❌ Ricevuta Rifiutata</h2>
+              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
+              <p>La ricevuta caricata per la prenotazione prove pista <strong style="color:#ef4444">NON è stata accettata</strong>.</p>
+              
+              <div style="background:#331111;padding:15px;border-radius:8px;margin:20px 0;border:1px solid #ef4444">
+                <h3 style="color:#ef4444;margin-top:0">📋 Motivo del rifiuto:</h3>
+                <p>${motivo || 'Non specificato'}</p>
+              </div>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Dettagli prenotazione</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot:</strong> ${sessioni.join(', ')}</p>
+                <p><strong>Totale da pagare:</strong> €${totale}</p>
+              </div>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">💳 Coordinate bancarie</h3>
+                <p><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+                <p><strong>Banca:</strong> Banca Sella</p>
+                <p><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
+                <p><strong>Causale:</strong> Prove pista ${codice}</p>
+              </div>
+              
+              <p>Per favore carica una nuova ricevuta corretta dalla pagina di verifica.</p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore invio email rigetto prove:', emailErr);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Ricevuta rigettata, email inviata' });
+  } catch (err) {
+    console.error('Errore rigetto prove:', err);
     res.status(500).json({ error: err.message });
   }
 });
