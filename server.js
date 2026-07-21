@@ -1796,7 +1796,7 @@ app.post('/api/prove/prenota', async (req, res) => {
         await transporter.sendMail({
           from: '"Busto Battle XI" <bustobattle@gmail.com>',
           to: email,
-          subject: `🛼 Prenotazione Prove Pista in Attesa - ${codice}`,
+          subject: `Prenotazione Prove Pista in Attesa - ${codice}`,
           text: `Ciao ${nome} ${cognome},
 
 La tua prenotazione prove pista è IN ATTESA DI CONFERMA.
@@ -1822,11 +1822,11 @@ Importo: €${totale}
 
 Per informazioni: bustobattle@gmail.com
 
-Ci vediamo in pista! 🛼
+Ci vediamo in pista!
 Il Team Busto Battle XI`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
             <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
             </div>
             <div style="padding:20px;background:#1a1a1a;color:#fff">
               <h2 style="color:#f59e0b">⏳ Prenotazione Prove Pista in Attesa</h2>
@@ -1929,11 +1929,11 @@ ${first.note ? `\nNote: ${first.note}` : ''}
 
 Per informazioni: bustobattle@gmail.com
 
-Ci vediamo in pista! 🛼
+Ci vediamo in pista!
 Il Team Busto Battle XI`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
             <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
             </div>
             <div style="padding:20px;background:#1a1a1a;color:#fff">
               <h2 style="color:#22c55e">✅ Prova Pista Prenotata!</h2>
@@ -2004,7 +2004,7 @@ Se ritieni sia un errore o hai domande, contattaci a bustobattle@gmail.com
 Il Team Busto Battle XI`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
             <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">🛼 Busto Battle XI</h1>
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
             </div>
             <div style="padding:20px;background:#1a1a1a;color:#fff">
               <h2 style="color:#ef4444">❌ Prenotazione Annullata</h2>
