@@ -674,11 +674,16 @@
       msg.textContent = '';
       msg.style.color = '';
 
+      function showError(text) {
+        msg.textContent = text;
+        msg.style.color = '#f44336';
+        msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
       // Validazione genere
       const genere = document.querySelector('input[name="genere"]:checked');
       if (!genere) {
-        msg.textContent = getLang() === 'en' ? 'Select gender' : 'Seleziona il genere';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Select gender' : 'Seleziona il genere');
         return;
       }
 
@@ -686,31 +691,27 @@
       const worldSkateId = document.getElementById('world_skate_id').value.trim();
       const skateItaliaCard = document.getElementById('skate_italia_card').value.trim();
       if (!worldSkateId && !skateItaliaCard) {
-        msg.textContent = getLang() === 'en' ? 'Enter at least World Skate ID or Skate Italia Card' : 'Inserisci almeno uno tra World Skate ID e Skate Italia Card';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Enter at least World Skate ID or Skate Italia Card' : 'Inserisci almeno uno tra World Skate ID e Skate Italia Card');
         return;
       }
 
       // Validazioni discipline
       const checkedBoxes = document.querySelectorAll('input[name="cat"]:checked');
       if (checkedBoxes.length === 0) {
-        msg.textContent = getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina');
         return;
       }
 
       const tagliaMaglia = document.getElementById('taglia_maglia').value;
       if (!tagliaMaglia) {
-        msg.textContent = getLang() === 'en' ? 'Select t-shirt size' : 'Seleziona la taglia della maglietta';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Select t-shirt size' : 'Seleziona la taglia della maglietta');
         return;
       }
 
       const vuoleFelpa = document.getElementById('vuole_felpa').checked;
       const tagliaFelpa = document.getElementById('taglia_felpa').value;
       if (vuoleFelpa && !tagliaFelpa) {
-        msg.textContent = getLang() === 'en' ? 'Select hoodie size' : 'Seleziona la taglia della felpa';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Select hoodie size' : 'Seleziona la taglia della felpa');
         return;
       }
 
@@ -721,23 +722,20 @@
       const dataNascita = document.getElementById('data_nascita').value;
       
       if (!nome || !cognome || !email) {
-        msg.textContent = getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori');
         return;
       }
 
       // Validazione data nascita obbligatoria
       if (!dataNascita) {
-        msg.textContent = getLang() === 'en' ? 'Enter date of birth' : 'Inserisci la data di nascita';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Enter date of birth' : 'Inserisci la data di nascita');
         return;
       }
 
       // Validazione età minima (nati dal 2016 o prima)
       const annoNascita = parseInt(dataNascita.split('-')[0]);
       if (annoNascita > 2016) {
-        msg.textContent = getLang() === 'en' ? 'Athletes must be born in 2016 or earlier (minimum age U15)' : 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)';
-        msg.style.color = '#f44336';
+        showError(getLang() === 'en' ? 'Athletes must be born in 2016 or earlier (minimum age U15)' : 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)');
         return;
       }
 
@@ -758,8 +756,7 @@
         const specSelect = document.getElementById(`spec-${slotId}`);
         const specialita = specSelect ? specSelect.value : '';
         if (!specialita) {
-          msg.textContent = getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la specialità per lo slot ${ora}`;
-          msg.style.color = '#f44336';
+          showError(getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la specialità per lo slot ${ora}`);
           document.getElementById('btn-bonifico').disabled = false;
           return;
         }
