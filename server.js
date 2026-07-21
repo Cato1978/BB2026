@@ -2210,7 +2210,7 @@ Il Team Busto Battle XI`,
 });
 
 // Upload ricevuta bonifico prove pista
-app.post('/api/prove/prenotazioni/:codice/ricevuta', uploadRicevuta.single('ricevuta'), async (req, res) => {
+app.post('/api/prove/prenotazioni/:codice/ricevuta', uploadRicevute.single('ricevuta'), async (req, res) => {
   try {
     const { codice } = req.params;
     if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
