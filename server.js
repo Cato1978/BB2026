@@ -568,12 +568,12 @@ async function dbInsert(sql, params = []) {
       pgSql += ' RETURNING id';
     }
     const res = await pgPool.query(pgSql, params);
-    return res.rows[0]?.id || null;
+    return (res.rows[0] && res.rows[0].id) ? res.rows[0].id : null;
   }
   db.run(sql, params);
   save();
   const lastId = all('SELECT last_insert_rowid() as id')[0];
-  return lastId?.id || null;
+  return (lastId && lastId.id) ? lastId.id : null;
 }
 
 app.get('/api/iscritti', async (req, res) => {
@@ -1480,7 +1480,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const iscritto_id = session.metadata?.iscritto_id;
+    const iscritto_id = session.metadata && session.metadata.iscritto_id ? session.metadata.iscritto_id : null;
     if (iscritto_id) {
       db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [+iscritto_id]);
       save();
@@ -1542,7 +1542,7 @@ app.get('/api/navetta/disponibilita', (req, res) => {
     for (const dir of ['andata', 'ritorno']) {
       const key = `${slot.ora}_${dir}`;
       const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [slot.giorno, slot.ora, dir]);
-      const occupati = rows[0]?.tot || 0;
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       result[slot.giorno][key] = {
         posti: slot.posti_max - occupati,
         partenza: dir === 'andata' ? slot.partenza : slot.arrivo,
@@ -1565,7 +1565,7 @@ app.post('/api/navetta/prenota', (req, res) => {
       return res.status(400).json({ error: 'Max 8 persone per corsa' });
     }
     const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [c.giorno, c.ora, c.direzione]);
-    const occupati = rows[0]?.tot || 0;
+    const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
     if (occupati + c.num_persone > slot.posti_max) {
       return res.status(400).json({ error: `Posti esauriti per ${c.giorno} ${c.ora} ${c.direzione}` });
     }
@@ -1577,7 +1577,7 @@ app.post('/api/navetta/prenota', (req, res) => {
     const slot = all('SELECT costo FROM navetta_slots WHERE giorno=? AND ora=?', [c.giorno, c.ora])[0];
     db.run('INSERT INTO navetta_prenotazioni (nome, cognome, email, telefono, giorno, ora, direzione, num_persone, codice) VALUES (?,?,?,?,?,?,?,?,?)',
       [nome, cognome, email || null, telefono || null, c.giorno, c.ora, c.direzione, c.num_persone, codice]);
-    totale += c.num_persone * (slot?.costo || 2);
+    totale += c.num_persone * ((slot && slot.costo) ? slot.costo : 2);
   }
   save();
   res.json({ codice, totale });
@@ -1794,7 +1794,7 @@ app.get('/api/prove/disponibilita', async (req, res) => {
       // Chiave unica: giorno + ora
       const key = `${slot.giorno}|${ora}`;
       const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
-      const occupati = rows[0]?.tot || 0;
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       result[key] = {
         ora: ora,
         posti: slot.posti_max - occupati,
@@ -1826,7 +1826,7 @@ app.post('/api/prove/prenota', async (req, res) => {
       if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
       
       const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
-      const occupati = rows[0]?.tot || 0;
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       if (occupati >= slot.posti_max) {
         return res.status(400).json({ error: `Sessione ${ora} esaurita` });
       }
@@ -2463,7 +2463,7 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
         nome: p.nome,
         email: p.email || '',
         telefono: p.telefono || '',
-        giorno: slot?.giorno || '',
+        giorno: (slot && slot.giorno) ? slot.giorno : '',
         ora: p.ora,
         specialita: specialita,
         stato: p.stato || 'sospesa',
@@ -2500,7 +2500,7 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       const first = sessioni[0];
       const sessioniList = sessioni.map(s => {
         const slot = slotMap[s.ora];
-        const giorno = slot?.giorno ? slot.giorno.split('-').slice(1).reverse().join('/') : '';
+        const giorno = (slot && slot.giorno) ? slot.giorno.split('-').slice(1).reverse().join('/') : '';
         let spec = '';
         if (s.note && s.ora) {
           const oraEscaped = s.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
