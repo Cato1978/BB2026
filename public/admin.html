@@ -379,9 +379,11 @@
         if (stato === 'verifica') {
           azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
           azioniHtml += `<button onclick="rigettaBonifico(${i.id})" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
-          if (i.ricevuta_bonifico) {
-            azioniHtml += `<a href="/api/iscritti/${i.id}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
-          }
+        }
+        
+        // Bottone vedi ricevuta (se esiste, per verifica e confermata)
+        if (i.ricevuta_bonifico && (stato === 'verifica' || stato === 'confermata')) {
+          azioniHtml += `<a href="/api/iscritti/${i.id}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
         }
         
         // Bottone segna pagato (solo se sospesa)
