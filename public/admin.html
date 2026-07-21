@@ -853,6 +853,15 @@
       }
     });
 
+    // Formatta data per prove pista
+    function formatGiorno(g) {
+      if (!g) return '';
+      const [anno, mese, gg] = g.split('-');
+      const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      const d = new Date(+anno, +mese - 1, +gg);
+      return `${giorni[d.getDay()]} ${gg}/${mese}`;
+    }
+
     function renderProveDisponibilita(disponibilita) {
       const div = document.getElementById('prove-disponibilita');
       
@@ -866,14 +875,6 @@
       
       // Ordina i giorni
       const giorniOrdinati = Object.keys(perGiorno).sort();
-      
-      // Formatta data
-      const formatGiorno = (g) => {
-        const [anno, mese, gg] = g.split('-');
-        const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-        const d = new Date(+anno, +mese - 1, +gg);
-        return `${giorni[d.getDay()]} ${gg}/${mese}`;
-      };
       
       let html = '';
       for (const giorno of giorniOrdinati) {
@@ -922,8 +923,9 @@
       for (const [cod, sessioni] of Object.entries(filteredGroups)) {
         const first = sessioni[0];
         const oreList = sessioni.map(s => {
+          const giorno = s.giorno ? formatGiorno(s.giorno) + ' ' : '';
           const dettaglio = s.note ? ` (${s.note.split(s.ora + ': ')[1]?.split(',')[0] || ''})` : '';
-          return s.ora + dettaglio;
+          return giorno + s.ora + dettaglio;
         }).join('<br>');
         const totale = sessioni.length * 5; // €5 per slot
         const stato = first.stato || 'sospesa';

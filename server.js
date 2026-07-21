@@ -156,6 +156,7 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
       giorno TEXT NOT NULL,
@@ -349,6 +350,7 @@ async function initDb() {
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     giorno TEXT NOT NULL,
@@ -1834,13 +1836,28 @@ app.post('/api/prove/prenota', async (req, res) => {
   try {
     // Verifica disponibilità
     let totale = 0;
-    for (const ora of sessioni) {
+    // Supporta sia formato vecchio (array di stringhe) che nuovo (array di oggetti {ora, giorno})
+    const sessioniNormalizzate = sessioni.map(s => {
+      if (typeof s === 'string') {
+        return { ora: s, giorno: null };
+      }
+      return s;
+    });
+    
+    for (const sess of sessioniNormalizzate) {
+      const ora = sess.ora;
       const parts = ora.split('-');
       const slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]]);
       const slot = slots[0];
       if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
       
-      const rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+      // Conta prenotazioni per ora E giorno se disponibile
+      let rows;
+      if (sess.giorno) {
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?', [ora, sess.giorno]);
+      } else {
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+      }
       const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       if (occupati >= slot.posti_max) {
         return res.status(400).json({ error: `Sessione ${ora} esaurita` });
@@ -1849,14 +1866,15 @@ app.post('/api/prove/prenota', async (req, res) => {
     }
 
     const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
-    for (const ora of sessioni) {
-      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice, stato, note) VALUES (?,?,?,?,?,?,?,?)',
-        [nome, cognome, email || null, telefono || null, ora, codice, 'sospesa', note || null]);
+    for (const sess of sessioniNormalizzate) {
+      const giorno = sess.giorno || null;
+      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, note) VALUES (?,?,?,?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, sess.ora, giorno, codice, 'sospesa', note || null]);
     }
 
     // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
     if (email && transporter && paymentMethod !== 'online') {
-      const sessioniList = sessioni.map(s => `• ${s}`).join('\n');
+      const sessioniList = sessioniNormalizzate.map(s => `• ${s.giorno ? s.giorno + ' ' : ''}${s.ora}`).join('\n');
       const linkRicevuta = `https://bustobattle.onrender.com/carica-ricevuta-prove.html?codice=${codice}`;
       try {
         await transporter.sendMail({
@@ -1907,7 +1925,7 @@ Il Team Busto Battle XI`,
                 <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
                 <p><strong>Codice:</strong> ${codice}</p>
                 <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                <ul>${sessioniNormalizzate.map(s => `<li>${s.giorno ? s.giorno + ' ' : ''}${s.ora}</li>`).join('')}</ul>
                 ${note ? `<p><strong>Note:</strong> ${note}</p>` : ''}
                 <p style="font-size:1.2em;color:#F7AF40"><strong>Totale: €${totale}</strong></p>
               </div>
@@ -1942,7 +1960,7 @@ Il Team Busto Battle XI`,
       }
     }
 
-    res.json({ codice, totale, sessioni });
+    res.json({ codice, totale, sessioni: sessioniNormalizzate });
   } catch (err) {
     console.error('Errore prenotazione prove:', err);
     res.status(500).json({ error: err.message });
@@ -2555,13 +2573,16 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
         if (match) specialita = match[1].trim();
       }
       
+      // Usa giorno dalla prenotazione se disponibile, altrimenti dallo slot
+      const giorno = p.giorno || ((slot && slot.giorno) ? slot.giorno : '');
+      
       sheetAll.addRow({
         codice: p.codice,
         cognome: p.cognome,
         nome: p.nome,
         email: p.email || '',
         telefono: p.telefono || '',
-        giorno: (slot && slot.giorno) ? slot.giorno : '',
+        giorno: giorno,
         ora: p.ora,
         specialita: specialita,
         stato: p.stato || 'sospesa',
@@ -2598,14 +2619,20 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       const first = sessioni[0];
       const sessioniList = sessioni.map(s => {
         const slot = slotMap[s.ora];
-        const giorno = (slot && slot.giorno) ? slot.giorno.split('-').slice(1).reverse().join('/') : '';
+        // Usa giorno dalla prenotazione se disponibile
+        let giornoStr = '';
+        if (s.giorno) {
+          giornoStr = s.giorno.split('-').slice(1).reverse().join('/');
+        } else if (slot && slot.giorno) {
+          giornoStr = slot.giorno.split('-').slice(1).reverse().join('/');
+        }
         let spec = '';
         if (s.note && s.ora) {
           const oraEscaped = s.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const match = s.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
           if (match) spec = ` (${match[1].trim()})`;
         }
-        return `${giorno} ${s.ora}${spec}`;
+        return `${giornoStr} ${s.ora}${spec}`;
       }).join(', ');
       
       sheetRiepilogo.addRow({
