@@ -574,7 +574,7 @@ async function dbInsert(sql, params = []) {
 
 app.get('/api/iscritti', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    const rows = await dbAll('SELECT * FROM iscritti ORDER BY created_at DESC');
     res.json(rows);
   } catch (err) {
     console.error('Errore GET iscritti:', err);
