@@ -232,8 +232,9 @@
       if (!entries.length) return '<p style="color:#888">Nessuno slot disponibile</p>';
       
       const perGiorno = {};
-      for (const [ora, data] of entries) {
+      for (const [key, data] of entries) {
         const giorno = data.giorno || '2026-11-14';
+        const ora = data.ora || key; // usa data.ora se disponibile, altrimenti la chiave
         if (!perGiorno[giorno]) perGiorno[giorno] = [];
         perGiorno[giorno].push({ ora, ...data });
       }
@@ -250,19 +251,22 @@
       
       for (const giorno of giorniOrdinati) {
         html += `<div class="giorno-header">📅 ${formatGiorno(giorno)}</div>`;
-        for (const slot of perGiorno[giorno]) {
+        // Ordina gli slot per ora
+        const slotsOrdinati = perGiorno[giorno].sort((a, b) => a.ora.localeCompare(b.ora));
+        for (const slot of slotsOrdinati) {
           const esaurito = slot.posti <= 0;
           const quasi = slot.posti > 0 && slot.posti <= 3;
           const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
-          const slotId = `slot-${atletaId}-${slot.ora.replace(/:/g, '')}`;
+          // Usa giorno+ora per ID unico
+          const slotId = `slot-${atletaId}-${giorno.replace(/-/g, '')}-${slot.ora.replace(/:/g, '')}`;
           
           html += `<div class="slot-row" style="${esaurito ? 'opacity:0.5' : ''}">
             <label>
-              <input type="checkbox" id="${slotId}" data-ora="${slot.ora}" onchange="toggleSlot(${atletaId}, '${slot.ora}', this)" ${esaurito ? 'disabled' : ''}>
+              <input type="checkbox" id="${slotId}" data-ora="${slot.ora}" data-giorno="${giorno}" onchange="toggleSlot(${atletaId}, '${slot.ora}', '${giorno}', this)" ${esaurito ? 'disabled' : ''}>
               <span>${slot.ora}</span>
               <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
             </label>
-            <select id="spec-${slotId}" onchange="updateSpecialita(${atletaId}, '${slot.ora}', this)" disabled>
+            <select id="spec-${slotId}" onchange="updateSpecialita(${atletaId}, '${slot.ora}', '${giorno}', this)" disabled>
               <option value="">-- Specialità --</option>
               ${SPECIALITA.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
@@ -369,15 +373,15 @@
       if (atleta) { atleta.nome = nome; atleta.cognome = cognome; }
     }
 
-    function toggleSlot(atletaId, ora, checkbox) {
-      const slotId = `slot-${atletaId}-${ora.replace(/:/g, '')}`;
+    function toggleSlot(atletaId, ora, giorno, checkbox) {
+      const slotId = `slot-${atletaId}-${giorno.replace(/-/g, '')}-${ora.replace(/:/g, '')}`;
       const select = document.getElementById(`spec-${slotId}`);
       select.disabled = !checkbox.checked;
       if (!checkbox.checked) select.value = '';
       updateAtletaSlots(atletaId);
     }
 
-    function updateSpecialita(atletaId, ora, select) {
+    function updateSpecialita(atletaId, ora, giorno, select) {
       updateAtletaSlots(atletaId);
     }
 
@@ -389,9 +393,10 @@
       const checkboxes = document.querySelectorAll(`#atleta-${id} input[type="checkbox"]:checked`);
       checkboxes.forEach(cb => {
         const ora = cb.dataset.ora;
-        const slotId = `slot-${id}-${ora.replace(/:/g, '')}`;
+        const giorno = cb.dataset.giorno;
+        const slotId = `slot-${id}-${giorno.replace(/-/g, '')}-${ora.replace(/:/g, '')}`;
         const spec = document.getElementById(`spec-${slotId}`).value;
-        atleta.slots.push({ ora, specialita: spec });
+        atleta.slots.push({ ora, giorno, specialita: spec });
       });
       
       const summary = document.getElementById(`summary-${id}`);

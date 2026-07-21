@@ -556,8 +556,9 @@
       
       // Raggruppa per giorno
       const perGiorno = {};
-      for (const [ora, data] of entries) {
+      for (const [key, data] of entries) {
         const giorno = data.giorno || '2026-11-14';
+        const ora = data.ora || key;
         if (!perGiorno[giorno]) perGiorno[giorno] = [];
         perGiorno[giorno].push({ ora, ...data });
       }
@@ -576,14 +577,16 @@
       let html = '';
       for (const giorno of giorniOrdinati) {
         html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40">📅 ${formatGiorno(giorno)}</strong></div>`;
-        for (const slot of perGiorno[giorno]) {
+        // Ordina slot per ora
+        const slotsOrdinati = perGiorno[giorno].sort((a, b) => a.ora.localeCompare(b.ora));
+        for (const slot of slotsOrdinati) {
           const esaurito = slot.posti <= 0;
           const quasi = slot.posti > 0 && slot.posti <= 3;
           const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
-          const slotId = `prova-${slot.ora.replace(/:/g, '')}`;
+          const slotId = `prova-${giorno.replace(/-/g, '')}-${slot.ora.replace(/:/g, '')}`;
           html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:#222;border:1px solid #333;border-radius:4px;margin:0.3rem 0;flex-wrap:wrap;${esaurito ? 'opacity:0.5' : ''}">
             <label style="display:flex;align-items:center;gap:0.4rem;cursor:${esaurito ? 'not-allowed' : 'pointer'};min-width:140px">
-              <input type="checkbox" id="${slotId}" name="prove" value="${slot.ora}" onchange="toggleProvaSlot('${slot.ora}')" ${esaurito ? 'disabled' : ''}>
+              <input type="checkbox" id="${slotId}" name="prove" value="${slot.ora}" data-giorno="${giorno}" onchange="toggleProvaSlot('${slot.ora}', '${giorno}')" ${esaurito ? 'disabled' : ''}>
               <span>${slot.ora}</span>
               <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
             </label>
@@ -597,8 +600,8 @@
       container.innerHTML = html;
     }
 
-    function toggleProvaSlot(ora) {
-      const slotId = `prova-${ora.replace(/:/g, '')}`;
+    function toggleProvaSlot(ora, giorno) {
+      const slotId = `prova-${giorno.replace(/-/g, '')}-${ora.replace(/:/g, '')}`;
       const checkbox = document.getElementById(slotId);
       const select = document.getElementById(`spec-${slotId}`);
       select.disabled = !checkbox.checked;
