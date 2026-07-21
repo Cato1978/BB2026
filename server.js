@@ -1368,7 +1368,7 @@ app.get('/api/test-email', async (req, res) => {
 // --- STRIPE CHECKOUT API ---
 app.post('/api/stripe/create-checkout', async (req, res) => {
   try {
-    const { iscritto_id, totale, descrizione, success_url, cancel_url } = req.body;
+    const { iscritto_id, totale, descrizione, success_url, cancel_url, from_page } = req.body;
     
     console.log('Stripe checkout request:', { iscritto_id, totale, descrizione });
     
@@ -1376,13 +1376,18 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'Dati mancanti', details: { iscritto_id, totale } });
     }
 
-    // Recupera l'iscritto
-    const iscritto = all('SELECT * FROM iscritti WHERE id=?', [+iscritto_id])[0];
+    // Recupera l'iscritto (usa dbAll per compatibilità PostgreSQL/SQLite)
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [+iscritto_id]);
+    const iscritto = rows[0];
     if (!iscritto) {
       return res.status(404).json({ error: 'Iscritto non trovato' });
     }
 
     const codice = 'BB11-' + String(iscritto_id).padStart(4, '0');
+    
+    // Determina la pagina di ritorno (default iscrizioni.html)
+    const returnPage = from_page || 'iscrizioni.html';
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
     
     // Crea sessione Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -1399,8 +1404,8 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: success_url || `${req.protocol}://${req.get('host')}/iscrizioni2.html?payment=success&codice=${codice}`,
-      cancel_url: cancel_url || `${req.protocol}://${req.get('host')}/iscrizioni2.html?payment=cancel&codice=${codice}`,
+      success_url: success_url || `${baseUrl}/${returnPage}?payment=success&codice=${codice}`,
+      cancel_url: cancel_url || `${baseUrl}/${returnPage}?payment=cancel&codice=${codice}`,
       metadata: {
         iscritto_id: String(iscritto_id),
         codice: codice

@@ -299,8 +299,7 @@
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
           <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
-          <!-- Pagamento online temporaneamente disabilitato -->
-          <!-- <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button> -->
+          <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
         </div>
         <p class="msg" id="msg"></p>
       </form>
@@ -851,7 +850,8 @@
             body: JSON.stringify({
               iscritto_id: iscritto_id,
               totale: totaleConCommissioni, // Invia il totale CON commissioni a Stripe
-              descrizione: descrizione
+              descrizione: descrizione,
+              from_page: 'iscrizioni2.html'
             })
           });
           const stripeResult = await stripeRes.json();
