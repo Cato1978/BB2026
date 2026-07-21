@@ -229,23 +229,31 @@
 
         <div class="taglia-section">
           <h3 data-t="tagliaMagliaTitle">👕 Taglia Maglietta Gara *</h3>
-          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="magliaInclusa">La maglietta ufficiale è inclusa nell'iscrizione.</p>
-          <div class="size-select" id="taglia-maglia">
-            <button type="button" class="size-btn" data-size="XS">XS</button>
-            <button type="button" class="size-btn" data-size="S">S</button>
-            <button type="button" class="size-btn" data-size="M">M</button>
-            <button type="button" class="size-btn" data-size="L">L</button>
-            <button type="button" class="size-btn" data-size="XL">XL</button>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem">
+            <span data-t="magliaInclusa">La maglietta ufficiale è inclusa nell'iscrizione.</span>
+            <a href="#" onclick="apriGuidaTaglie(); return false;" style="color:#F7AF40;margin-left:0.5rem;font-size:0.8rem" data-t="guidaTaglie">📏 Guida Taglie</a>
+          </p>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
+          <div class="size-select" id="taglia-maglia-uomo" style="margin-bottom:0.5rem">
+            <button type="button" class="size-btn" data-size="XS Uomo">XS</button>
+            <button type="button" class="size-btn" data-size="S Uomo">S</button>
+            <button type="button" class="size-btn" data-size="M Uomo">M</button>
+            <button type="button" class="size-btn" data-size="L Uomo">L</button>
+            <button type="button" class="size-btn" data-size="XL Uomo">XL</button>
+          </div>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👗 <span data-t="taglieDonna">Donna:</span></p>
+          <div class="size-select" id="taglia-maglia-donna">
+            <button type="button" class="size-btn" data-size="XS Donna">XS</button>
+            <button type="button" class="size-btn" data-size="S Donna">S</button>
+            <button type="button" class="size-btn" data-size="M Donna">M</button>
+            <button type="button" class="size-btn" data-size="L Donna">L</button>
           </div>
           <input type="hidden" id="taglia_maglia" required>
 
           <div class="felpa-option">
             <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span data-t="aggiungiFelpa">🧥 Aggiungi Felpa Ufficiale (+€30)</span></label>
             <div id="felpa-taglia" style="display:none;margin-top:0.8rem">
-              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem">
-                <span data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</span>
-                <a href="#" onclick="apriGuidaTaglie(); return false;" style="color:#F7AF40;margin-left:0.5rem;font-size:0.8rem" data-t="guidaTaglie">📏 Guida Taglie</a>
-              </p>
+              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</p>
               <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
               <div class="size-select" id="taglia-felpa-uomo" style="margin-bottom:0.5rem">
                 <button type="button" class="size-btn" data-size="XS Uomo">XS</button>
@@ -649,10 +657,10 @@
       document.body.appendChild(modal);
     }
 
-    // Size buttons maglia
-    document.querySelectorAll('#taglia-maglia .size-btn').forEach(btn => {
+    // Size buttons maglia (uomo e donna)
+    document.querySelectorAll('#taglia-maglia-uomo .size-btn, #taglia-maglia-donna .size-btn').forEach(btn => {
       btn.addEventListener('click', function() {
-        document.querySelectorAll('#taglia-maglia .size-btn').forEach(b => b.classList.remove('selected'));
+        document.querySelectorAll('#taglia-maglia-uomo .size-btn, #taglia-maglia-donna .size-btn').forEach(b => b.classList.remove('selected'));
         this.classList.add('selected');
         document.getElementById('taglia_maglia').value = this.dataset.size;
       });
