@@ -1098,7 +1098,23 @@
     }
 
     function exportProveExcel() {
-      window.location.href = '/api/prove/export';
+      // Usa fetch per mantenere le credenziali di sessione
+      fetch('/api/prove/export', { credentials: 'include' })
+        .then(res => {
+          if (!res.ok) throw new Error('Accesso negato');
+          return res.blob();
+        })
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'prove_pista_export.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          a.remove();
+        })
+        .catch(err => alert('Errore export: ' + err.message));
     }
 
     // --- RISULTATI ---
