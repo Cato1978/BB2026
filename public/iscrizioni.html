@@ -922,6 +922,7 @@
       const oreProveDettaglio = [];
       for (const cb of oreProveChecked) {
         const ora = cb.value;
+        const giorno = cb.dataset.giorno || null;
         const slotId = `prova-${ora.replace(/:/g, '')}`;
         const specSelect = document.getElementById(`spec-${slotId}`);
         const specialita = specSelect ? specSelect.value : '';
@@ -930,8 +931,8 @@
           document.getElementById('btn-bonifico').disabled = false;
           return;
         }
-        oreProve.push(ora);
-        oreProveDettaglio.push(`${ora} (${specialita})`);
+        oreProve.push({ ora, giorno, specialita });
+        oreProveDettaglio.push(`${giorno ? giorno + ' ' : ''}${ora} (${specialita})`);
       }
 
       const numDiscipline = checkedBoxes.length;

@@ -898,9 +898,21 @@ app.post('/api/iscritti', async (req, res) => {
     // Salva prenotazioni prove pista
     if (prove && prove.length > 0) {
       const proveCodice = 'PRV-' + codice;
-      for (const ora of prove) {
-        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice) VALUES (?,?,?,?,?,?)',
-          [nome, cognome, email || null, telefono || null, ora, proveCodice]);
+      for (const p of prove) {
+        // Supporta sia formato vecchio (stringa) che nuovo (oggetto {ora, giorno, specialita})
+        let ora, giorno, specialita;
+        if (typeof p === 'string') {
+          ora = p;
+          giorno = null;
+          specialita = null;
+        } else {
+          ora = p.ora;
+          giorno = p.giorno || null;
+          specialita = p.specialita || null;
+        }
+        const noteProva = specialita ? `${ora}: ${specialita}` : null;
+        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, note) VALUES (?,?,?,?,?,?,?,?)',
+          [nome, cognome, email || null, telefono || null, ora, giorno, proveCodice, noteProva]);
       }
       console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
     }
