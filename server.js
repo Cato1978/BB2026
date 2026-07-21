@@ -2450,8 +2450,10 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       const slot = slotMap[p.ora];
       // Estrai specialità dalle note
       let specialita = '';
-      if (p.note) {
-        const match = p.note.match(new RegExp(p.ora + ':\\s*([^,]+)'));
+      if (p.note && p.ora) {
+        // Escape caratteri speciali per la regex
+        const oraEscaped = p.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = p.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
         if (match) specialita = match[1].trim();
       }
       
@@ -2500,8 +2502,9 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
         const slot = slotMap[s.ora];
         const giorno = slot?.giorno ? slot.giorno.split('-').slice(1).reverse().join('/') : '';
         let spec = '';
-        if (s.note) {
-          const match = s.note.match(new RegExp(s.ora + ':\\s*([^,]+)'));
+        if (s.note && s.ora) {
+          const oraEscaped = s.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const match = s.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
           if (match) spec = ` (${match[1].trim()})`;
         }
         return `${giorno} ${s.ora}${spec}`;
@@ -2539,8 +2542,9 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       const iscritti = prenotazioni.filter(p => p.ora === ora);
       const partecipanti = iscritti.map(p => {
         let spec = '';
-        if (p.note) {
-          const match = p.note.match(new RegExp(ora + ':\\s*([^,]+)'));
+        if (p.note && ora) {
+          const oraEscaped = ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const match = p.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
           if (match) spec = ` (${match[1].trim()})`;
         }
         return `${p.cognome} ${p.nome}${spec}`;
