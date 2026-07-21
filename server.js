@@ -2190,6 +2190,38 @@ app.delete('/api/prove/prenotazioni/:codice', async (req, res) => {
   }
 });
 
+// Aggiorna giorno e note prenotazione prove (admin)
+app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { giorno, slots } = req.body;
+    // slots è un array di { ora, note } per aggiornare ogni singolo slot
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    // Aggiorna giorno per tutti gli slot
+    if (giorno) {
+      await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
+    }
+    
+    // Aggiorna note per ogni slot specifico
+    if (slots && slots.length > 0) {
+      for (const s of slots) {
+        if (s.ora && s.note) {
+          await dbRun('UPDATE prove_prenotazioni SET note=? WHERE codice=? AND ora=?', [s.note, codice, s.ora]);
+        }
+      }
+    }
+    
+    console.log('Prenotazione aggiornata:', { codice, giorno, slots });
+    res.json({ ok: true, message: 'Prenotazione aggiornata' });
+  } catch (err) {
+    console.error('Errore aggiornamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Conferma prova pista (admin)
 app.post('/api/prove/prenotazioni/:codice/conferma', async (req, res) => {
   try {

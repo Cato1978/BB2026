@@ -960,7 +960,8 @@
           azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma manuale" style="background:#22c55e">✅</button>`;
         }
         
-        // Sempre: annulla/elimina
+        // Sempre: modifica giorno + annulla/elimina
+        azioniHtml += `<button onclick="modificaProva('${cod}')" title="Modifica giorno/specialità" style="background:#3b82f6">✏️</button>`;
         azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
         
         html += `<tr>
@@ -1037,6 +1038,52 @@
       const res = await fetch(`/api/prove/prenotazioni/${codice}/annulla`, { method: 'PUT' });
       if (res.ok) {
         alert('❌ Prenotazione annullata. Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function modificaProva(codice) {
+      // Trova la prenotazione
+      const sessioni = provePrenotazioni.filter(p => p.codice === codice);
+      if (!sessioni.length) return alert('Prenotazione non trovata');
+      
+      const first = sessioni[0];
+      const giornoAttuale = first.giorno || '';
+      
+      // Chiedi il giorno
+      const nuovoGiorno = prompt(
+        `Modifica giorno per ${first.cognome} ${first.nome}\n\nSlot prenotati: ${sessioni.map(s => s.ora).join(', ')}\n\nInserisci il giorno (formato YYYY-MM-DD):\n- 2026-11-12 = Giovedì 12/11\n- 2026-11-13 = Venerdì 13/11\n- 2026-11-14 = Sabato 14/11`,
+        giornoAttuale
+      );
+      
+      if (!nuovoGiorno) return;
+      
+      // Chiedi le specialità per ogni slot
+      const slots = [];
+      for (const s of sessioni) {
+        const noteAttuali = s.note || '';
+        const specAttuale = noteAttuali.split(': ')[1]?.split(',')[0] || '';
+        const nuovaSpec = prompt(
+          `Specialità per slot ${s.ora}:\n(Classic Slalom, Speed Slalom, Slides, Free Jump)`,
+          specAttuale
+        );
+        if (nuovaSpec) {
+          slots.push({ ora: s.ora, note: `${s.ora}: ${nuovaSpec}` });
+        }
+      }
+      
+      // Aggiorna
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/aggiorna`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giorno: nuovoGiorno, slots })
+      });
+      
+      if (res.ok) {
+        alert('✅ Prenotazione aggiornata!');
         caricaProve();
       } else {
         const err = await res.json();
