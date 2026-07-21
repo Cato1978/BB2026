@@ -139,14 +139,40 @@
       <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
         <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
         <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
+        <div id="commissioni-info" style="margin-top:0.8rem;padding:0.6rem;background:#1a1a1a;border-radius:4px;font-size:0.8rem;display:none">
+          <p style="margin:0;color:#f59e0b"><span data-t="commissioniAvviso">⚠️ Pagando online verranno applicate commissioni carta:</span> <strong id="commissioni-importo">€0</strong></p>
+          <p style="margin:0.3rem 0 0;color:#888"><span data-t="commissioniTotale">Totale con commissioni:</span> <strong id="totale-con-commissioni" style="color:#F7AF40">€0</strong></p>
+        </div>
       </div>
 
-      <button type="button" onclick="submitPrenotazione()" style="width:100%;background:#F7AF40;color:#000;border:none;padding:1rem;font-size:1.1rem;border-radius:6px;cursor:pointer" data-t="provePageSubmit">📄 Prenota e paga con Bonifico</button>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
+        <button type="button" id="btn-bonifico" onclick="submitPrenotazione('bonifico')" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:2px solid #F7AF40;padding:1rem;font-size:1rem;border-radius:6px;cursor:pointer" data-t="provePageSubmit">📄 Prenota e paga con Bonifico</button>
+        <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:none;padding:1rem;font-size:1rem;border-radius:6px;cursor:pointer" data-t="pagaOnline">💳 Paga Online</button>
+      </div>
       <p class="msg" id="msg"></p>
     </section>
 
+    <!-- Modal conferma commissioni -->
+    <div id="modal-commissioni-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:400px;margin:1rem;border:2px solid #F7AF40">
+        <h3 style="color:#F7AF40;margin:0 0 1rem" data-t="confermaCommissioniTitle">💳 Conferma Pagamento Online</h3>
+        <p data-t="confermaCommissioniDesc">Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:</p>
+        <div style="background:#111;padding:1rem;border-radius:6px;margin:1rem 0">
+          <p style="margin:0"><span data-t="importoIscrizione">Importo:</span> <strong id="modal-importo-base">€0</strong></p>
+          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (1,5% + €0,25):</span> <strong id="modal-commissioni-importo" style="color:#f59e0b">€0</strong></p>
+          <hr style="border-color:#333;margin:0.8rem 0">
+          <p style="margin:0;font-size:1.1rem"><span data-t="totaleFinale">Totale da pagare:</span> <strong id="modal-totale" style="color:#F7AF40">€0</strong></p>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:1.5rem">
+          <button onclick="chiudiModalCommissioni()" style="flex:1;background:#333;border:1px solid #555;padding:0.8rem;border-radius:4px;color:#fff;cursor:pointer" data-t="annulla">Annulla</button>
+          <button onclick="procediPagamentoOnline()" style="flex:1;background:#F7AF40;color:#000;border:none;padding:0.8rem;border-radius:4px;cursor:pointer" data-t="confermaPaga">Conferma e Paga</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conferma BONIFICO -->
     <section class="info" id="conferma" style="display:none;text-align:center">
-      <h2 style="color:#4CAF50">✅ <span data-t="provePageConfermata">Prenotazione Confermata!</span></h2>
+      <h2 style="color:#f59e0b">🕐 <span data-t="provePageSospesa">Prenotazione in Attesa</span></h2>
       <p data-t="provePageCodice">Il tuo codice di prenotazione è:</p>
       <p id="codice-prenotazione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
       <div id="riepilogo-atleti" style="text-align:left;margin:1.5rem 0"></div>
@@ -159,6 +185,15 @@
         <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
       </div>
       <p style="margin-top:1.5rem;color:#888;font-size:0.9rem" data-t="provePageEmailConferma">Riceverai una email di conferma con i dettagli della prenotazione.</p>
+    </section>
+
+    <!-- Conferma STRIPE -->
+    <section class="info" id="conferma-stripe" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="provePageConfermata">Prenotazione Confermata!</span></h2>
+      <p data-t="provePageCodice">Il tuo codice di prenotazione è:</p>
+      <p id="codice-prenotazione-stripe" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="pagamentoRicevuto">Il pagamento è stato ricevuto. Riceverai una email di conferma.</p>
+      <p style="color:#888;font-size:0.9rem;margin-top:0.5rem" data-t="controllaSpam">📧 Controlla anche le cartelle Spam e Promozioni se non trovi l'email.</p>
     </section>
   </main>
   <footer>
@@ -365,6 +400,14 @@
       updateTotale();
     }
 
+    // Costanti commissioni
+    const COMMISSIONE_PERCENTUALE = 0.015; // 1.5%
+    const COMMISSIONE_FISSA = 0.25; // €0.25
+
+    function calcolaCommissioni(importo) {
+      return Math.round((importo * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
+    }
+
     function updateTotale() {
       let totaleSlots = 0;
       let dettagli = [];
@@ -376,17 +419,57 @@
         }
       });
       const totale = totaleSlots * PREZZO_SLOT;
+      const commissioni = calcolaCommissioni(totale);
+      const totaleConCommissioni = totale + commissioni;
+
       const box = document.getElementById('totale-box');
       if (totaleSlots > 0) {
         box.style.display = 'block';
         document.getElementById('totale').textContent = '€' + totale;
         document.getElementById('dettaglio-totale').textContent = dettagli.join(' | ') + ` · €${PREZZO_SLOT}/slot`;
+        
+        // Mostra info commissioni
+        document.getElementById('commissioni-info').style.display = 'block';
+        document.getElementById('commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+        document.getElementById('totale-con-commissioni').textContent = '€' + totaleConCommissioni.toFixed(2);
       } else {
         box.style.display = 'none';
+        document.getElementById('commissioni-info').style.display = 'none';
       }
     }
 
-    async function submitPrenotazione() {
+    // Modal commissioni
+    function confermaCommissioni() {
+      const atletiValidi = atleti.filter(a => a.slots.length > 0);
+      if (atletiValidi.length === 0) {
+        document.getElementById('msg').textContent = getLang() === 'en' ? 'Select at least one slot' : 'Seleziona almeno uno slot';
+        document.getElementById('msg').style.color = '#f44336';
+        return;
+      }
+
+      let totaleSlots = 0;
+      atletiValidi.forEach(a => totaleSlots += a.slots.length);
+      const totale = totaleSlots * PREZZO_SLOT;
+      const commissioni = calcolaCommissioni(totale);
+      const totaleConCommissioni = totale + commissioni;
+
+      document.getElementById('modal-importo-base').textContent = '€' + totale;
+      document.getElementById('modal-commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+      document.getElementById('modal-totale').textContent = '€' + totaleConCommissioni.toFixed(2);
+      
+      document.getElementById('modal-commissioni-overlay').style.display = 'flex';
+    }
+
+    function chiudiModalCommissioni() {
+      document.getElementById('modal-commissioni-overlay').style.display = 'none';
+    }
+
+    function procediPagamentoOnline() {
+      chiudiModalCommissioni();
+      submitPrenotazione('online');
+    }
+
+    async function submitPrenotazione(paymentMethod = 'bonifico') {
       const msg = document.getElementById('msg');
       msg.textContent = '';
 
@@ -452,29 +535,102 @@
           totale += data.totale;
         }
 
-        document.querySelector('.form-section').style.display = 'none';
-        document.querySelector('.info').style.display = 'none';
-        document.getElementById('conferma').style.display = 'block';
-        document.getElementById('codice-prenotazione').textContent = codici[0].codice;
-        
-        let riepilogoHtml = '<h4 style="color:#F7AF40;margin-bottom:0.5rem">📋 Riepilogo prenotazioni:</h4>';
-        codici.forEach(c => {
-          const dettagliSlot = c.slots.map(s => `${s.ora} - ${s.specialita}`).join('<br>');
-          riepilogoHtml += `<div style="background:#1a1a1a;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem">
-            <strong>${c.nome} ${c.cognome}</strong> · €${c.totale}<br>
-            <small style="color:#888">${dettagliSlot}</small><br>
-            <small style="color:#F7AF40">Codice: ${c.codice}</small>
-          </div>`;
-        });
-        document.getElementById('riepilogo-atleti').innerHTML = riepilogoHtml;
-        document.getElementById('causale-bonifico').textContent = `Prove Pista - ${codici[0].codice}`;
-        document.getElementById('importo-bonifico').textContent = '€' + totale;
+        // Se pagamento online, vai a Stripe
+        if (paymentMethod === 'online') {
+          msg.textContent = getLang() === 'en' ? 'Redirecting to payment...' : 'Reindirizzamento al pagamento...';
+          msg.style.color = '#F7AF40';
+
+          const commissioni = calcolaCommissioni(totale);
+          const totaleConCommissioni = totale + commissioni;
+          const primoAtleta = atletiValidi[0];
+
+          const stripeRes = await fetch('/api/prove/stripe-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              codice: codici[0].codice,
+              totale: totaleConCommissioni,
+              email: email,
+              nome: primoAtleta.nome,
+              cognome: primoAtleta.cognome,
+              from_page: 'prove.html'
+            })
+          });
+          const stripeResult = await stripeRes.json();
+
+          if (stripeRes.ok && stripeResult.url) {
+            window.location.href = stripeResult.url;
+          } else {
+            console.error('Stripe error:', stripeResult.error);
+            msg.textContent = (getLang() === 'en' ? 'Online payment error. Use bank transfer.' : 'Errore pagamento online. Usa il bonifico.') + ' ' + (stripeResult.error || '');
+            msg.style.color = '#f59e0b';
+            showConfermaBonifico(codici, totale);
+          }
+        } else {
+          // Pagamento con bonifico
+          showConfermaBonifico(codici, totale);
+        }
 
       } catch (err) {
         msg.textContent = 'Errore di connessione';
         msg.style.color = '#f44336';
       }
     }
+
+    function showConfermaBonifico(codici, totale) {
+      document.querySelector('.form-section').style.display = 'none';
+      document.querySelector('.info').style.display = 'none';
+      document.getElementById('conferma').style.display = 'block';
+      document.getElementById('codice-prenotazione').textContent = codici[0].codice;
+      
+      let riepilogoHtml = '<h4 style="color:#F7AF40;margin-bottom:0.5rem">📋 Riepilogo prenotazioni:</h4>';
+      codici.forEach(c => {
+        const dettagliSlot = c.slots.map(s => `${s.ora} - ${s.specialita}`).join('<br>');
+        riepilogoHtml += `<div style="background:#1a1a1a;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem">
+          <strong>${c.nome} ${c.cognome}</strong> · €${c.totale}<br>
+          <small style="color:#888">${dettagliSlot}</small><br>
+          <small style="color:#F7AF40">Codice: ${c.codice}</small>
+        </div>`;
+      });
+      document.getElementById('riepilogo-atleti').innerHTML = riepilogoHtml;
+      document.getElementById('causale-bonifico').textContent = `Prove Pista - ${codici[0].codice}`;
+      document.getElementById('importo-bonifico').textContent = '€' + totale;
+    }
+
+    // Gestisce ritorno da Stripe
+    window.addEventListener('DOMContentLoaded', async function() {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get('payment');
+      const codice = params.get('codice');
+      
+      if (payment === 'success' && codice) {
+        // Conferma pagamento
+        try {
+          await fetch('/api/prove/conferma-pagamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codice })
+          });
+        } catch (e) {
+          console.error('Errore conferma pagamento:', e);
+        }
+        
+        document.querySelector('.form-section').style.display = 'none';
+        document.querySelector('.info').style.display = 'none';
+        document.getElementById('conferma-stripe').style.display = 'block';
+        document.getElementById('codice-prenotazione-stripe').textContent = codice;
+        
+      } else if (payment === 'cancel' && codice) {
+        document.querySelector('.form-section').style.display = 'none';
+        document.querySelector('.info').style.display = 'none';
+        document.getElementById('conferma').style.display = 'block';
+        document.getElementById('codice-prenotazione').textContent = codice;
+        
+        const confH2 = document.querySelector('#conferma h2');
+        confH2.innerHTML = '⚠️ <span>' + (getLang() === 'en' ? 'Payment cancelled' : 'Pagamento annullato') + '</span>';
+        confH2.style.color = '#f59e0b';
+      }
+    });
 
     caricaProveDisponibilita();
   </script>

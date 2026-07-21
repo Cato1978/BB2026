@@ -1876,6 +1876,116 @@ Il Team Busto Battle XI`,
   }
 });
 
+// --- STRIPE CHECKOUT per PROVE PISTA ---
+app.post('/api/prove/stripe-checkout', async (req, res) => {
+  try {
+    const { codice, totale, email, nome, cognome, from_page } = req.body;
+    
+    console.log('Stripe prove checkout request:', { codice, totale, email });
+    
+    if (!codice || !totale || totale <= 0) {
+      return res.status(400).json({ error: 'Dati mancanti', details: { codice, totale } });
+    }
+
+    // Verifica che la prenotazione esista
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Prenotazione non trovata' });
+    }
+
+    const returnPage = from_page || 'prove.html';
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    // Crea sessione Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Prove Pista Busto Battle XI - ${codice}`,
+            description: `${nome} ${cognome} - ${rows.length} slot`,
+          },
+          unit_amount: Math.round(totale * 100), // Stripe usa centesimi
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${baseUrl}/${returnPage}?payment=success&codice=${codice}`,
+      cancel_url: `${baseUrl}/${returnPage}?payment=cancel&codice=${codice}`,
+      metadata: {
+        tipo: 'prove',
+        codice: codice
+      },
+      customer_email: email || undefined,
+    });
+
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe prove error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Conferma pagamento prove (chiamato dopo ritorno da Stripe)
+app.post('/api/prove/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Pagamento Stripe prove confermato:', codice);
+    
+    // Recupera dati per email
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (rows.length > 0 && rows[0].email && transporter) {
+      const prenotazione = rows[0];
+      const sessioni = rows.map(r => r.ora);
+      const totale = rows.length * 5; // €5 per slot
+      
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: prenotazione.email,
+          subject: `Prova Pista Confermata - ${codice}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <h2 style="color:#4CAF50">✅ Prova Pista Confermata!</h2>
+              <p>Ciao <strong>${prenotazione.nome} ${prenotazione.cognome}</strong>,</p>
+              <p>Il pagamento è stato ricevuto. La tua prenotazione prove pista è <strong style="color:#4CAF50">CONFERMATA</strong>.</p>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot prenotati:</strong></p>
+                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                <p style="font-size:1.2em;color:#4CAF50"><strong>Pagato: €${totale}</strong></p>
+              </div>
+              
+              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+              <p>Ci vediamo in pista!</p>
+            </div>
+            <div style="background:#111;padding:15px;text-align:center;color:#888">
+              <p>Busto Battle XI - bustobattle@gmail.com</p>
+            </div>
+          </div>`
+        });
+      } catch (emailErr) {
+        console.error('Errore email conferma prove:', emailErr);
+      }
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma pagamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/prove/prenotazioni', async (req, res) => {
   try {
     const rows = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome');
