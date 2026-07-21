@@ -1942,6 +1942,67 @@ Il Team Busto Battle XI`,
       }
     }
 
+    // Invia notifica email a Busto Battle
+    if (transporter) {
+      try {
+        await transporter.sendMail({
+          from: '"Busto Battle XI" <bustobattle@gmail.com>',
+          to: 'bustobattle@gmail.com',
+          subject: `🆕 Nuova Prenotazione Prove Pista - ${codice}`,
+          text: `Nuova prenotazione prove pista ricevuta!
+
+👤 ATLETA
+Nome: ${nome} ${cognome}
+Email: ${email || 'Non fornita'}
+Telefono: ${telefono || 'Non fornito'}
+
+📋 PRENOTAZIONE
+Codice: ${codice}
+Slot prenotati:
+${sessioni.map(s => `• ${s}`).join('\n')}
+${note ? `\nSpecialità: ${note}` : ''}
+
+💰 Totale: €${totale}
+💳 Metodo: ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}
+
+🔗 Gestisci da admin: https://bustobattle.onrender.com/admin.html`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+            <div style="background:#F7AF40;padding:20px;text-align:center">
+              <h1 style="color:#000;margin:0">🆕 Nuova Prenotazione Prove Pista</h1>
+            </div>
+            <div style="padding:20px;background:#1a1a1a;color:#fff">
+              <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+                <h3 style="color:#F7AF40;margin-top:0">👤 Atleta</h3>
+                <p><strong>Nome:</strong> ${nome} ${cognome}</p>
+                <p><strong>Email:</strong> ${email || 'Non fornita'}</p>
+                <p><strong>Telefono:</strong> ${telefono || 'Non fornito'}</p>
+              </div>
+              
+              <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+                <h3 style="color:#F7AF40;margin-top:0">📋 Prenotazione</h3>
+                <p><strong>Codice:</strong> ${codice}</p>
+                <p><strong>Slot prenotati:</strong></p>
+                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
+                ${note ? `<p><strong>Specialità:</strong> ${note}</p>` : ''}
+              </div>
+              
+              <div style="background:#222;padding:15px;border-radius:8px">
+                <p><strong>💰 Totale:</strong> €${totale}</p>
+                <p><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
+              </div>
+              
+              <p style="text-align:center;margin-top:20px">
+                <a href="https://bustobattle.onrender.com/admin.html" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Gestisci da Admin</a>
+              </p>
+            </div>
+          </div>`
+        });
+        console.log('Email notifica admin prove inviata');
+      } catch (emailErr) {
+        console.error('Errore invio email notifica admin prove:', emailErr);
+      }
+    }
+
     res.json({ codice, totale, sessioni });
   } catch (err) {
     console.error('Errore prenotazione prove:', err);
