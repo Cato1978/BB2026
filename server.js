@@ -1083,6 +1083,14 @@ app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, async (req, res) =
     const codice = 'BB11-' + String(id).padStart(4, '0');
     console.log('Bonifico confermato da admin:', { codice, id });
     
+    // Conferma automaticamente le prove pista collegate
+    const proveCodice = 'PRV-' + codice;
+    const proveCollegate = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [proveCodice]);
+    if (proveCollegate.length > 0) {
+      await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', proveCodice]);
+      console.log('Prove pista confermate automaticamente:', { proveCodice, count: proveCollegate.length });
+    }
+    
     // Invia email conferma
     if (iscritto.email) {
       sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
@@ -1485,6 +1493,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [+iscritto_id]);
       save();
       console.log(`Pagamento confermato per iscritto ${iscritto_id}`);
+      
+      // Conferma automaticamente le prove pista collegate
+      const codice = 'BB11-' + String(iscritto_id).padStart(4, '0');
+      const proveCodice = 'PRV-' + codice;
+      db.run('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', proveCodice]);
+      save();
+      console.log(`Prove pista confermate automaticamente: ${proveCodice}`);
     }
   }
 
