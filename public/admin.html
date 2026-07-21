@@ -74,6 +74,7 @@
           <th>Discipline</th>
           <th>Totale €</th>
           <th>Stato</th>
+          <th>Note Admin</th>
           <th>Azioni</th>
         </tr>
       </thead>
@@ -399,6 +400,10 @@
         azioniHtml += `<button onclick="modifica(${i.id})">✏️</button>`;
         azioniHtml += `<button onclick="elimina(${i.id})">🗑️</button>`;
         
+        // Tronca note admin se troppo lunghe
+        const noteAdmin = i.note_admin || '';
+        const noteAdminShort = noteAdmin.length > 30 ? noteAdmin.substring(0, 30) + '...' : noteAdmin;
+        
         return `<tr>
           <td><strong>${codice(i.id)}</strong></td>
           <td>${i.cognome}</td>
@@ -406,6 +411,7 @@
           <td style="max-width:200px;font-size:0.85rem">${i.categoria || ''}</td>
           <td>€${calcolaTotale(i)}</td>
           <td>${getStatoBadge(i)}</td>
+          <td style="max-width:150px;font-size:0.8rem;color:#888" title="${noteAdmin}">${noteAdminShort}</td>
           <td>${azioniHtml}</td>
         </tr>`;
       }).join('');
