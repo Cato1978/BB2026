@@ -542,6 +542,30 @@
           totale += data.totale;
         }
 
+        // Invia notifica admin con tutti gli atleti
+        try {
+          await fetch('/api/prove/notifica-admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              atleti: codici.map(c => ({
+                nome: c.nome,
+                cognome: c.cognome,
+                codice: c.codice,
+                sessioni: c.slots.map(s => s.ora),
+                note: c.slots.map(s => `${s.ora}: ${s.specialita}`).join(', '),
+                totale: c.totale
+              })),
+              email: email,
+              telefono: telefono,
+              paymentMethod: paymentMethod,
+              totaleComplessivo: totale
+            })
+          });
+        } catch (notifErr) {
+          console.error('Errore notifica admin:', notifErr);
+        }
+
         // Se pagamento online, vai a Stripe
         if (paymentMethod === 'online') {
           msg.textContent = getLang() === 'en' ? 'Redirecting to payment...' : 'Reindirizzamento al pagamento...';

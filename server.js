@@ -1942,53 +1942,75 @@ Il Team Busto Battle XI`,
       }
     }
 
-    // Invia notifica email a Busto Battle
+    res.json({ codice, totale, sessioni });
+  } catch (err) {
+    console.error('Errore prenotazione prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifica admin per prenotazioni prove pista (chiamato dopo tutte le prenotazioni)
+app.post('/api/prove/notifica-admin', async (req, res) => {
+  try {
+    const { atleti, email, telefono, paymentMethod, totaleComplessivo } = req.body;
+    
+    if (!atleti || !atleti.length) {
+      return res.status(400).json({ error: 'Nessun atleta da notificare' });
+    }
+    
     if (transporter) {
+      // Costruisci riepilogo atleti
+      const atletiText = atleti.map(a => 
+        `👤 ${a.nome} ${a.cognome} (${a.codice})\n   Slot: ${a.sessioni.join(', ')}\n   Specialità: ${a.note || 'Non specificata'}\n   Totale: €${a.totale}`
+      ).join('\n\n');
+      
+      const atletiHtml = atleti.map(a => `
+        <div style="background:#333;padding:10px;border-radius:6px;margin-bottom:10px">
+          <p style="margin:0"><strong>👤 ${a.nome} ${a.cognome}</strong> · <span style="color:#F7AF40">${a.codice}</span></p>
+          <p style="margin:5px 0 0;font-size:0.9em">Slot: ${a.sessioni.join(', ')}</p>
+          <p style="margin:5px 0 0;font-size:0.9em">Specialità: ${a.note || 'Non specificata'}</p>
+          <p style="margin:5px 0 0;color:#22c55e">€${a.totale}</p>
+        </div>
+      `).join('');
+      
       try {
         await transporter.sendMail({
           from: '"Busto Battle XI" <bustobattle@gmail.com>',
           to: 'bustobattle@gmail.com',
-          subject: `🆕 Nuova Prenotazione Prove Pista - ${codice}`,
+          subject: `🆕 Nuova Prenotazione Prove Pista - ${atleti.length} atleta/i - €${totaleComplessivo}`,
           text: `Nuova prenotazione prove pista ricevuta!
 
-👤 ATLETA
-Nome: ${nome} ${cognome}
+📧 CONTATTO
 Email: ${email || 'Non fornita'}
 Telefono: ${telefono || 'Non fornito'}
 
-📋 PRENOTAZIONE
-Codice: ${codice}
-Slot prenotati:
-${sessioni.map(s => `• ${s}`).join('\n')}
-${note ? `\nSpecialità: ${note}` : ''}
+👥 ATLETI (${atleti.length})
+${atletiText}
 
-💰 Totale: €${totale}
+💰 TOTALE COMPLESSIVO: €${totaleComplessivo}
 💳 Metodo: ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}
 
 🔗 Gestisci da admin: https://bustobattle.onrender.com/admin.html`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
             <div style="background:#F7AF40;padding:20px;text-align:center">
               <h1 style="color:#000;margin:0">🆕 Nuova Prenotazione Prove Pista</h1>
+              <p style="color:#000;margin:5px 0 0">${atleti.length} atleta/i · €${totaleComplessivo}</p>
             </div>
             <div style="padding:20px;background:#1a1a1a;color:#fff">
               <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
-                <h3 style="color:#F7AF40;margin-top:0">👤 Atleta</h3>
-                <p><strong>Nome:</strong> ${nome} ${cognome}</p>
+                <h3 style="color:#F7AF40;margin-top:0">📧 Contatto</h3>
                 <p><strong>Email:</strong> ${email || 'Non fornita'}</p>
                 <p><strong>Telefono:</strong> ${telefono || 'Non fornito'}</p>
               </div>
               
               <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Prenotazione</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
-                ${note ? `<p><strong>Specialità:</strong> ${note}</p>` : ''}
+                <h3 style="color:#F7AF40;margin-top:0">👥 Atleti (${atleti.length})</h3>
+                ${atletiHtml}
               </div>
               
               <div style="background:#222;padding:15px;border-radius:8px">
-                <p><strong>💰 Totale:</strong> €${totale}</p>
-                <p><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
+                <p style="font-size:1.2em;margin:0"><strong>💰 Totale complessivo:</strong> <span style="color:#22c55e">€${totaleComplessivo}</span></p>
+                <p style="margin:10px 0 0"><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
               </div>
               
               <p style="text-align:center;margin-top:20px">
@@ -1997,15 +2019,15 @@ ${note ? `\nSpecialità: ${note}` : ''}
             </div>
           </div>`
         });
-        console.log('Email notifica admin prove inviata');
+        console.log('Email notifica admin prove batch inviata:', atleti.length, 'atleti');
       } catch (emailErr) {
         console.error('Errore invio email notifica admin prove:', emailErr);
       }
     }
-
-    res.json({ codice, totale, sessioni });
+    
+    res.json({ ok: true });
   } catch (err) {
-    console.error('Errore prenotazione prove:', err);
+    console.error('Errore notifica admin prove:', err);
     res.status(500).json({ error: err.message });
   }
 });
