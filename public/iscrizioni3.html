@@ -733,7 +733,11 @@
       const dataNascita = document.getElementById('data_nascita').value;
       
       if (!nome || !cognome || !email) {
-        showError(getLang() === 'en' ? 'Fill in all required fields' : 'Compila tutti i campi obbligatori');
+        let mancanti = [];
+        if (!nome) mancanti.push('Nome');
+        if (!cognome) mancanti.push('Cognome');
+        if (!email) mancanti.push('Email');
+        showError((getLang() === 'en' ? 'Missing required fields: ' : 'Campi obbligatori mancanti: ') + mancanti.join(', '));
         return;
       }
 
