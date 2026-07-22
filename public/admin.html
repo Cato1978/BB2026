@@ -32,6 +32,7 @@
       <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn active">📋 Iscritti</button>
       <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button>
       <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">Prove Pista</button>
+      <button onclick="showTab('bilancio')" id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
       <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button>
       <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
       <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button>
@@ -178,6 +179,25 @@
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+
+  <div id="section-bilancio" style="display:none">
+    <h3>💰 Bilancio Incassi</h3>
+    <p style="color:#888;margin-bottom:1rem">Riepilogo incassi suddiviso per metodo di pagamento. I dati sono calcolati in base alle iscrizioni confermate/pagate.</p>
+    
+    <button onclick="caricaBilancio()" style="margin-bottom:1rem">🔄 Aggiorna Bilancio</button>
+    
+    <div id="bilancio-container" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;margin-bottom:2rem">
+      <!-- Cards bilancio -->
+    </div>
+    
+    <div id="bilancio-totale" style="background:#1a3a1a;border:2px solid #22c55e;padding:1.5rem;border-radius:8px;margin-bottom:2rem">
+      <h4 style="color:#22c55e;margin:0 0 0.5rem">📊 TOTALE GENERALE</h4>
+      <p style="font-size:2rem;color:#22c55e;margin:0" id="bilancio-totale-importo">€ 0</p>
+    </div>
+    
+    <h4 style="margin-top:2rem">📋 Dettaglio per Metodo di Pagamento</h4>
+    <div id="bilancio-dettaglio"></div>
   </div>
 
   <div id="section-risultati" style="display:none">
@@ -722,13 +742,14 @@
 
     // --- TABS ---
     function showTab(tab) {
-      ['iscritti','navetta','prove','risultati','notifiche','simula','pagine'].forEach(t => {
+      ['iscritti','navetta','prove','bilancio','risultati','notifiche','simula','pagine'].forEach(t => {
         document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
       });
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
       if (tab === 'navetta') caricaNavetta();
       if (tab === 'prove') caricaProve();
+      if (tab === 'bilancio') caricaBilancio();
       if (tab === 'risultati') caricaRisultati();
       if (tab === 'pagine') caricaPagine();
     }
@@ -848,6 +869,89 @@
       if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
       await fetch('/api/navetta/prenotazioni/' + codice, { method: 'DELETE' });
       caricaNavetta();
+    }
+
+    // --- PROVE PISTA ---
+    // --- BILANCIO ---
+    async function caricaBilancio() {
+      const container = document.getElementById('bilancio-container');
+      const dettaglio = document.getElementById('bilancio-dettaglio');
+      container.innerHTML = '<p style="color:#888">Caricamento...</p>';
+      
+      try {
+        const res = await fetch('/api/bilancio');
+        const data = await res.json();
+        
+        // Cards per metodo
+        container.innerHTML = `
+          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin:0 0 0.5rem">🏦 Bonifico</h4>
+            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.bonifico.totale.toLocaleString('it-IT')}</p>
+            <p style="color:#888;margin:0.5rem 0 0">${data.bonifico.count} iscrizioni</p>
+          </div>
+          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #a855f7">
+            <h4 style="color:#a855f7;margin:0 0 0.5rem">💳 Carta di Credito</h4>
+            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.carta.totale.toLocaleString('it-IT')}</p>
+            <p style="color:#888;margin:0.5rem 0 0">${data.carta.count} iscrizioni</p>
+          </div>
+          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #22c55e">
+            <h4 style="color:#22c55e;margin:0 0 0.5rem">💵 Contanti</h4>
+            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.contanti.totale.toLocaleString('it-IT')}</p>
+            <p style="color:#888;margin:0.5rem 0 0">${data.contanti.count} iscrizioni</p>
+          </div>
+        `;
+        
+        // Totale
+        const totaleGenerale = data.bonifico.totale + data.carta.totale + data.contanti.totale;
+        document.getElementById('bilancio-totale-importo').textContent = '€ ' + totaleGenerale.toLocaleString('it-IT');
+        
+        // Dettaglio tabelle
+        dettaglio.innerHTML = `
+          <div style="margin-top:1rem">
+            <h5 style="color:#3b82f6">🏦 Bonifico (${data.bonifico.count})</h5>
+            ${renderBilancioTable(data.bonifico.iscritti)}
+          </div>
+          <div style="margin-top:1.5rem">
+            <h5 style="color:#a855f7">💳 Carta di Credito (${data.carta.count})</h5>
+            ${renderBilancioTable(data.carta.iscritti)}
+          </div>
+          <div style="margin-top:1.5rem">
+            <h5 style="color:#22c55e">💵 Contanti (${data.contanti.count})</h5>
+            ${renderBilancioTable(data.contanti.iscritti)}
+          </div>
+        `;
+      } catch (err) {
+        container.innerHTML = '<p style="color:#ef4444">Errore caricamento bilancio</p>';
+        console.error(err);
+      }
+    }
+    
+    function renderBilancioTable(iscritti) {
+      if (!iscritti || iscritti.length === 0) {
+        return '<p style="color:#666;font-size:0.9rem">Nessuna iscrizione</p>';
+      }
+      return `
+        <table style="width:100%;margin-top:0.5rem;font-size:0.9rem">
+          <thead>
+            <tr style="text-align:left;color:#888">
+              <th>Codice</th>
+              <th>Nome</th>
+              <th>Discipline</th>
+              <th style="text-align:right">Importo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${iscritti.map(i => `
+              <tr>
+                <td style="color:#F7AF40">BB11-${String(i.id).padStart(4,'0')}</td>
+                <td>${i.cognome} ${i.nome}</td>
+                <td style="color:#888">${i.categoria || '-'}</td>
+                <td style="text-align:right;color:#22c55e">€${i.totale}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
 
     // --- PROVE PISTA ---

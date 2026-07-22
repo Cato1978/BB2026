@@ -588,6 +588,60 @@ app.get('/api/iscritti', async (req, res) => {
   }
 });
 
+// --- BILANCIO ---
+app.get('/api/bilancio', requireAdmin, async (req, res) => {
+  try {
+    // Prendi solo iscritti confermati/pagati
+    const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata' OR pagamento = 1");
+    
+    // Funzione per calcolare totale iscrizione
+    function calcolaTotale(i) {
+      const numDisc = i.categoria ? i.categoria.split(',').length : 0;
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
+      // Aggiungi felpa se presente nelle note
+      if (i.note && i.note.toLowerCase().includes('felpa:')) totale += 35;
+      return totale;
+    }
+    
+    // Categorizza per metodo pagamento
+    const bonifico = { iscritti: [], totale: 0, count: 0 };
+    const carta = { iscritti: [], totale: 0, count: 0 };
+    const contanti = { iscritti: [], totale: 0, count: 0 };
+    
+    for (const i of iscritti) {
+      const totale = calcolaTotale(i);
+      const record = { id: i.id, nome: i.nome, cognome: i.cognome, categoria: i.categoria, totale };
+      
+      // Determina metodo pagamento
+      const noteAdmin = (i.note_admin || '').toLowerCase();
+      const note = (i.note || '').toLowerCase();
+      
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        // Contanti (priorità se menzionato nelle note)
+        contanti.iscritti.push(record);
+        contanti.totale += totale;
+        contanti.count++;
+      } else if (i.ricevuta_bonifico || i.ricevuta_base64) {
+        // Bonifico (ha caricato ricevuta)
+        bonifico.iscritti.push(record);
+        bonifico.totale += totale;
+        bonifico.count++;
+      } else {
+        // Carta (confermato senza ricevuta = pagamento Stripe)
+        carta.iscritti.push(record);
+        carta.totale += totale;
+        carta.count++;
+      }
+    }
+    
+    res.json({ bonifico, carta, contanti });
+  } catch (err) {
+    console.error('Errore bilancio:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- EXPORT EXCEL ISCRITTI ---
 app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
   try {
