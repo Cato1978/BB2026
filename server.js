@@ -1403,6 +1403,239 @@ async function sendStatusEmail(to, data) {
   }
 }
 
+// Funzione per inviare email prove pista via Brevo API
+async function sendProveEmail(to, data) {
+  const { nome, cognome, codice, stato, sessioni, totale, giorno, motivo } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛼 Prove Pista / Track Practice</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  const sessioniList = sessioni ? sessioni.map(s => '<li>' + s + '</li>').join('') : '';
+  const sessioniText = sessioni ? sessioni.join(', ') : '';
+  const linkRicevuta = 'https://bb2026.onrender.com/carica-ricevuta-prove.html?codice=' + codice;
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = 'Busto Battle XI - Prova Pista in Attesa / Track Practice Pending - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🕐 Prenotazione in Attesa / Booking Pending</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata registrata!<br><em style="color:#888">Your track practice booking has been registered!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
+          
+          <p><strong>1. Effettua il bonifico / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta / Upload the receipt:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong>📍 Luogo / Venue:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'verifica') {
+    subject = 'Busto Battle XI - Prova Pista in Verifica / Under Review - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 In Verifica / Under Review</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per la tua prenotazione prove pista.<br><em style="color:#888">We have received the bank transfer receipt for your track practice booking.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#1e3a5f;border:1px solid #3b82f6;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#3b82f6">⏳ Verifica in corso / Verification in progress</strong><br>
+              <span style="color:#888;font-size:14px">Verificheremo il pagamento entro 2-3 giorni lavorativi.<br><em>We will verify the payment within 2-3 business days.</em></span>
+            </p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'confermata') {
+    subject = 'Busto Battle XI - Prova Pista Confermata / Track Practice Confirmed! - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ Prenotazione Confermata / Booking Confirmed!</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata <strong style="color:#22c55e">confermata</strong>!<br><em style="color:#888">Your track practice booking has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#22c55e"><strong>Totale pagato / Total paid: €${totale}</strong></p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:20px;color:#22c55e">🎉 Ci vediamo in pista! / See you on the track!</p>
+          </div>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong>📍 Luogo / Venue:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'rigettata') {
+    const motivoText = motivo || 'Non specificato / Not specified';
+    subject = 'Busto Battle XI - Ricevuta Prove Pista Rifiutata / Receipt Rejected - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Ricevuta Rifiutata / Receipt Rejected</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta caricata per la prenotazione prove pista <strong style="color:#ef4444">non è stata accettata</strong>.<br><em style="color:#888">The receipt you uploaded for your track practice booking <strong style="color:#ef4444">has not been accepted</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#3d1515;border:2px solid #ef4444;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444;font-weight:bold">📋 Motivo / Reason:</p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivoText}</p>
+          </div>
+          
+          <p>Per completare, carica una nuova ricevuta:<br><em style="color:#888">To complete, please upload a new receipt:</em></p>
+          
+          <p style="text-align:center;margin:25px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <h3 style="color:#F7AF40;margin-top:0">💳 Coordinate bancarie / Bank details</h3>
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'annullata') {
+    subject = 'Busto Battle XI - Prova Pista Annullata / Booking Cancelled - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Prenotazione Annullata / Booking Cancelled</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata <strong style="color:#ef4444">annullata</strong>.<br><em style="color:#888">Your track practice booking has been <strong style="color:#ef4444">cancelled</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Slot:</strong> ${sessioniText}</p>
+          </div>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Se ritieni sia un errore, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a><br><em>If you think this is a mistake, contact us at bustobattle@gmail.com</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  }
+  
+  if (!subject) return;
+  
+  // Usa Brevo API per inviare email
+  try {
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const bccEmail = 'bustobattle@gmail.com';
+    
+    if (brevoApiKey) {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+          to: [{ email: to }],
+          bcc: [{ email: bccEmail }],
+          subject: subject,
+          htmlContent: html
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Email prove pista inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
+      } else {
+        const errorData = await response.json();
+        console.error('Errore Brevo API (prove):', errorData);
+      }
+    } else {
+      console.log('Email prove non inviata (BREVO_API_KEY non configurata):', { to, stato, codice });
+    }
+  } catch (err) {
+    console.error('Errore invio email prove:', err);
+  }
+}
+
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
   const { to, stato, nome, cognome, motivo, categoria } = req.query;
@@ -1906,91 +2139,13 @@ app.post('/api/prove/prenota', async (req, res) => {
     }
 
     // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
-    if (email && transporter && paymentMethod !== 'online') {
-      const sessioniList = sessioniNormalizzate.map(s => `• ${s.giorno ? s.giorno + ' ' : ''}${s.ora}`).join('\n');
-      const linkRicevuta = `https://bustobattle.onrender.com/carica-ricevuta-prove.html?codice=${codice}`;
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: email,
-          subject: `Prenotazione Prove Pista in Attesa - ${codice}`,
-          text: `Ciao ${nome} ${cognome},
-
-La tua prenotazione prove pista è IN ATTESA DI CONFERMA.
-
-📋 RIEPILOGO PRENOTAZIONE
-Codice: ${codice}
-Slot prenotati:
-${sessioniList}
-${note ? `\nNote: ${note}` : ''}
-
-💰 TOTALE DA PAGARE: €${totale}
-
-💳 ISTRUZIONI PAGAMENTO
-IBAN: IT54Y0326822800052416865080
-Banca: Banca Sella
-Intestatario: Accademia Bustese Pattinaggio ASD
-Causale: Prove Pista - ${codice} - ${cognome}
-Importo: €${totale}
-
-📤 DOPO IL PAGAMENTO
-Carica la ricevuta del bonifico qui:
-${linkRicevuta}
-
-⚠️ La prenotazione sarà confermata dopo la verifica del pagamento.
-
-📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
-
-Per informazioni: bustobattle@gmail.com
-
-Ci vediamo in pista!
-Il Team Busto Battle XI`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#f59e0b">⏳ Prenotazione Prove Pista in Attesa</h2>
-              <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-              <p>La tua prenotazione prove pista è <strong style="color:#f59e0b">IN ATTESA DI CONFERMA</strong>.</p>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioniNormalizzate.map(s => `<li>${s.giorno ? s.giorno + ' ' : ''}${s.ora}</li>`).join('')}</ul>
-                ${note ? `<p><strong>Note:</strong> ${note}</p>` : ''}
-                <p style="font-size:1.2em;color:#F7AF40"><strong>Totale: €${totale}</strong></p>
-              </div>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">💳 Istruzioni Pagamento</h3>
-                <p><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
-                <p><strong>Banca:</strong> Banca Sella</p>
-                <p><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
-                <p><strong>Causale:</strong> Prove Pista - ${codice} - ${cognome}</p>
-                <p><strong>Importo:</strong> €${totale}</p>
-              </div>
-              
-              <div style="background:#1a4a1a;padding:15px;border-radius:8px;margin:20px 0;border:2px solid #22c55e">
-                <h3 style="color:#22c55e;margin-top:0">📤 Dopo il pagamento</h3>
-                <p>Carica la ricevuta del bonifico per confermare la prenotazione:</p>
-                <p style="text-align:center;margin-top:15px">
-                  <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block">📤 Carica Ricevuta</a>
-                </p>
-              </div>
-              
-              <p style="color:#f59e0b">⚠️ La prenotazione sarà confermata dopo la verifica del pagamento.</p>
-              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore invio email prove:', emailErr);
-      }
+    if (email && paymentMethod !== 'online') {
+      const sessioniForEmail = sessioniNormalizzate.map(s => (s.giorno ? s.giorno + ' ' : '') + s.ora);
+      await sendProveEmail(email, {
+        nome, cognome, codice, stato: 'sospesa',
+        sessioni: sessioniForEmail,
+        totale
+      });
     }
 
     res.json({ codice, totale, sessioni: sessioniNormalizzate });
@@ -2009,71 +2164,75 @@ app.post('/api/prove/notifica-admin', async (req, res) => {
       return res.status(400).json({ error: 'Nessun atleta da notificare' });
     }
     
-    if (transporter) {
-      // Costruisci riepilogo atleti
-      const atletiText = atleti.map(a => 
-        `👤 ${a.nome} ${a.cognome} (${a.codice})\n   Slot: ${a.sessioni.join(', ')}\n   Specialità: ${a.note || 'Non specificata'}\n   Totale: €${a.totale}`
-      ).join('\n\n');
+    // Invia email di notifica admin via Brevo API
+    try {
+      const brevoApiKey = process.env.BREVO_API_KEY;
       
-      const atletiHtml = atleti.map(a => `
-        <div style="background:#333;padding:10px;border-radius:6px;margin-bottom:10px">
-          <p style="margin:0"><strong>👤 ${a.nome} ${a.cognome}</strong> · <span style="color:#F7AF40">${a.codice}</span></p>
-          <p style="margin:5px 0 0;font-size:0.9em">Slot: ${a.sessioni.join(', ')}</p>
-          <p style="margin:5px 0 0;font-size:0.9em">Specialità: ${a.note || 'Non specificata'}</p>
-          <p style="margin:5px 0 0;color:#22c55e">€${a.totale}</p>
-        </div>
-      `).join('');
-      
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: 'bustobattle@gmail.com',
-          subject: `🆕 Nuova Prenotazione Prove Pista - ${atleti.length} atleta/i - €${totaleComplessivo}`,
-          text: `Nuova prenotazione prove pista ricevuta!
-
-📧 CONTATTO
-Email: ${email || 'Non fornita'}
-Telefono: ${telefono || 'Non fornito'}
-
-👥 ATLETI (${atleti.length})
-${atletiText}
-
-💰 TOTALE COMPLESSIVO: €${totaleComplessivo}
-💳 Metodo: ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}
-
-🔗 Gestisci da admin: https://bustobattle.onrender.com/admin.html`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">🆕 Nuova Prenotazione Prove Pista</h1>
-              <p style="color:#000;margin:5px 0 0">${atleti.length} atleta/i · €${totaleComplessivo}</p>
+      if (brevoApiKey) {
+        // Costruisci riepilogo atleti
+        const atletiHtml = atleti.map(a => `
+          <div style="background:#333;padding:10px;border-radius:6px;margin-bottom:10px">
+            <p style="margin:0"><strong>👤 ${a.nome} ${a.cognome}</strong> · <span style="color:#F7AF40">${a.codice}</span></p>
+            <p style="margin:5px 0 0;font-size:0.9em">Slot: ${a.sessioni.join(', ')}</p>
+            <p style="margin:5px 0 0;font-size:0.9em">Specialità: ${a.note || 'Non specificata'}</p>
+            <p style="margin:5px 0 0;color:#22c55e">€${a.totale}</p>
+          </div>
+        `).join('');
+        
+        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#F7AF40;padding:20px;text-align:center">
+            <h1 style="color:#000;margin:0">🆕 Nuova Prenotazione Prove Pista</h1>
+            <p style="color:#000;margin:5px 0 0">${atleti.length} atleta/i · €${totaleComplessivo}</p>
+          </div>
+          <div style="padding:20px;background:#1a1a1a;color:#fff">
+            <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+              <h3 style="color:#F7AF40;margin-top:0">📧 Contatto</h3>
+              <p><strong>Email:</strong> ${email || 'Non fornita'}</p>
+              <p><strong>Telefono:</strong> ${telefono || 'Non fornito'}</p>
             </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
-                <h3 style="color:#F7AF40;margin-top:0">📧 Contatto</h3>
-                <p><strong>Email:</strong> ${email || 'Non fornita'}</p>
-                <p><strong>Telefono:</strong> ${telefono || 'Non fornito'}</p>
-              </div>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
-                <h3 style="color:#F7AF40;margin-top:0">👥 Atleti (${atleti.length})</h3>
-                ${atletiHtml}
-              </div>
-              
-              <div style="background:#222;padding:15px;border-radius:8px">
-                <p style="font-size:1.2em;margin:0"><strong>💰 Totale complessivo:</strong> <span style="color:#22c55e">€${totaleComplessivo}</span></p>
-                <p style="margin:10px 0 0"><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
-              </div>
-              
-              <p style="text-align:center;margin-top:20px">
-                <a href="https://bustobattle.onrender.com/admin.html" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Gestisci da Admin</a>
-              </p>
+            
+            <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+              <h3 style="color:#F7AF40;margin-top:0">👥 Atleti (${atleti.length})</h3>
+              ${atletiHtml}
             </div>
-          </div>`
+            
+            <div style="background:#222;padding:15px;border-radius:8px">
+              <p style="font-size:1.2em;margin:0"><strong>💰 Totale complessivo:</strong> <span style="color:#22c55e">€${totaleComplessivo}</span></p>
+              <p style="margin:10px 0 0"><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
+            </div>
+            
+            <p style="text-align:center;margin-top:20px">
+              <a href="https://bb2026.onrender.com/admin.html" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Gestisci da Admin</a>
+            </p>
+          </div>
+        </div>`;
+        
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+            to: [{ email: 'bustobattle@gmail.com' }],
+            subject: '🆕 Nuova Prenotazione Prove Pista - ' + atleti.length + ' atleta/i - €' + totaleComplessivo,
+            htmlContent: html
+          })
         });
-        console.log('Email notifica admin prove batch inviata:', atleti.length, 'atleti');
-      } catch (emailErr) {
-        console.error('Errore invio email notifica admin prove:', emailErr);
+        
+        if (response.ok) {
+          console.log('Email notifica admin prove batch inviata via Brevo:', atleti.length, 'atleti');
+        } else {
+          const errorData = await response.json();
+          console.error('Errore Brevo API notifica admin:', errorData);
+        }
+      } else {
+        console.log('Email notifica admin non inviata (BREVO_API_KEY non configurata)');
       }
+    } catch (emailErr) {
+      console.error('Errore invio email notifica admin prove:', emailErr);
     }
     
     res.json({ ok: true });
@@ -2146,44 +2305,19 @@ app.post('/api/prove/conferma-pagamento', async (req, res) => {
     
     // Recupera dati per email
     const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
-    if (rows.length > 0 && rows[0].email && transporter) {
+    if (rows.length > 0 && rows[0].email) {
       const prenotazione = rows[0];
-      const sessioni = rows.map(r => r.ora);
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
       const totale = rows.length * 5; // €5 per slot
       
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: prenotazione.email,
-          subject: `Prova Pista Confermata - ${codice}`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#4CAF50">✅ Prova Pista Confermata!</h2>
-              <p>Ciao <strong>${prenotazione.nome} ${prenotazione.cognome}</strong>,</p>
-              <p>Il pagamento è stato ricevuto. La tua prenotazione prove pista è <strong style="color:#4CAF50">CONFERMATA</strong>.</p>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
-                <p style="font-size:1.2em;color:#4CAF50"><strong>Pagato: €${totale}</strong></p>
-              </div>
-              
-              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
-              <p>Ci vediamo in pista!</p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore email conferma prove:', emailErr);
-      }
+      await sendProveEmail(prenotazione.email, {
+        nome: prenotazione.nome,
+        cognome: prenotazione.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
     }
     
     res.json({ ok: true });
@@ -2258,61 +2392,18 @@ app.post('/api/prove/prenotazioni/:codice/conferma', async (req, res) => {
     await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
     
     // Invia email di conferma
-    if (first.email && transporter) {
-      const sessioni = rows.map(r => r.ora);
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
       const totale = sessioni.length * 5; // €5 per slot
       
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: first.email,
-          subject: `✅ Prova Pista Prenotata - ${codice}`,
-          text: `Ciao ${first.nome} ${first.cognome},
-
-La tua prenotazione prove pista è stata CONFERMATA!
-
-📋 RIEPILOGO
-Codice: ${codice}
-Slot prenotati:
-${sessioni.map(s => `• ${s}`).join('\n')}
-${first.note ? `\nNote: ${first.note}` : ''}
-
-💰 Totale pagato: €${totale}
-
-📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
-
-Per informazioni: bustobattle@gmail.com
-
-Ci vediamo in pista!
-Il Team Busto Battle XI`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#22c55e">✅ Prova Pista Prenotata!</h2>
-              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
-              <p>La tua prenotazione prove pista è stata <strong style="color:#22c55e">CONFERMATA</strong>!</p>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
-                ${first.note ? `<p><strong>Note:</strong> ${first.note}</p>` : ''}
-                <p style="font-size:1.2em;color:#22c55e"><strong>Totale pagato: €${totale}</strong></p>
-              </div>
-              
-              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore invio email conferma prove:', emailErr);
-      }
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
     }
     
     res.json({ ok: true, message: 'Prenotazione confermata' });
@@ -2337,50 +2428,16 @@ app.put('/api/prove/prenotazioni/:codice/annulla', async (req, res) => {
     await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [codice]);
     
     // Invia email di annullamento
-    if (first.email && transporter) {
-      const sessioni = rows.map(r => r.ora);
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
       
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: first.email,
-          subject: `❌ Prenotazione Prova Pista Annullata - ${codice}`,
-          text: `Ciao ${first.nome} ${first.cognome},
-
-La tua prenotazione prove pista è stata ANNULLATA.
-
-📋 Dettagli prenotazione annullata:
-Codice: ${codice}
-Slot: ${sessioni.join(', ')}
-
-Se ritieni sia un errore o hai domande, contattaci a bustobattle@gmail.com
-
-Il Team Busto Battle XI`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#ef4444">❌ Prenotazione Annullata</h2>
-              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
-              <p>La tua prenotazione prove pista è stata <strong style="color:#ef4444">ANNULLATA</strong>.</p>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Dettagli</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot:</strong> ${sessioni.join(', ')}</p>
-              </div>
-              
-              <p>Se ritieni sia un errore o hai domande, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a></p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore invio email annullamento prove:', emailErr);
-      }
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'annullata',
+        sessioni
+      });
     }
     
     res.json({ ok: true, message: 'Prenotazione annullata e slot liberati' });
@@ -2440,55 +2497,18 @@ app.post('/api/prove/prenotazioni/:codice/conferma-bonifico', requireAdmin, asyn
     await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
     
     // Invia email di conferma
-    if (first.email && transporter) {
-      const sessioni = rows.map(r => r.ora);
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
       const totale = sessioni.length * 5;
       
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: first.email,
-          subject: `✅ Pagamento Confermato - Prova Pista ${codice}`,
-          text: `Ciao ${first.nome} ${first.cognome},
-
-Il tuo pagamento per la prenotazione prove pista è stato CONFERMATO!
-
-📋 Dettagli prenotazione:
-Codice: ${codice}
-Slot prenotati: ${sessioni.join(', ')}
-Totale pagato: €${totale}
-
-📍 Luogo: PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)
-
-A presto!
-Il Team Busto Battle XI`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#22c55e">✅ Pagamento Confermato!</h2>
-              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
-              <p>Il tuo pagamento per la prenotazione prove pista è stato <strong style="color:#22c55e">CONFERMATO</strong>!</p>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Riepilogo</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot prenotati:</strong></p>
-                <ul>${sessioni.map(s => `<li>${s}</li>`).join('')}</ul>
-                <p style="font-size:1.2em;color:#22c55e"><strong>Totale pagato: €${totale}</strong></p>
-              </div>
-              
-              <p>📍 <strong>Luogo:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore invio email conferma bonifico prove:', emailErr);
-      }
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
     }
     
     res.json({ ok: true, message: 'Bonifico confermato' });
@@ -2513,75 +2533,14 @@ app.post('/api/prove/prenotazioni/:codice/rigetta', requireAdmin, async (req, re
     await dbRun('UPDATE prove_prenotazioni SET stato=?, ricevuta_bonifico=NULL WHERE codice=?', ['sospesa', codice]);
     
     // Invia email di rigetto
-    if (first.email && transporter) {
-      const sessioni = rows.map(r => r.ora);
-      const totale = sessioni.length * 5;
-      
-      try {
-        await transporter.sendMail({
-          from: '"Busto Battle XI" <bustobattle@gmail.com>',
-          to: first.email,
-          subject: `❌ Ricevuta Rifiutata - Prova Pista ${codice}`,
-          text: `Ciao ${first.nome} ${first.cognome},
-
-La ricevuta caricata per la prenotazione prove pista NON è stata accettata.
-
-📋 Motivo del rifiuto:
-${motivo || 'Non specificato'}
-
-📋 Dettagli prenotazione:
-Codice: ${codice}
-Slot prenotati: ${sessioni.join(', ')}
-Totale da pagare: €${totale}
-
-Per favore carica una nuova ricevuta corretta.
-
-💳 Coordinate bancarie:
-IBAN: IT54Y0326822800052416865080
-Banca: Banca Sella
-Intestatario: Accademia Bustese Pattinaggio ASD
-Causale: Prove pista ${codice}
-
-Il Team Busto Battle XI`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#F7AF40;padding:20px;text-align:center">
-              <h1 style="color:#000;margin:0">Busto Battle XI</h1>
-            </div>
-            <div style="padding:20px;background:#1a1a1a;color:#fff">
-              <h2 style="color:#ef4444">❌ Ricevuta Rifiutata</h2>
-              <p>Ciao <strong>${first.nome} ${first.cognome}</strong>,</p>
-              <p>La ricevuta caricata per la prenotazione prove pista <strong style="color:#ef4444">NON è stata accettata</strong>.</p>
-              
-              <div style="background:#331111;padding:15px;border-radius:8px;margin:20px 0;border:1px solid #ef4444">
-                <h3 style="color:#ef4444;margin-top:0">📋 Motivo del rifiuto:</h3>
-                <p>${motivo || 'Non specificato'}</p>
-              </div>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">📋 Dettagli prenotazione</h3>
-                <p><strong>Codice:</strong> ${codice}</p>
-                <p><strong>Slot:</strong> ${sessioni.join(', ')}</p>
-                <p><strong>Totale da pagare:</strong> €${totale}</p>
-              </div>
-              
-              <div style="background:#222;padding:15px;border-radius:8px;margin:20px 0">
-                <h3 style="color:#F7AF40;margin-top:0">💳 Coordinate bancarie</h3>
-                <p><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
-                <p><strong>Banca:</strong> Banca Sella</p>
-                <p><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
-                <p><strong>Causale:</strong> Prove pista ${codice}</p>
-              </div>
-              
-              <p>Per favore carica una nuova ricevuta corretta dalla pagina di verifica.</p>
-            </div>
-            <div style="background:#111;padding:15px;text-align:center;color:#888">
-              <p>Busto Battle XI - bustobattle@gmail.com</p>
-            </div>
-          </div>`
-        });
-      } catch (emailErr) {
-        console.error('Errore invio email rigetto prove:', emailErr);
-      }
+    if (first.email) {
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'rigettata',
+        motivo
+      });
     }
     
     res.json({ ok: true, message: 'Ricevuta rigettata, email inviata' });
@@ -2979,31 +2938,6 @@ app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Errore invio email: ' + err.message });
   }
 });
-
-async function sendConfirmationEmail(to, { nome, cognome, codice, categoria, totale }) {
-  await transporter.sendMail({
-    from: '"Busto Battle XI" <noreply@bustobattle.it>',
-    to,
-    subject: `Conferma iscrizione - ${codice}`,
-    html: `
-      <h2>🏆 Busto Battle XI - Conferma Iscrizione</h2>
-      <p>Ciao <strong>${nome} ${cognome}</strong>,</p>
-      <p>La tua iscrizione è stata registrata con successo!</p>
-      <ul>
-        <li><strong>Codice:</strong> ${codice}</li>
-        <li><strong>Discipline:</strong> ${categoria || 'N/D'}</li>
-        <li><strong>Totale:</strong> €${totale}</li>
-      </ul>
-      <p><strong>Pagamento via bonifico:</strong></p>
-      <ul>
-        <li><strong>IBAN:</strong> xxsdsdsd</li>
-        <li><strong>Causale:</strong> ${codice} - ${nome} - ${cognome}</li>
-      </ul>
-      <p>📅 13-14-15 Novembre 2025 | 📍 Busto Arsizio (VA)</p>
-      <p>A presto!<br>Lo staff Busto Battle</p>
-    `
-  });
-}
 
 async function sendContactEmail({ nome, email, oggetto, messaggio }) {
   // Usa Brevo API per inviare email
