@@ -311,6 +311,9 @@
         <div class="form-row">
           <textarea id="note" data-t="notePlaceholder" placeholder="Note aggiuntive (opzionale)"></textarea>
         </div>
+        <div id="pair-warning" style="display:none;margin-top:0.5rem;padding:0.8rem;background:#4a3000;border:1px solid #f59e0b;border-radius:6px">
+          <p style="margin:0;color:#f59e0b;font-weight:bold" data-t="pairWarning">⚠️ Indicare nelle note il nome del compagno di coppia</p>
+        </div>
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
           <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
@@ -643,6 +646,24 @@
         sel.value = calcolaCategoria(dataNascita);
       }
       updateTotale();
+      checkPairSlalom();
+    }
+    
+    // Controlla se Pair Slalom è selezionato
+    function checkPairSlalom() {
+      const pairChecked = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
+      const pairWarning = document.getElementById('pair-warning');
+      const noteField = document.getElementById('note');
+      
+      if (pairChecked) {
+        pairWarning.style.display = 'block';
+        noteField.required = true;
+        noteField.placeholder = T[currentLang].pairWarning || 'Indicare il compagno di coppia (obbligatorio)';
+      } else {
+        pairWarning.style.display = 'none';
+        noteField.required = false;
+        noteField.placeholder = T[currentLang].notePlaceholder || 'Note aggiuntive (opzionale)';
+      }
     }
 
     // Costanti commissioni (tariffa standard SEE)
