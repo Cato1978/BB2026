@@ -391,7 +391,49 @@
           <input type="text" name="navetta_dettagli" placeholder="Dettagli navetta">
         </div>
         <div class="form-row">
-          <p style="margin:0 0 0.3rem;color:#888;font-size:0.85rem">Dati iscrizione (non modificabili):</p>
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">👕 Taglia Maglia:</p>
+          <select name="taglia_maglia" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nessuna --</option>
+            <optgroup label="Uomo">
+              <option value="XS Uomo">XS Uomo</option>
+              <option value="S Uomo">S Uomo</option>
+              <option value="M Uomo">M Uomo</option>
+              <option value="L Uomo">L Uomo</option>
+              <option value="XL Uomo">XL Uomo</option>
+              <option value="XXL Uomo">XXL Uomo</option>
+            </optgroup>
+            <optgroup label="Donna">
+              <option value="XS Donna">XS Donna</option>
+              <option value="S Donna">S Donna</option>
+              <option value="M Donna">M Donna</option>
+              <option value="L Donna">L Donna</option>
+              <option value="XL Donna">XL Donna</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">🧥 Taglia Felpa (€35):</p>
+          <select name="taglia_felpa" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nessuna --</option>
+            <optgroup label="Uomo">
+              <option value="XS Uomo">XS Uomo</option>
+              <option value="S Uomo">S Uomo</option>
+              <option value="M Uomo">M Uomo</option>
+              <option value="L Uomo">L Uomo</option>
+              <option value="XL Uomo">XL Uomo</option>
+              <option value="XXL Uomo">XXL Uomo</option>
+            </optgroup>
+            <optgroup label="Donna">
+              <option value="XS Donna">XS Donna</option>
+              <option value="S Donna">S Donna</option>
+              <option value="M Donna">M Donna</option>
+              <option value="L Donna">L Donna</option>
+              <option value="XL Donna">XL Donna</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#888;font-size:0.85rem">Note iscrizione (altri dati):</p>
           <textarea name="note" placeholder="Note iscrizione" readonly style="background:#1a1a1a;color:#888;cursor:not-allowed"></textarea>
         </div>
         <div class="form-row">
@@ -609,6 +651,14 @@
       form.pagamento.checked = !!i.pagamento;
       form.note.value = i.note || '';
       form.note_admin.value = i.note_admin || '';
+      
+      // Estrai maglia e felpa dalle note
+      const note = i.note || '';
+      const magliaMatch = note.match(/Maglia:\s*([^|]+)/);
+      const felpaMatch = note.match(/Felpa:\s*([^|]+)/);
+      form.taglia_maglia.value = magliaMatch ? magliaMatch[1].trim() : '';
+      form.taglia_felpa.value = felpaMatch ? felpaMatch[1].trim() : '';
+      
       document.getElementById('modal').style.display = 'flex';
     }
 
@@ -620,6 +670,24 @@
       e.preventDefault();
       const form = e.target;
       const id = form.id_field;
+      
+      // Aggiorna note con nuovi valori di maglia e felpa
+      let noteOriginali = form.note.value || '';
+      const tagliaMaglia = form.taglia_maglia.value;
+      const tagliaFelpa = form.taglia_felpa.value;
+      
+      // Rimuovi vecchi valori di Maglia e Felpa dalle note
+      noteOriginali = noteOriginali.replace(/Maglia:\s*[^|]+\s*\|?\s*/g, '').replace(/Felpa:\s*[^|]+\s*\|?\s*/g, '').trim();
+      // Rimuovi eventuali | finali o iniziali
+      noteOriginali = noteOriginali.replace(/^\|\s*/, '').replace(/\s*\|$/, '').trim();
+      
+      // Ricostruisci le note
+      let noteParts = [];
+      if (noteOriginali) noteParts.push(noteOriginali);
+      if (tagliaMaglia) noteParts.push('Maglia: ' + tagliaMaglia);
+      if (tagliaFelpa) noteParts.push('Felpa: ' + tagliaFelpa);
+      const noteFinali = noteParts.join(' | ');
+      
       const data = {
         nome: form.nome.value,
         cognome: form.cognome.value,
@@ -632,7 +700,7 @@
         navetta: form.navetta.checked,
         navetta_dettagli: form.navetta_dettagli.value,
         pagamento: form.pagamento.checked,
-        note: form.note.value,
+        note: noteFinali,
         note_admin: form.note_admin.value
       };
       await fetch(`/api/iscritti/${id}`, {
