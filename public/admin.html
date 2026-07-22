@@ -250,12 +250,14 @@
       <div class="form-row">
         <textarea name="messaggio" placeholder="Messaggio (puoi usare {nome} e {cognome} per personalizzare)" required style="min-height:150px"></textarea>
       </div>
-      <div class="form-row" style="align-items:center">
+      <div class="form-row" style="align-items:center;gap:1rem">
         <label style="color:#888;display:flex;align-items:center;gap:0.5rem">
-          <input type="checkbox" name="soloConfermati" checked>
+          <input type="checkbox" name="soloConfermati" checked onchange="previewDestinatari()">
           Solo iscritti confermati
         </label>
+        <button type="button" onclick="previewDestinatari()" style="background:#333;padding:0.4rem 0.8rem;font-size:0.85rem">👁️ Anteprima destinatari</button>
       </div>
+      <div id="email-preview" style="margin:0.5rem 0;padding:0.8rem;background:#1a1a1a;border-radius:6px;display:none"></div>
       <button type="submit">📧 Invia Email a tutti</button>
     </form>
     <div id="email-result" style="margin-top:1rem"></div>
@@ -1375,6 +1377,32 @@
     });
 
     // --- EMAIL DI MASSA ---
+    async function previewDestinatari() {
+      const checkbox = document.querySelector('[name="soloConfermati"]');
+      const soloConfermati = checkbox.checked;
+      const previewDiv = document.getElementById('email-preview');
+      
+      previewDiv.style.display = 'block';
+      previewDiv.innerHTML = '<p style="color:#888">⏳ Caricamento...</p>';
+      
+      try {
+        const res = await fetch(`/api/email/preview?soloConfermati=${soloConfermati}`);
+        const data = await res.json();
+        
+        if (data.count === 0) {
+          previewDiv.innerHTML = '<p style="color:#ef4444">⚠️ Nessun destinatario trovato con i criteri selezionati</p>';
+        } else {
+          const emails = data.destinatari.map(d => `<span style="color:#888">${d.nome} ${d.cognome}</span> &lt;${d.email}&gt;`).join('<br>');
+          previewDiv.innerHTML = `
+            <p style="color:#22c55e;margin:0 0 0.5rem"><strong>✅ ${data.count} destinatari:</strong></p>
+            <div style="max-height:150px;overflow-y:auto;font-size:0.85rem;line-height:1.6">${emails}</div>
+          `;
+        }
+      } catch (err) {
+        previewDiv.innerHTML = '<p style="color:#ef4444">❌ Errore caricamento anteprima</p>';
+      }
+    }
+    
     document.getElementById('form-email-massa').addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(e.target);

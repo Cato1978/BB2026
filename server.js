@@ -2896,12 +2896,36 @@ const transporter = nodemailer.createTransport({
 });
 
 // --- EMAIL BROADCAST ---
+// Anteprima destinatari email broadcast
+app.get('/api/email/preview', requireAdmin, async (req, res) => {
+  try {
+    const soloConfermati = req.query.soloConfermati === 'true';
+    
+    let iscritti;
+    if (soloConfermati) {
+      iscritti = await dbAll("SELECT id, nome, cognome, email, stato, pagamento FROM iscritti WHERE email IS NOT NULL AND email != '' AND (stato = 'confermata' OR pagamento = 1)");
+    } else {
+      iscritti = await dbAll("SELECT id, nome, cognome, email, stato, pagamento FROM iscritti WHERE email IS NOT NULL AND email != ''");
+    }
+    
+    res.json({
+      count: iscritti ? iscritti.length : 0,
+      destinatari: iscritti || []
+    });
+  } catch (err) {
+    console.error('Errore preview email:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
   try {
     const { oggetto, messaggio, soloConfermati } = req.body;
     if (!oggetto || !messaggio) {
       return res.status(400).json({ error: 'Oggetto e messaggio richiesti' });
     }
+    
+    console.log('Email broadcast richiesta:', { oggetto, soloConfermati });
     
     // Recupera iscritti con email
     let iscritti;
@@ -2911,11 +2935,14 @@ app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
       iscritti = await dbAll("SELECT * FROM iscritti WHERE email IS NOT NULL AND email != ''");
     }
     
+    console.log('Iscritti trovati per broadcast:', iscritti ? iscritti.length : 0);
+    
     if (!iscritti || iscritti.length === 0) {
-      return res.json({ ok: true, sent: 0, errors: 0 });
+      return res.json({ ok: true, sent: 0, errors: 0, message: 'Nessun iscritto trovato con i criteri selezionati' });
     }
     
     console.log(`Invio email broadcast a ${iscritti.length} iscritti: "${oggetto}"`);
+    console.log('Destinatari:', iscritti.map(i => i.email).join(', '));
     
     const brevoApiKey = process.env.BREVO_API_KEY;
     if (!brevoApiKey) {
