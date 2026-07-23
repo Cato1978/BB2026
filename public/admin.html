@@ -221,6 +221,8 @@
           <th>Email</th>
           <th>Articoli</th>
           <th>Totale</th>
+          <th>Origine</th>
+          <th>Stato</th>
           <th>Data</th>
           <th>Azioni</th>
         </tr>
@@ -1614,15 +1616,19 @@
     }
     
     function renderMerchStats() {
-      const stats = { felpa: 0, cappellino: 0, asciugamano: 0, totale: 0 };
+      const stats = { felpa: 0, maglia: 0, cappellino: 0, asciugamano: 0, totale: 0, confermati: 0, inAttesa: 0 };
       
       for (const o of merchOrdini) {
+        if (o.stato === 'confermata') stats.confermati++;
+        else stats.inAttesa++;
+        
         for (const item of (o.items || [])) {
           const qty = item.quantita || 1;
-          const prezzo = item.prezzo_unitario || (item.articolo === 'Felpa' ? 35 : 5);
+          const prezzo = item.prezzo_unitario || (item.articolo === 'Felpa' ? 35 : (item.articolo === 'Maglia' ? 15 : 5));
           stats.totale += prezzo * qty;
           
           if (item.articolo === 'Felpa') stats.felpa += qty;
+          else if (item.articolo === 'Maglia') stats.maglia += qty;
           else if (item.articolo === 'Cappellino') stats.cappellino += qty;
           else if (item.articolo === 'Asciugamano') stats.asciugamano += qty;
         }
@@ -1630,19 +1636,31 @@
       
       document.getElementById('merch-stats').innerHTML = `
         <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">🧥 Felpe</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Felpe</p>
           <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.felpa}</p>
         </div>
         <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">🧢 Cappellini</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Maglie</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.maglia}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">Cappellini</p>
           <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.cappellino}</p>
         </div>
         <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">🏊 Asciugamani</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Asciugamani</p>
           <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.asciugamano}</p>
         </div>
         <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
-          <p style="color:#888;margin:0;font-size:0.85rem">💰 Totale</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Confermati</p>
+          <p style="font-size:1.5rem;color:#22c55e;margin:0">${stats.confermati}</p>
+        </div>
+        <div style="background:#3a2a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #f59e0b">
+          <p style="color:#888;margin:0;font-size:0.85rem">In Attesa</p>
+          <p style="font-size:1.5rem;color:#f59e0b;margin:0">${stats.inAttesa}</p>
+        </div>
+        <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
+          <p style="color:#888;margin:0;font-size:0.85rem">Totale €</p>
           <p style="font-size:1.5rem;color:#22c55e;margin:0">€${stats.totale}</p>
         </div>
       `;
@@ -1651,7 +1669,7 @@
     function renderMerch() {
       const tbody = document.querySelector('#tabella-merch tbody');
       if (!merchOrdini.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessun ordine</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888">Nessun ordine</td></tr>';
         return;
       }
       
@@ -1662,11 +1680,30 @@
         }).join(', ');
         
         const totale = (o.items || []).reduce((sum, i) => {
-          const prezzo = i.prezzo_unitario || (i.articolo === 'Felpa' ? 35 : 5);
+          const prezzo = i.prezzo_unitario || (i.articolo === 'Felpa' ? 35 : (i.articolo === 'Maglia' ? 15 : 5));
           return sum + prezzo * (i.quantita || 1);
         }, 0);
         
         const data = o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : '-';
+        
+        // Badge origine
+        const origineLabel = o.origine === 'iscrizione' ? '📝 Iscrizione' : '🛒 Pagina Merch';
+        const origineBg = o.origine === 'iscrizione' ? '#3b82f6' : '#8b5cf6';
+        
+        // Badge stato
+        let statoLabel, statoBg;
+        if (o.stato === 'confermata') {
+          statoLabel = '✅ Confermato';
+          statoBg = '#22c55e';
+        } else {
+          statoLabel = '⏳ In attesa';
+          statoBg = '#f59e0b';
+        }
+        
+        // Bottone conferma solo se sospesa
+        const btnConferma = o.stato !== 'confermata' 
+          ? `<button onclick="confermaMerch('${o.codice}')" style="background:#22c55e" title="Conferma">✅</button>` 
+          : '';
         
         return `
           <tr>
@@ -1675,13 +1712,26 @@
             <td>${o.email || '-'}</td>
             <td style="font-size:0.85rem">${itemsStr || '-'}</td>
             <td style="color:#22c55e">€${totale}</td>
+            <td><span style="background:${origineBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${origineLabel}</span></td>
+            <td><span style="background:${statoBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${statoLabel}</span></td>
             <td>${data}</td>
             <td>
+              ${btnConferma}
               <button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>
             </td>
           </tr>
         `;
       }).join('');
+    }
+    
+    async function confermaMerch(codice) {
+      if (!confirm('Confermare ordine ' + codice + '?')) return;
+      try {
+        await fetch('/api/merch/ordini/' + codice + '/conferma', { method: 'POST' });
+        caricaMerch();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
     }
     
     async function eliminaMerch(codice) {

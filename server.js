@@ -130,8 +130,15 @@ async function initDb() {
       telefono TEXT,
       codice TEXT,
       note TEXT,
+      stato TEXT DEFAULT 'sospesa',
+      origine TEXT DEFAULT 'standalone',
+      iscrizione_codice TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    // Migrazione: aggiungi colonne se non esistono
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_items (
       id SERIAL PRIMARY KEY,
       ordine_id INTEGER NOT NULL,
@@ -150,12 +157,16 @@ async function initDb() {
       codice TEXT,
       stato TEXT DEFAULT 'sospesa',
       note TEXT,
+      origine TEXT DEFAULT 'standalone',
+      iscrizione_codice TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
     // Migrazione: aggiungi colonne se non esistono
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
@@ -323,8 +334,15 @@ async function initDb() {
     telefono TEXT,
     codice TEXT,
     note TEXT,
+    stato TEXT DEFAULT 'sospesa',
+    origine TEXT DEFAULT 'standalone',
+    iscrizione_codice TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  // Migrazione: aggiungi colonne se non esistono
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS merch_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ordine_id INTEGER NOT NULL,
@@ -351,6 +369,8 @@ async function initDb() {
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     giorno TEXT NOT NULL,
@@ -1186,10 +1206,17 @@ app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, async (req, res) =
     
     // Conferma automaticamente le prove pista collegate
     const proveCodice = 'PRV-' + codice;
-    const proveCollegate = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [proveCodice]);
+    const proveCollegate = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=? OR iscrizione_codice=?', [proveCodice, codice]);
     if (proveCollegate.length > 0) {
-      await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', proveCodice]);
+      await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=? OR iscrizione_codice=?', ['confermata', proveCodice, codice]);
       console.log('Prove pista confermate automaticamente:', { proveCodice, count: proveCollegate.length });
+    }
+    
+    // Conferma automaticamente il merch collegato all'iscrizione
+    const merchCollegate = await dbAll('SELECT * FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+    if (merchCollegate.length > 0) {
+      await dbRun('UPDATE merch_ordini SET stato=? WHERE iscrizione_codice=?', ['confermata', codice]);
+      console.log('Merch confermato automaticamente:', { codice, count: merchCollegate.length });
     }
     
     // Invia email conferma
@@ -2028,18 +2055,22 @@ app.delete('/api/risultati/:id', (req, res) => {
 });
 
 // --- MERCHANDISING API ---
+const PREZZI_MERCH = { Felpa: 35, Maglia: 15, Cappellino: 5, Asciugamano: 5 };
+
 app.post('/api/merch/ordina', async (req, res) => {
   try {
-    const { nome, cognome, email, telefono, items, note } = req.body;
+    const { nome, cognome, email, telefono, items, note, origine, iscrizione_codice } = req.body;
     if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
     if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
 
     const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+    const tipoOrigine = origine || 'standalone';
+    const stato = tipoOrigine === 'iscrizione' ? 'sospesa' : 'sospesa'; // Inizialmente sempre sospesa
     
-    // Inserisci ordine
+    // Inserisci ordine con origine e stato
     const result = await dbRun(
-      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note) VALUES (?,?,?,?,?,?)',
-      [nome, cognome, email || null, telefono || null, codice, note || null]
+      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note, stato, origine, iscrizione_codice) VALUES (?,?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, codice, note || null, stato, tipoOrigine, iscrizione_codice || null]
     );
     
     // Recupera l'ID dell'ordine appena inserito
@@ -2048,14 +2079,14 @@ app.post('/api/merch/ordina', async (req, res) => {
 
     let totale = 0;
     for (const item of items) {
-      const prezzo = item.articolo === 'Felpa' ? 35 : 5;
+      const prezzo = PREZZI_MERCH[item.articolo] || 5;
       await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
         [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
       totale += prezzo * item.quantita;
     }
 
-    console.log('Nuovo ordine merch:', { codice, nome, cognome, totale, items });
-    res.json({ codice, totale });
+    console.log('Nuovo ordine merch:', { codice, nome, cognome, totale, items, origine: tipoOrigine });
+    res.json({ codice, totale, ordineId });
   } catch (err) {
     console.error('Errore ordine merch:', err);
     res.status(500).json({ error: err.message });
@@ -2144,6 +2175,89 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     await workbook.xlsx.write(res);
   } catch (err) {
     console.error('Errore export merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stripe Checkout per merch
+app.post('/api/merch/create-checkout', async (req, res) => {
+  try {
+    const { codice, totale } = req.body;
+    if (!codice || !totale) return res.status(400).json({ error: 'Codice e totale richiesti' });
+    
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    const ordine = ordineRows[0];
+    if (!ordine) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    // Commissioni: 1.65% + €0.25
+    const commissioni = Math.round(totale * 0.0165 * 100) / 100 + 0.25;
+    const totaleConCommissioni = Math.round((totale + commissioni) * 100); // In centesimi
+    
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Merchandising Busto Battle XI - ${codice}`,
+            description: `Ordine ${ordine.nome} ${ordine.cognome}`,
+          },
+          unit_amount: totaleConCommissioni,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${baseUrl}/merch.html?payment=success&codice=${codice}`,
+      cancel_url: `${baseUrl}/merch.html?payment=cancel&codice=${codice}`,
+      metadata: {
+        codice: codice,
+        tipo: 'merch'
+      },
+      customer_email: ordine.email || undefined,
+    });
+    
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe merch error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Conferma pagamento Stripe merch (chiamato dal frontend dopo redirect success)
+app.post('/api/merch/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Pagamento Stripe merch confermato:', codice);
+    
+    // Invia email conferma
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    const ordine = ordineRows[0];
+    if (ordine && ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      // Qui potresti inviare una email di conferma merch
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: conferma ordine merch
+app.post('/api/merch/ordini/:codice/conferma', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', req.params.codice]);
+    console.log('Ordine merch confermato da admin:', req.params.codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma merch:', err);
     res.status(500).json({ error: err.message });
   }
 });

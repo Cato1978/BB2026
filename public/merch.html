@@ -137,8 +137,20 @@
       <img src="LogoBB.jpeg" alt="Busto Battle Logo">
       <h1>BUSTO BATTLE XI</h1>
     </div>
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
     <nav>
-      <a href="index.html">Home</a>
+      <a href="index.html" data-t="home">HOME</a>
+      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
     </nav>
   </header>
 
@@ -259,7 +271,16 @@
     <div class="form-section">
       <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
-      <div style="background:#0a2a0a;border:1px solid #22c55e;padding:1rem;border-radius:6px;margin-bottom:1rem">
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <button id="btn-bonifico" onclick="inviaOrdine('bonifico')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#1a3a1a;color:#22c55e;border:2px solid #22c55e;border-radius:6px;cursor:pointer;font-weight:bold">
+          Paga con Bonifico
+        </button>
+        <button id="btn-online" onclick="inviaOrdine('online')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          Paga Online
+        </button>
+      </div>
+      
+      <div id="bonifico-info" style="display:none;margin-top:1rem;background:#0a2a0a;border:1px solid #22c55e;padding:1rem;border-radius:6px">
         <p style="margin:0;color:#22c55e;font-weight:bold" data-t="merchBonifico">Bonifico Bancario</p>
         <p style="margin:0.5rem 0 0;color:#ccc;font-size:0.9rem">
           IBAN: <strong>IT54Y0326822800052416865080</strong><br>
@@ -267,17 +288,19 @@
           Causale: Merch BB11 - [Nome Cognome]
         </p>
       </div>
-
-      <button id="btn-ordina" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1.1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchConferma">
-        Conferma Prenotazione
-      </button>
+      
+      <div id="commissioni-info" style="display:none;margin-top:1rem;padding:0.6rem;background:#1a1a1a;border-radius:4px;font-size:0.8rem">
+        <p style="margin:0;color:#f59e0b">Pagando online verranno applicate commissioni carta: <strong id="commissioni-importo">€0</strong></p>
+        <p style="margin:0.3rem 0 0;color:#888">Totale con commissioni: <strong id="totale-con-commissioni" style="color:#F7AF40">€0</strong></p>
+      </div>
     </div>
 
     <div id="conferma" style="display:none;background:#0a2a0a;border:2px solid #22c55e;padding:2rem;border-radius:8px;text-align:center;margin:2rem 0">
       <h3 style="color:#22c55e;margin:0 0 1rem" data-t="merchConfermata">Prenotazione Confermata!</h3>
       <p style="color:#ccc">Il tuo codice ordine è:</p>
       <p style="font-size:1.5rem;color:#F7AF40;font-weight:bold" id="codice-ordine"></p>
-      <p style="color:#888;font-size:0.9rem">Conserva questo codice per il ritiro. Ti abbiamo inviato una email di conferma.</p>
+      <p id="conferma-bonifico" style="color:#888;font-size:0.9rem">Conserva questo codice per il ritiro. Effettua il bonifico per completare l'ordine.</p>
+      <p id="conferma-online" style="display:none;color:#22c55e;font-size:0.9rem">Pagamento completato! Ti abbiamo inviato una email di conferma.</p>
     </div>
   </main>
 
@@ -299,6 +322,35 @@
       asciugamano: { qty: 0 },
       maglia: { qty: 0, taglia: null }
     };
+    
+    // Gestione payment success/cancel da URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get('payment');
+      const codice = params.get('codice');
+      
+      if (payment === 'success' && codice) {
+        // Conferma pagamento sul server
+        fetch('/api/merch/conferma-pagamento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codice })
+        }).then(() => {
+          document.getElementById('codice-ordine').textContent = codice;
+          document.getElementById('conferma').style.display = 'block';
+          document.getElementById('conferma-bonifico').style.display = 'none';
+          document.getElementById('conferma-online').style.display = 'block';
+          document.querySelector('.merch-grid').style.display = 'none';
+          document.querySelector('.totale-box').style.display = 'none';
+          document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
+        });
+        // Pulisci URL
+        window.history.replaceState({}, '', '/merch.html');
+      } else if (payment === 'cancel') {
+        showMsg('Pagamento annullato. Puoi riprovare o scegliere il bonifico.', true);
+        window.history.replaceState({}, '', '/merch.html');
+      }
+    });
 
     function changeQty(item, delta) {
       const newQty = Math.max(0, carrello[item].qty + delta);
@@ -336,6 +388,16 @@
       totale += carrello.asciugamano.qty * PREZZI.asciugamano;
       totale += carrello.maglia.qty * PREZZI.maglia;
       document.getElementById('totale').textContent = '€' + totale;
+      
+      // Mostra commissioni
+      if (totale > 0) {
+        const commissioni = Math.round(totale * 0.0165 * 100) / 100 + 0.25;
+        document.getElementById('commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+        document.getElementById('totale-con-commissioni').textContent = '€' + (totale + commissioni).toFixed(2);
+        document.getElementById('commissioni-info').style.display = 'block';
+      } else {
+        document.getElementById('commissioni-info').style.display = 'none';
+      }
     }
 
     function showMsg(text, isError) {
@@ -347,7 +409,7 @@
       msg.style.border = '1px solid ' + (isError ? '#ef4444' : '#22c55e');
     }
 
-    async function inviaOrdine() {
+    async function inviaOrdine(metodo) {
       const nome = document.getElementById('nome').value.trim();
       const cognome = document.getElementById('cognome').value.trim();
       const email = document.getElementById('email').value.trim();
@@ -392,8 +454,11 @@
         return;
       }
 
-      document.getElementById('btn-ordina').disabled = true;
-      document.getElementById('btn-ordina').textContent = 'Invio in corso...';
+      const btnBonifico = document.getElementById('btn-bonifico');
+      const btnOnline = document.getElementById('btn-online');
+      btnBonifico.disabled = true;
+      btnOnline.disabled = true;
+      (metodo === 'bonifico' ? btnBonifico : btnOnline).textContent = 'Invio in corso...';
 
       try {
         const res = await fetch('/api/merch/ordina', {
@@ -404,21 +469,49 @@
         const data = await res.json();
 
         if (data.codice) {
+          if (metodo === 'online') {
+            // Redirect a Stripe
+            const checkoutRes = await fetch('/api/merch/create-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ codice: data.codice, totale: data.totale })
+            });
+            const checkoutData = await checkoutRes.json();
+            if (checkoutData.url) {
+              window.location.href = checkoutData.url;
+              return;
+            } else {
+              showMsg('Errore pagamento: ' + (checkoutData.error || 'Sconosciuto'), true);
+              btnBonifico.disabled = false;
+              btnOnline.disabled = false;
+              btnOnline.textContent = 'Paga Online';
+              return;
+            }
+          }
+          
+          // Bonifico - mostra conferma
           document.getElementById('codice-ordine').textContent = data.codice;
           document.getElementById('conferma').style.display = 'block';
+          document.getElementById('conferma-bonifico').style.display = 'block';
+          document.getElementById('conferma-online').style.display = 'none';
+          document.getElementById('bonifico-info').style.display = 'block';
           document.querySelector('.merch-grid').style.display = 'none';
           document.querySelector('.totale-box').style.display = 'none';
           document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
           document.getElementById('msg').style.display = 'none';
         } else {
           showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
-          document.getElementById('btn-ordina').disabled = false;
-          document.getElementById('btn-ordina').textContent = '📦 Conferma Prenotazione';
+          btnBonifico.disabled = false;
+          btnOnline.disabled = false;
+          btnBonifico.textContent = 'Paga con Bonifico';
+          btnOnline.textContent = 'Paga Online';
         }
       } catch (err) {
         showMsg('Errore di rete: ' + err.message, true);
-        document.getElementById('btn-ordina').disabled = false;
-        document.getElementById('btn-ordina').textContent = '📦 Conferma Prenotazione';
+        btnBonifico.disabled = false;
+        btnOnline.disabled = false;
+        btnBonifico.textContent = 'Paga con Bonifico';
+        btnOnline.textContent = 'Paga Online';
       }
     }
   </script>
