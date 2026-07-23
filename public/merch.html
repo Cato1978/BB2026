@@ -12,9 +12,17 @@
   <style>
     .merch-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 1.5rem;
       margin: 2rem 0;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    @media (max-width: 600px) {
+      .merch-grid {
+        grid-template-columns: 1fr;
+      }
     }
     .merch-item {
       background: #111;
@@ -152,15 +160,22 @@
           <button class="qty-btn" onclick="changeQty('felpa', 1)">+</button>
         </div>
         <div id="sizes-felpa" style="display:none">
-          <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="merchTaglia">Taglia:</p>
-          <div class="size-select">
-            <button class="size-btn" onclick="selectSize('felpa', 'XS')">XS</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'S')">S</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'M')">M</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'L')">L</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'XL')">XL</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'XXL')">XXL</button>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieUomo">Uomo:</p>
+          <div class="size-select" style="margin-bottom:0.5rem">
+            <button class="size-btn" onclick="selectSize('felpa', 'XS Uomo')">XS</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'S Uomo')">S</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'M Uomo')">M</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'L Uomo')">L</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'XL Uomo')">XL</button>
           </div>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieDonna">Donna:</p>
+          <div class="size-select">
+            <button class="size-btn" onclick="selectSize('felpa', 'XS Donna')">XS</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'S Donna')">S</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'M Donna')">M</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'L Donna')">L</button>
+          </div>
+          <a href="https://www.eshirt.it/taglie" target="_blank" style="display:block;margin-top:0.8rem;color:#F7AF40;font-size:0.85rem" data-t="guidaTaglie">📏 Guida Taglie</a>
         </div>
       </div>
 
@@ -214,6 +229,7 @@
             <button class="size-btn" onclick="selectSize('maglia', 'M Donna')">M</button>
             <button class="size-btn" onclick="selectSize('maglia', 'L Donna')">L</button>
           </div>
+          <a href="https://www.eshirt.it/taglie" target="_blank" style="display:block;margin-top:0.8rem;color:#F7AF40;font-size:0.85rem" data-t="guidaTaglie">📏 Guida Taglie</a>
         </div>
       </div>
     </div>
