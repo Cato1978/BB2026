@@ -2090,6 +2090,64 @@ app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
   }
 });
 
+// Export Excel ordini merch
+app.get('/api/merch/export', requireAdmin, async (req, res) => {
+  try {
+    const ordini = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    const sheet = workbook.addWorksheet('Ordini Merch');
+    
+    sheet.columns = [
+      { header: 'Codice', key: 'codice', width: 15 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'Articoli', key: 'articoli', width: 40 },
+      { header: 'Totale €', key: 'totale', width: 10 },
+      { header: 'Note', key: 'note', width: 20 },
+      { header: 'Data', key: 'data', width: 12 }
+    ];
+    
+    // Header style
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    for (const o of ordini) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      const articoliStr = items.map(i => {
+        const taglia = i.taglia ? ` (${i.taglia})` : '';
+        return `${i.quantita}x ${i.articolo}${taglia}`;
+      }).join(', ');
+      
+      const totale = items.reduce((sum, i) => {
+        return sum + (i.prezzo_unitario || 5) * (i.quantita || 1);
+      }, 0);
+      
+      sheet.addRow({
+        codice: o.codice,
+        cognome: o.cognome,
+        nome: o.nome,
+        email: o.email || '',
+        telefono: o.telefono || '',
+        articoli: articoliStr,
+        totale: totale,
+        note: o.note || '',
+        data: o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : ''
+      });
+    }
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=ordini_merch.xlsx');
+    await workbook.xlsx.write(res);
+  } catch (err) {
+    console.error('Errore export merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- PROVE PISTA API ---
 app.get('/api/prove/slots', async (req, res) => {
   try {

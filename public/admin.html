@@ -34,6 +34,7 @@
       <!-- <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button> -->
       <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">Prove Pista</button>
       <button onclick="showTab('bilancio')" id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
+      <button onclick="showTab('merch')" id="tab-merch" class="tab-btn">🛍️ Merch</button>
       <!-- <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button> -->
       <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
       <!-- <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button> -->
@@ -199,6 +200,33 @@
     
     <h4 style="margin-top:2rem">📋 Dettaglio per Metodo di Pagamento</h4>
     <div id="bilancio-dettaglio"></div>
+  </div>
+
+  <div id="section-merch" style="display:none">
+    <h3>🛍️ Ordini Merchandising</h3>
+    <p style="color:#888;margin-bottom:1rem">Gestione ordini merchandising. <a href="/merch.html" target="_blank" style="color:#F7AF40">Apri pagina ordini →</a></p>
+    
+    <button onclick="caricaMerch()" style="margin-bottom:1rem">🔄 Aggiorna</button>
+    <button onclick="exportMerchExcel()" style="margin-bottom:1rem;background:#217346">📥 Esporta Excel</button>
+    
+    <div id="merch-stats" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:1rem;margin-bottom:1.5rem">
+      <!-- Stats cards -->
+    </div>
+    
+    <table id="tabella-merch">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Articoli</th>
+          <th>Totale</th>
+          <th>Data</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
   <div id="section-risultati" style="display:none">
@@ -781,7 +809,7 @@
 
     // --- TABS ---
     function showTab(tab) {
-      ['iscritti','navetta','prove','bilancio','risultati','notifiche','simula','pagine'].forEach(t => {
+      ['iscritti','navetta','prove','bilancio','merch','risultati','notifiche','simula','pagine'].forEach(t => {
         document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
       });
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -789,6 +817,7 @@
       if (tab === 'navetta') caricaNavetta();
       if (tab === 'prove') caricaProve();
       if (tab === 'bilancio') caricaBilancio();
+      if (tab === 'merch') caricaMerch();
       if (tab === 'risultati') caricaRisultati();
       if (tab === 'pagine') caricaPagine();
     }
@@ -1568,6 +1597,106 @@
     
     // Pagine valide (quelle che esistono realmente)
     const validPages = Object.keys(pageNames);
+
+    // --- MERCH ---
+    let merchOrdini = [];
+    
+    async function caricaMerch() {
+      try {
+        const res = await fetch('/api/merch/ordini');
+        if (!res.ok) throw new Error('Errore caricamento');
+        merchOrdini = await res.json();
+        renderMerchStats();
+        renderMerch();
+      } catch (err) {
+        console.error('Errore caricamento merch:', err);
+      }
+    }
+    
+    function renderMerchStats() {
+      const stats = { felpa: 0, cappellino: 0, asciugamano: 0, totale: 0 };
+      
+      for (const o of merchOrdini) {
+        for (const item of (o.items || [])) {
+          const qty = item.quantita || 1;
+          const prezzo = item.prezzo_unitario || (item.articolo === 'Felpa' ? 35 : 5);
+          stats.totale += prezzo * qty;
+          
+          if (item.articolo === 'Felpa') stats.felpa += qty;
+          else if (item.articolo === 'Cappellino') stats.cappellino += qty;
+          else if (item.articolo === 'Asciugamano') stats.asciugamano += qty;
+        }
+      }
+      
+      document.getElementById('merch-stats').innerHTML = `
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">🧥 Felpe</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.felpa}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">🧢 Cappellini</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.cappellino}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">🏊 Asciugamani</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.asciugamano}</p>
+        </div>
+        <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
+          <p style="color:#888;margin:0;font-size:0.85rem">💰 Totale</p>
+          <p style="font-size:1.5rem;color:#22c55e;margin:0">€${stats.totale}</p>
+        </div>
+      `;
+    }
+    
+    function renderMerch() {
+      const tbody = document.querySelector('#tabella-merch tbody');
+      if (!merchOrdini.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessun ordine</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = merchOrdini.map(o => {
+        const itemsStr = (o.items || []).map(i => {
+          const taglia = i.taglia ? ` (${i.taglia})` : '';
+          return `${i.quantita}x ${i.articolo}${taglia}`;
+        }).join(', ');
+        
+        const totale = (o.items || []).reduce((sum, i) => {
+          const prezzo = i.prezzo_unitario || (i.articolo === 'Felpa' ? 35 : 5);
+          return sum + prezzo * (i.quantita || 1);
+        }, 0);
+        
+        const data = o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : '-';
+        
+        return `
+          <tr>
+            <td style="color:#F7AF40">${o.codice}</td>
+            <td>${o.cognome} ${o.nome}</td>
+            <td>${o.email || '-'}</td>
+            <td style="font-size:0.85rem">${itemsStr || '-'}</td>
+            <td style="color:#22c55e">€${totale}</td>
+            <td>${data}</td>
+            <td>
+              <button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    async function eliminaMerch(codice) {
+      if (!confirm('Eliminare ordine ' + codice + '?')) return;
+      try {
+        await fetch('/api/merch/ordini/' + codice, { method: 'DELETE' });
+        caricaMerch();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    function exportMerchExcel() {
+      window.location.href = '/api/merch/export';
+    }
 
     async function caricaPagine() {
       const div = document.getElementById('pagine-list');

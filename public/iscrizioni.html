@@ -283,6 +283,14 @@
             </div>
           </div>
           <input type="hidden" id="taglia_felpa">
+          
+          <div class="felpa-option" style="margin-top:1rem">
+            <label><input type="checkbox" id="vuole_cappellino" onchange="updateTotale()"> 🧢 Cappellino Busto Battle (+€5)</label>
+          </div>
+          
+          <div class="felpa-option" style="margin-top:0.5rem">
+            <label><input type="checkbox" id="vuole_asciugamano" onchange="updateTotale()"> 🏊 Asciugamano Microfibra 30x45 (+€5)</label>
+          </div>
         </div>
 
         <div class="taglia-section">
@@ -673,6 +681,8 @@
     function updateTotale() {
       const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
       const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const vuoleCappellino = document.getElementById('vuole_cappellino').checked;
+      const vuoleAsciugamano = document.getElementById('vuole_asciugamano').checked;
       const oreProve = document.querySelectorAll('input[name="prove"]:checked').length;
       
       let totaleGare = 0;
@@ -680,8 +690,10 @@
         totaleGare = PREZZO_PRIMA + (checkedDiscipline - 1) * PREZZO_ALTRE;
       }
       const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleCappellino = vuoleCappellino ? 5 : 0;
+      const totaleAsciugamano = vuoleAsciugamano ? 5 : 0;
       const totaleProve = oreProve * PREZZO_PROVA_ORA;
-      const totale = totaleGare + totaleFelpa + totaleProve;
+      const totale = totaleGare + totaleFelpa + totaleCappellino + totaleAsciugamano + totaleProve;
 
       // Calcola commissioni
       const commissioni = Math.round((totale * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
@@ -701,6 +713,12 @@
         }
         if (vuoleFelpa) {
           dettaglio.push('Felpa: €' + PREZZO_FELPA);
+        }
+        if (vuoleCappellino) {
+          dettaglio.push('Cappellino: €5');
+        }
+        if (vuoleAsciugamano) {
+          dettaglio.push('Asciugamano: €5');
         }
         if (oreProve > 0) {
           dettaglio.push(`Prove: ${oreProve} slot × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
@@ -976,6 +994,12 @@
       noteFinali.push(`Maglia: ${tagliaMaglia}`);
       if (vuoleFelpa) {
         noteFinali.push(`Felpa: ${tagliaFelpa}`);
+      }
+      if (document.getElementById('vuole_cappellino').checked) {
+        noteFinali.push('Cappellino: Sì');
+      }
+      if (document.getElementById('vuole_asciugamano').checked) {
+        noteFinali.push('Asciugamano: Sì');
       }
       if (oreProve.length > 0) {
         noteFinali.push(`Prove: ${oreProveDettaglio.join(', ')}`);
