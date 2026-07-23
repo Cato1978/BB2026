@@ -187,6 +187,35 @@
           <button class="qty-btn" onclick="changeQty('asciugamano', 1)">+</button>
         </div>
       </div>
+
+      <!-- Maglia -->
+      <div class="merch-item" id="item-maglia">
+        <img src="Maglia.jpeg" alt="Maglia Busto Battle XI" style="width:100%;max-width:250px;border-radius:8px;margin-bottom:1rem">
+        <h3 data-t="merchMagliaTitle">Maglia Busto Battle XI</h3>
+        <p class="price">€15</p>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('maglia', -1)">−</button>
+          <span class="qty-value" id="qty-maglia">0</span>
+          <button class="qty-btn" onclick="changeQty('maglia', 1)">+</button>
+        </div>
+        <div id="sizes-maglia" style="display:none">
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieUomo">Uomo:</p>
+          <div class="size-select" style="margin-bottom:0.5rem">
+            <button class="size-btn" onclick="selectSize('maglia', 'XS Uomo')">XS</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'S Uomo')">S</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'M Uomo')">M</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'L Uomo')">L</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'XL Uomo')">XL</button>
+          </div>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieDonna">Donna:</p>
+          <div class="size-select">
+            <button class="size-btn" onclick="selectSize('maglia', 'XS Donna')">XS</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'S Donna')">S</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'M Donna')">M</button>
+            <button class="size-btn" onclick="selectSize('maglia', 'L Donna')">L</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="totale-box">
@@ -244,13 +273,15 @@
     const PREZZI = {
       felpa: 35,
       cappellino: 5,
-      asciugamano: 5
+      asciugamano: 5,
+      maglia: 15
     };
 
     const carrello = {
       felpa: { qty: 0, taglia: null },
       cappellino: { qty: 0 },
-      asciugamano: { qty: 0 }
+      asciugamano: { qty: 0 },
+      maglia: { qty: 0, taglia: null }
     };
 
     function changeQty(item, delta) {
@@ -258,10 +289,14 @@
       carrello[item].qty = newQty;
       document.getElementById('qty-' + item).textContent = newQty;
       
-      // Mostra/nascondi selezione taglia per felpa
+      // Mostra/nascondi selezione taglia per felpa e maglia
       if (item === 'felpa') {
         document.getElementById('sizes-felpa').style.display = newQty > 0 ? 'block' : 'none';
         if (newQty === 0) carrello.felpa.taglia = null;
+      }
+      if (item === 'maglia') {
+        document.getElementById('sizes-maglia').style.display = newQty > 0 ? 'block' : 'none';
+        if (newQty === 0) carrello.maglia.taglia = null;
       }
       
       // Aggiorna stile item
@@ -274,7 +309,7 @@
       carrello[item].taglia = size;
       // Aggiorna UI
       document.querySelectorAll('#sizes-' + item + ' .size-btn').forEach(btn => {
-        btn.classList.toggle('selected', btn.textContent === size);
+        btn.classList.toggle('selected', btn.dataset && btn.dataset.size === size || btn.textContent + ' Uomo' === size || btn.textContent + ' Donna' === size);
       });
     }
 
@@ -283,6 +318,7 @@
       totale += carrello.felpa.qty * PREZZI.felpa;
       totale += carrello.cappellino.qty * PREZZI.cappellino;
       totale += carrello.asciugamano.qty * PREZZI.asciugamano;
+      totale += carrello.maglia.qty * PREZZI.maglia;
       document.getElementById('totale').textContent = '€' + totale;
     }
 
@@ -320,6 +356,13 @@
           return;
         }
         items.push({ articolo: 'Felpa', taglia: carrello.felpa.taglia, quantita: carrello.felpa.qty });
+      }
+      if (carrello.maglia.qty > 0) {
+        if (!carrello.maglia.taglia) {
+          showMsg('Seleziona la taglia della maglia', true);
+          return;
+        }
+        items.push({ articolo: 'Maglia', taglia: carrello.maglia.taglia, quantita: carrello.maglia.qty });
       }
       if (carrello.cappellino.qty > 0) {
         items.push({ articolo: 'Cappellino', quantita: carrello.cappellino.qty });
