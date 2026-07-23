@@ -9,6 +9,24 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#F7AF40">
   <style>
+    /* Popup immagine */
+    .img-popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .img-popup.show { display: flex; }
+    .img-popup img { max-width: 90%; max-height: 90%; border-radius: 8px; }
+    .img-popup .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: #fff; cursor: pointer; }
+    .preview-link { color: #F7AF40; cursor: pointer; text-decoration: underline; }
+    .preview-link:hover { color: #ffcc66; }
     .discipline-row {
       display: flex;
       align-items: center;
