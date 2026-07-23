@@ -2028,45 +2028,66 @@ app.delete('/api/risultati/:id', (req, res) => {
 });
 
 // --- MERCHANDISING API ---
-app.post('/api/merch/ordina', (req, res) => {
-  const { nome, cognome, email, telefono, items, note } = req.body;
-  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
-  if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
+app.post('/api/merch/ordina', async (req, res) => {
+  try {
+    const { nome, cognome, email, telefono, items, note } = req.body;
+    if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+    if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
 
-  const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
-  db.run('INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note) VALUES (?,?,?,?,?,?)',
-    [nome, cognome, email || null, telefono || null, codice, note || null]);
-  save();
-  const ordineId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+    const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+    
+    // Inserisci ordine
+    const result = await dbRun(
+      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note) VALUES (?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, codice, note || null]
+    );
+    
+    // Recupera l'ID dell'ordine appena inserito
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [codice]);
+    const ordineId = ordineRows[0]?.id;
 
-  let totale = 0;
-  for (const item of items) {
-    const prezzo = item.articolo === 'Felpa' ? 35 : 5;
-    db.run('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
-      [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
-    totale += prezzo * item.quantita;
+    let totale = 0;
+    for (const item of items) {
+      const prezzo = item.articolo === 'Felpa' ? 35 : 5;
+      await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+        [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
+      totale += prezzo * item.quantita;
+    }
+
+    console.log('Nuovo ordine merch:', { codice, nome, cognome, totale, items });
+    res.json({ codice, totale });
+  } catch (err) {
+    console.error('Errore ordine merch:', err);
+    res.status(500).json({ error: err.message });
   }
-  save();
-
-  res.json({ codice, totale });
 });
 
-app.get('/api/merch/ordini', (req, res) => {
-  const ordini = all('SELECT * FROM merch_ordini ORDER BY created_at DESC');
-  for (const o of ordini) {
-    o.items = all('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+app.get('/api/merch/ordini', requireAdmin, async (req, res) => {
+  try {
+    const ordini = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    for (const o of ordini) {
+      o.items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+    }
+    res.json(ordini);
+  } catch (err) {
+    console.error('Errore lista ordini merch:', err);
+    res.status(500).json({ error: err.message });
   }
-  res.json(ordini);
 });
 
-app.delete('/api/merch/ordini/:codice', (req, res) => {
-  const ordine = all('SELECT id FROM merch_ordini WHERE codice=?', [req.params.codice])[0];
-  if (ordine) {
-    db.run('DELETE FROM merch_items WHERE ordine_id=?', [ordine.id]);
-    db.run('DELETE FROM merch_ordini WHERE codice=?', [req.params.codice]);
-    save();
+app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
+  try {
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    const ordine = ordineRows[0];
+    if (ordine) {
+      await dbRun('DELETE FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await dbRun('DELETE FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore eliminazione ordine merch:', err);
+    res.status(500).json({ error: err.message });
   }
-  res.json({ ok: true });
 });
 
 // --- PROVE PISTA API ---

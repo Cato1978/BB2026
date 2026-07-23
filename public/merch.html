@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merchandising - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .merch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .merch-item {
+      background: #111;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .merch-item.selected {
+      border-color: #F7AF40;
+    }
+    .merch-item h3 {
+      color: #F7AF40;
+      margin: 0 0 0.5rem;
+    }
+    .merch-item .price {
+      font-size: 1.5rem;
+      color: #22c55e;
+      margin: 0.5rem 0;
+    }
+    .merch-item .desc {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    .qty-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .qty-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #F7AF40;
+      background: transparent;
+      color: #F7AF40;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .qty-btn:hover {
+      background: #F7AF40;
+      color: #000;
+    }
+    .qty-value {
+      font-size: 1.5rem;
+      min-width: 40px;
+    }
+    .size-select {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .size-btn {
+      padding: 0.4rem 0.8rem;
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .size-btn:hover {
+      border-color: #F7AF40;
+    }
+    .size-btn.selected {
+      background: #F7AF40;
+      color: #000;
+      border-color: #F7AF40;
+    }
+    .totale-box {
+      background: #1a3a1a;
+      border: 2px solid #22c55e;
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      margin: 2rem 0;
+    }
+    .totale-box .amount {
+      font-size: 2rem;
+      color: #22c55e;
+    }
+    .form-section {
+      background: #111;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+    }
+    .form-section h3 {
+      color: #F7AF40;
+      margin: 0 0 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-title">
+      <img src="LogoBB.jpeg" alt="Busto Battle Logo">
+      <h1>BUSTO BATTLE XI</h1>
+    </div>
+    <nav>
+      <a href="index.html">Home</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2 style="color:#F7AF40;text-align:center">🛍️ Merchandising Ufficiale</h2>
+    <p style="text-align:center;color:#888">Prenota il merchandising ufficiale Busto Battle XI</p>
+
+    <div id="msg" style="display:none;padding:1rem;border-radius:6px;margin:1rem 0;text-align:center"></div>
+
+    <div class="merch-grid">
+      <!-- Felpa -->
+      <div class="merch-item" id="item-felpa">
+        <h3>🧥 Felpa Busto Battle XI</h3>
+        <p class="price">€35</p>
+        <p class="desc">Felpa ufficiale con logo Busto Battle XI</p>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('felpa', -1)">−</button>
+          <span class="qty-value" id="qty-felpa">0</span>
+          <button class="qty-btn" onclick="changeQty('felpa', 1)">+</button>
+        </div>
+        <div id="sizes-felpa" style="display:none">
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem">Taglia:</p>
+          <div class="size-select">
+            <button class="size-btn" onclick="selectSize('felpa', 'XS')">XS</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'S')">S</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'M')">M</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'L')">L</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'XL')">XL</button>
+            <button class="size-btn" onclick="selectSize('felpa', 'XXL')">XXL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cappellino -->
+      <div class="merch-item" id="item-cappellino">
+        <h3>🧢 Cappellino Busto Battle</h3>
+        <p class="price">€5</p>
+        <p class="desc">Cappellino con logo ricamato</p>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('cappellino', -1)">−</button>
+          <span class="qty-value" id="qty-cappellino">0</span>
+          <button class="qty-btn" onclick="changeQty('cappellino', 1)">+</button>
+        </div>
+      </div>
+
+      <!-- Asciugamano -->
+      <div class="merch-item" id="item-asciugamano">
+        <h3>🏊 Asciugamano Microfibra</h3>
+        <p class="price">€5</p>
+        <p class="desc">Asciugamano 30x45cm in microfibra con logo</p>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('asciugamano', -1)">−</button>
+          <span class="qty-value" id="qty-asciugamano">0</span>
+          <button class="qty-btn" onclick="changeQty('asciugamano', 1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="totale-box">
+      <p style="margin:0 0 0.5rem;color:#888">Totale Ordine</p>
+      <p class="amount" id="totale">€0</p>
+    </div>
+
+    <div class="form-section">
+      <h3>📋 Dati per il Ritiro</h3>
+      <p style="color:#888;font-size:0.9rem;margin-bottom:1rem">Il merchandising sarà disponibile per il ritiro durante l'evento.</p>
+      
+      <div class="form-row">
+        <input type="text" id="nome" placeholder="Nome *" required>
+        <input type="text" id="cognome" placeholder="Cognome *" required>
+      </div>
+      <div class="form-row">
+        <input type="email" id="email" placeholder="Email *" required>
+        <input type="tel" id="telefono" placeholder="Telefono">
+      </div>
+      <div class="form-row">
+        <textarea id="note" placeholder="Note aggiuntive (opzionale)" rows="2" style="width:100%"></textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>💳 Metodo di Pagamento</h3>
+      
+      <div style="background:#0a2a0a;border:1px solid #22c55e;padding:1rem;border-radius:6px;margin-bottom:1rem">
+        <p style="margin:0;color:#22c55e;font-weight:bold">🏦 Bonifico Bancario</p>
+        <p style="margin:0.5rem 0 0;color:#ccc;font-size:0.9rem">
+          IBAN: <strong>IT54Y0326822800052416865080</strong><br>
+          Intestato a: Accademia Bustese Pattinaggio ASD<br>
+          Causale: Merch BB11 - [Nome Cognome]
+        </p>
+      </div>
+
+      <button id="btn-ordina" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1.1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+        📦 Conferma Prenotazione
+      </button>
+    </div>
+
+    <div id="conferma" style="display:none;background:#0a2a0a;border:2px solid #22c55e;padding:2rem;border-radius:8px;text-align:center;margin:2rem 0">
+      <h3 style="color:#22c55e;margin:0 0 1rem">✅ Prenotazione Confermata!</h3>
+      <p style="color:#ccc">Il tuo codice ordine è:</p>
+      <p style="font-size:1.5rem;color:#F7AF40;font-weight:bold" id="codice-ordine"></p>
+      <p style="color:#888;font-size:0.9rem">Conserva questo codice per il ritiro. Ti abbiamo inviato una email di conferma.</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 Busto Battle XI - Accademia Bustese Pattinaggio ASD</p>
+  </footer>
+
+  <script>
+    const PREZZI = {
+      felpa: 35,
+      cappellino: 5,
+      asciugamano: 5
+    };
+
+    const carrello = {
+      felpa: { qty: 0, taglia: null },
+      cappellino: { qty: 0 },
+      asciugamano: { qty: 0 }
+    };
+
+    function changeQty(item, delta) {
+      const newQty = Math.max(0, carrello[item].qty + delta);
+      carrello[item].qty = newQty;
+      document.getElementById('qty-' + item).textContent = newQty;
+      
+      // Mostra/nascondi selezione taglia per felpa
+      if (item === 'felpa') {
+        document.getElementById('sizes-felpa').style.display = newQty > 0 ? 'block' : 'none';
+        if (newQty === 0) carrello.felpa.taglia = null;
+      }
+      
+      // Aggiorna stile item
+      document.getElementById('item-' + item).classList.toggle('selected', newQty > 0);
+      
+      updateTotale();
+    }
+
+    function selectSize(item, size) {
+      carrello[item].taglia = size;
+      // Aggiorna UI
+      document.querySelectorAll('#sizes-' + item + ' .size-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.textContent === size);
+      });
+    }
+
+    function updateTotale() {
+      let totale = 0;
+      totale += carrello.felpa.qty * PREZZI.felpa;
+      totale += carrello.cappellino.qty * PREZZI.cappellino;
+      totale += carrello.asciugamano.qty * PREZZI.asciugamano;
+      document.getElementById('totale').textContent = '€' + totale;
+    }
+
+    function showMsg(text, isError) {
+      const msg = document.getElementById('msg');
+      msg.textContent = text;
+      msg.style.display = 'block';
+      msg.style.background = isError ? '#3a1a1a' : '#1a3a1a';
+      msg.style.color = isError ? '#ef4444' : '#22c55e';
+      msg.style.border = '1px solid ' + (isError ? '#ef4444' : '#22c55e');
+    }
+
+    async function inviaOrdine() {
+      const nome = document.getElementById('nome').value.trim();
+      const cognome = document.getElementById('cognome').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const telefono = document.getElementById('telefono').value.trim();
+      const note = document.getElementById('note').value.trim();
+
+      // Validazione
+      if (!nome || !cognome) {
+        showMsg('Inserisci nome e cognome', true);
+        return;
+      }
+      if (!email || !email.includes('@')) {
+        showMsg('Inserisci una email valida', true);
+        return;
+      }
+
+      // Costruisci items
+      const items = [];
+      if (carrello.felpa.qty > 0) {
+        if (!carrello.felpa.taglia) {
+          showMsg('Seleziona la taglia della felpa', true);
+          return;
+        }
+        items.push({ articolo: 'Felpa', taglia: carrello.felpa.taglia, quantita: carrello.felpa.qty });
+      }
+      if (carrello.cappellino.qty > 0) {
+        items.push({ articolo: 'Cappellino', quantita: carrello.cappellino.qty });
+      }
+      if (carrello.asciugamano.qty > 0) {
+        items.push({ articolo: 'Asciugamano', quantita: carrello.asciugamano.qty });
+      }
+
+      if (items.length === 0) {
+        showMsg('Seleziona almeno un articolo', true);
+        return;
+      }
+
+      document.getElementById('btn-ordina').disabled = true;
+      document.getElementById('btn-ordina').textContent = 'Invio in corso...';
+
+      try {
+        const res = await fetch('/api/merch/ordina', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cognome, email, telefono, items, note })
+        });
+        const data = await res.json();
+
+        if (data.codice) {
+          document.getElementById('codice-ordine').textContent = data.codice;
+          document.getElementById('conferma').style.display = 'block';
+          document.querySelector('.merch-grid').style.display = 'none';
+          document.querySelector('.totale-box').style.display = 'none';
+          document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
+          document.getElementById('msg').style.display = 'none';
+        } else {
+          showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
+          document.getElementById('btn-ordina').disabled = false;
+          document.getElementById('btn-ordina').textContent = '📦 Conferma Prenotazione';
+        }
+      } catch (err) {
+        showMsg('Errore di rete: ' + err.message, true);
+        document.getElementById('btn-ordina').disabled = false;
+        document.getElementById('btn-ordina').textContent = '📦 Conferma Prenotazione';
+      }
+    }
+  </script>
+</body>
+</html>
