@@ -579,7 +579,7 @@
               <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
             </label>
             <select id="spec-${slotId}" onchange="updateTotale()" disabled style="padding:0.3rem;background:#111;color:#f0f0f0;border:1px solid #444;border-radius:4px;font-size:0.85rem">
-              <option value="">-- Specialità --</option>
+              <option value="">-- Disciplina --</option>
               ${SPECIALITA_PROVE.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>`;
@@ -927,7 +927,7 @@
         const specSelect = document.getElementById(`spec-${slotId}`);
         const specialita = specSelect ? specSelect.value : '';
         if (!specialita) {
-          showError(getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la specialità per lo slot ${ora}`);
+          showError(getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la disciplina per lo slot ${ora}`);
           document.getElementById('btn-bonifico').disabled = false;
           return;
         }

@@ -267,7 +267,7 @@
               <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
             </label>
             <select id="spec-${slotId}" onchange="updateSpecialita(${atletaId}, '${slot.ora}', '${giorno}', this)" disabled>
-              <option value="">-- Specialità --</option>
+              <option value="">-- Disciplina --</option>
               ${SPECIALITA.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>`;
@@ -291,10 +291,10 @@
         if (!a.cognome) mancanti.push(getLang() === 'en' ? 'Surname' : 'Cognome');
         if (a.slots.length === 0) mancanti.push(getLang() === 'en' ? 'at least one slot' : 'almeno uno slot');
         
-        // Verifica specialità per ogni slot
+        // Verifica disciplina per ogni slot
         const slotsSenzaSpec = a.slots.filter(s => !s.specialita);
         if (slotsSenzaSpec.length > 0) {
-          mancanti.push(getLang() === 'en' ? 'discipline for all slots' : 'specialità per tutti gli slot');
+          mancanti.push(getLang() === 'en' ? 'discipline for all slots' : 'disciplina per tutti gli slot');
         }
         
         if (mancanti.length > 0) {
@@ -341,7 +341,7 @@
             <input type="text" id="nome-${id}" placeholder="Nome *" oninput="updateAtletaNome(${id})">
             <input type="text" id="cognome-${id}" placeholder="Cognome *" oninput="updateAtletaNome(${id})">
           </div>
-          <h4 style="color:#888;margin:1rem 0 0.5rem;font-size:0.9rem">Seleziona slot e specialità:</h4>
+          <h4 style="color:#888;margin:1rem 0 0.5rem;font-size:0.9rem">Seleziona slot e disciplina:</h4>
           <div id="slots-${id}">${renderSlotsPerAtleta(id)}</div>
         </div>
       `;
@@ -501,10 +501,10 @@
           msg.style.color = '#f44336';
           return;
         }
-        // Verifica specialità
+        // Verifica disciplina
         for (const s of a.slots) {
           if (!s.specialita) {
-            msg.textContent = getLang() === 'en' ? `Select discipline for all slots of ${a.nome} ${a.cognome}` : `Seleziona la specialità per tutti gli slot di ${a.nome} ${a.cognome}`;
+            msg.textContent = getLang() === 'en' ? `Select discipline for all slots of ${a.nome} ${a.cognome}` : `Seleziona la disciplina per tutti gli slot di ${a.nome} ${a.cognome}`;
             msg.style.color = '#f44336';
             return;
           }

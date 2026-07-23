@@ -70,7 +70,7 @@ const T = {
     iscrizioneDesc: "Compila il modulo ufficiale per iscriverti alla Busto Battle XI.",
     nome: "Nome",
     cognome: "Cognome",
-    selectSpec: "Seleziona specialità",
+    selectSpec: "Seleziona disciplina",
     societa: "Società sportiva",
     email: "Email",
     telefono: "Telefono",

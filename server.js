@@ -2253,7 +2253,7 @@ app.post('/api/prove/notifica-admin', async (req, res) => {
           <div style="background:#333;padding:10px;border-radius:6px;margin-bottom:10px">
             <p style="margin:0"><strong>👤 ${a.nome} ${a.cognome}</strong> · <span style="color:#F7AF40">${a.codice}</span></p>
             <p style="margin:5px 0 0;font-size:0.9em">Slot: ${a.sessioni.join(', ')}</p>
-            <p style="margin:5px 0 0;font-size:0.9em">Specialità: ${a.note || 'Non specificata'}</p>
+            <p style="margin:5px 0 0;font-size:0.9em">Disciplina: ${a.note || 'Non specificata'}</p>
             <p style="margin:5px 0 0;color:#22c55e">€${a.totale}</p>
           </div>
         `).join('');
@@ -2656,7 +2656,7 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       { header: 'Telefono', key: 'telefono', width: 15 },
       { header: 'Giorno', key: 'giorno', width: 12 },
       { header: 'Orario', key: 'ora', width: 12 },
-      { header: 'Specialità', key: 'specialita', width: 20 },
+      { header: 'Disciplina', key: 'specialita', width: 20 },
       { header: 'Stato', key: 'stato', width: 12 },
       { header: 'Note', key: 'note', width: 30 },
       { header: 'Data Prenotazione', key: 'created_at', width: 18 }

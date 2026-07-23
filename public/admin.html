@@ -1135,7 +1135,7 @@
         }
         
         // Sempre: modifica giorno + annulla/elimina
-        azioniHtml += `<button onclick="modificaProva('${cod}')" title="Modifica giorno/specialità" style="background:#3b82f6">✏️</button>`;
+        azioniHtml += `<button onclick="modificaProva('${cod}')" title="Modifica giorno/disciplina" style="background:#3b82f6">✏️</button>`;
         azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
         
         html += `<tr>
@@ -1235,13 +1235,13 @@
       
       if (!nuovoGiorno) return;
       
-      // Chiedi le specialità per ogni slot
+      // Chiedi le discipline per ogni slot
       const slots = [];
       for (const s of sessioni) {
         const noteAttuali = s.note || '';
         const specAttuale = noteAttuali.split(': ')[1]?.split(',')[0] || '';
         const nuovaSpec = prompt(
-          `Specialità per slot ${s.ora}:\n(Classic Slalom, Speed Slalom, Slides, Free Jump)`,
+          `Disciplina per slot ${s.ora}:\n(Classic Slalom, Speed Slalom, Slides, Free Jump)`,
           specAttuale
         );
         if (nuovaSpec) {
