@@ -225,11 +225,7 @@
           </div>
           <div class="discipline-row">
             <label><input type="checkbox" name="cat" value="Pair Slalom" onchange="updateDisciplina(this)"> Pair Slalom ⭐⭐</label>
-            <select class="cat-select" data-for="Pair Slalom" disabled onchange="updateTotale()">
-              <option value="U15">U15</option>
-              <option value="U19">U19</option>
-              <option value="SENIOR">SENIOR</option>
-            </select>
+            <span class="cat-select" data-for="Pair Slalom" style="color:#888;font-size:0.85rem;padding:0.4rem">(Categoria Unica)</span>
           </div>
           <div class="discipline-row">
             <label><input type="checkbox" name="cat" value="Free Jump" onchange="updateDisciplina(this)"> Free Jump ⭐⭐</label>
@@ -265,7 +261,7 @@
           <input type="hidden" id="taglia_maglia" required>
 
           <div class="felpa-option">
-            <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span data-t="aggiungiFelpa">Aggiungi Felpa Ufficiale (+€30)</span></label>
+            <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span data-t="aggiungiFelpa">Aggiungi Felpa Ufficiale (+€35)</span></label>
             <div id="felpa-taglia" style="display:none;margin-top:0.8rem">
               <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</p>
               <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
@@ -625,10 +621,13 @@
     // Toggle disciplina
     function updateDisciplina(cb) {
       const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
-      sel.disabled = !cb.checked;
-      if (cb.checked) {
-        const dataNascita = document.getElementById('data_nascita').value;
-        sel.value = calcolaCategoria(dataNascita);
+      // Pair Slalom non ha select (categoria unica)
+      if (sel && sel.tagName === 'SELECT') {
+        sel.disabled = !cb.checked;
+        if (cb.checked) {
+          const dataNascita = document.getElementById('data_nascita').value;
+          sel.value = calcolaCategoria(dataNascita);
+        }
       }
       updateTotale();
       checkPairSlalom();
@@ -912,7 +911,9 @@
       const disciplineConCategoria = [];
       checkedBoxes.forEach(cb => {
         const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
-        disciplineConCategoria.push(`${cb.value} (${sel.value})`);
+        // Per Pair Slalom è uno span (categoria unica), per gli altri è un select
+        const catValue = sel.tagName === 'SELECT' ? sel.value : 'UNICA';
+        disciplineConCategoria.push(`${cb.value} (${catValue})`);
       });
 
       // Ore prove con specialità

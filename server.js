@@ -1203,6 +1203,31 @@ app.post('/api/iscritti/:id/rigetta-bonifico', requireAdmin, async (req, res) =>
   }
 });
 
+// Admin: unifica tutte le iscrizioni Pair Slalom a categoria UNICA
+app.post('/api/admin/unifica-pair-slalom', requireAdmin, async (req, res) => {
+  try {
+    // Trova tutte le iscrizioni con Pair Slalom che non hanno già UNICA
+    const iscritti = await dbAll('SELECT id, categoria FROM iscritti WHERE categoria LIKE ?', ['%Pair Slalom%']);
+    
+    let modificati = 0;
+    for (const iscritto of iscritti) {
+      // Sostituisci "Pair Slalom (U15)" o "Pair Slalom (U19)" o "Pair Slalom (SENIOR)" con "Pair Slalom (UNICA)"
+      const nuovaCategoria = iscritto.categoria.replace(/Pair Slalom \((U15|U19|SENIOR)\)/gi, 'Pair Slalom (UNICA)');
+      
+      if (nuovaCategoria !== iscritto.categoria) {
+        await dbRun('UPDATE iscritti SET categoria=? WHERE id=?', [nuovaCategoria, iscritto.id]);
+        modificati++;
+        console.log(`Pair Slalom unificato per iscritto #${iscritto.id}: "${iscritto.categoria}" -> "${nuovaCategoria}"`);
+      }
+    }
+    
+    res.json({ ok: true, modificati, totale: iscritti.length });
+  } catch (err) {
+    console.error('Errore unifica pair slalom:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Funzione per inviare email di stato
 async function sendStatusEmail(to, data) {
   const { nome, cognome, codice, stato, categoria } = data;
@@ -1983,7 +2008,7 @@ app.post('/api/merch/ordina', (req, res) => {
 
   let totale = 0;
   for (const item of items) {
-    const prezzo = item.articolo === 'Felpa' ? 30 : 5;
+    const prezzo = item.articolo === 'Felpa' ? 35 : 5;
     db.run('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
       [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
     totale += prezzo * item.quantita;

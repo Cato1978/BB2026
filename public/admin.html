@@ -44,7 +44,8 @@
       <span id="totale">Totale: 0</span>
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
-      <button onclick="exportExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
+      <button onclick="unificaPairSlalom()" style="margin-left:auto;background:#9b59b6;color:white;border:none;padding:0.5rem 1rem;cursor:pointer;border-radius:4px" title="Cambia tutte le iscrizioni Pair Slalom da U15/U19/SENIOR a Categoria Unica">🔄 Unifica Pair Slalom</button>
+      <button onclick="exportExcel()" style="background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -505,6 +506,26 @@
       window.location.href = '/api/iscritti/export';
     }
 
+    async function unificaPairSlalom() {
+      if (!confirm('Vuoi unificare tutte le iscrizioni Pair Slalom a "Categoria Unica"?\n\nQuesta operazione cambierà le categorie U15/U19/SENIOR in UNICA per tutti gli iscritti al Pair Slalom.')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/admin/unifica-pair-slalom', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.ok) {
+          alert(`Unificazione completata!\n\nIscrizioni Pair Slalom modificate: ${data.modificati}\nTotale iscrizioni Pair Slalom: ${data.totale}`);
+          carica(); // Ricarica la tabella
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
+    }
+
     let iscritti = [];
 
     async function carica() {
@@ -598,7 +619,7 @@
       if (numDisc === 0) return 0;
       let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
       // Aggiungi felpa se presente nelle note
-      if (i.note && i.note.includes('Felpa:')) totale += 30;
+      if (i.note && i.note.includes('Felpa:')) totale += 35;
       return totale;
     }
 
