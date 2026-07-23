@@ -7,6 +7,7 @@
   <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="/manifest.json">
+  <script src="translations.js"></script>
   <meta name="theme-color" content="#F7AF40">
   <style>
     .merch-grid {
@@ -47,18 +48,28 @@
       margin: 1rem 0;
     }
     .qty-btn {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      border: 2px solid #F7AF40;
-      background: transparent;
-      color: #F7AF40;
-      font-size: 1.2rem;
+      border: none;
+      background: linear-gradient(145deg, #F7AF40, #e09a30);
+      color: #000;
+      font-size: 1.4rem;
+      font-weight: bold;
       cursor: pointer;
+      box-shadow: 0 3px 8px rgba(247, 175, 64, 0.3);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .qty-btn:hover {
-      background: #F7AF40;
-      color: #000;
+      background: linear-gradient(145deg, #ffbf50, #F7AF40);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(247, 175, 64, 0.5);
+    }
+    .qty-btn:active {
+      transform: scale(0.95);
     }
     .qty-value {
       font-size: 1.5rem;
@@ -124,8 +135,8 @@
   </header>
 
   <main>
-    <h2 style="color:#F7AF40;text-align:center">🛍️ Merchandising Ufficiale</h2>
-    <p style="text-align:center;color:#888">Prenota il merchandising ufficiale Busto Battle XI</p>
+    <h2 style="color:#F7AF40;text-align:center" data-t="merchPageTitle">Merchandising Ufficiale</h2>
+    <p style="text-align:center;color:#888" data-t="merchPageDesc">Prenota il merchandising ufficiale Busto Battle XI</p>
 
     <div id="msg" style="display:none;padding:1rem;border-radius:6px;margin:1rem 0;text-align:center"></div>
 
@@ -133,16 +144,15 @@
       <!-- Felpa -->
       <div class="merch-item" id="item-felpa">
         <img src="Felpa.png" alt="Felpa Busto Battle XI" style="width:100%;max-width:250px;border-radius:8px;margin-bottom:1rem">
-        <h3>🧥 Felpa Busto Battle XI</h3>
+        <h3 data-t="merchFelpaTitle">Felpa Busto Battle XI</h3>
         <p class="price">€35</p>
-        <p class="desc">Felpa ufficiale con logo Busto Battle XI</p>
         <div class="qty-controls">
           <button class="qty-btn" onclick="changeQty('felpa', -1)">−</button>
           <span class="qty-value" id="qty-felpa">0</span>
           <button class="qty-btn" onclick="changeQty('felpa', 1)">+</button>
         </div>
         <div id="sizes-felpa" style="display:none">
-          <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem">Taglia:</p>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="merchTaglia">Taglia:</p>
           <div class="size-select">
             <button class="size-btn" onclick="selectSize('felpa', 'XS')">XS</button>
             <button class="size-btn" onclick="selectSize('felpa', 'S')">S</button>
@@ -157,9 +167,8 @@
       <!-- Cappellino -->
       <div class="merch-item" id="item-cappellino">
         <img src="Cappellino.jpeg" alt="Cappellino Busto Battle" style="width:100%;max-width:200px;border-radius:8px;margin-bottom:1rem">
-        <h3>🧢 Cappellino Busto Battle</h3>
+        <h3 data-t="merchCappellinoTitle">Cappellino Busto Battle</h3>
         <p class="price">€5</p>
-        <p class="desc">Cappellino con logo ricamato</p>
         <div class="qty-controls">
           <button class="qty-btn" onclick="changeQty('cappellino', -1)">−</button>
           <span class="qty-value" id="qty-cappellino">0</span>
@@ -170,9 +179,8 @@
       <!-- Asciugamano -->
       <div class="merch-item" id="item-asciugamano">
         <img src="ASciugamano.jpeg" alt="Asciugamano Busto Battle" style="width:100%;max-width:120px;border-radius:8px;margin-bottom:1rem">
-        <h3>🏊 Asciugamano Microfibra</h3>
+        <h3 data-t="merchAsciugamanoTitle">Asciugamano Microfibra</h3>
         <p class="price">€5</p>
-        <p class="desc">Asciugamano 30x45cm in microfibra con logo</p>
         <div class="qty-controls">
           <button class="qty-btn" onclick="changeQty('asciugamano', -1)">−</button>
           <span class="qty-value" id="qty-asciugamano">0</span>
@@ -187,8 +195,8 @@
     </div>
 
     <div class="form-section">
-      <h3>📋 Dati per il Ritiro</h3>
-      <p style="color:#888;font-size:0.9rem;margin-bottom:1rem">Il merchandising sarà disponibile per il ritiro durante l'evento.</p>
+      <h3 data-t="merchDatiRitiro">Dati per il Ritiro</h3>
+      <p style="color:#888;font-size:0.9rem;margin-bottom:1rem" data-t="merchRitiroDesc">Il merchandising sarà disponibile per il ritiro durante l'evento.</p>
       
       <div class="form-row">
         <input type="text" id="nome" placeholder="Nome *" required>
@@ -204,10 +212,10 @@
     </div>
 
     <div class="form-section">
-      <h3>💳 Metodo di Pagamento</h3>
+      <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
       <div style="background:#0a2a0a;border:1px solid #22c55e;padding:1rem;border-radius:6px;margin-bottom:1rem">
-        <p style="margin:0;color:#22c55e;font-weight:bold">🏦 Bonifico Bancario</p>
+        <p style="margin:0;color:#22c55e;font-weight:bold" data-t="merchBonifico">Bonifico Bancario</p>
         <p style="margin:0.5rem 0 0;color:#ccc;font-size:0.9rem">
           IBAN: <strong>IT54Y0326822800052416865080</strong><br>
           Intestato a: Accademia Bustese Pattinaggio ASD<br>
@@ -215,13 +223,13 @@
         </p>
       </div>
 
-      <button id="btn-ordina" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1.1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
-        📦 Conferma Prenotazione
+      <button id="btn-ordina" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1.1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchConferma">
+        Conferma Prenotazione
       </button>
     </div>
 
     <div id="conferma" style="display:none;background:#0a2a0a;border:2px solid #22c55e;padding:2rem;border-radius:8px;text-align:center;margin:2rem 0">
-      <h3 style="color:#22c55e;margin:0 0 1rem">✅ Prenotazione Confermata!</h3>
+      <h3 style="color:#22c55e;margin:0 0 1rem" data-t="merchConfermata">Prenotazione Confermata!</h3>
       <p style="color:#ccc">Il tuo codice ordine è:</p>
       <p style="font-size:1.5rem;color:#F7AF40;font-weight:bold" id="codice-ordine"></p>
       <p style="color:#888;font-size:0.9rem">Conserva questo codice per il ritiro. Ti abbiamo inviato una email di conferma.</p>
