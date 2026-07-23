@@ -919,6 +919,10 @@
       
       try {
         const res = await fetch('/api/bilancio');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Errore server ' + res.status);
+        }
         const data = await res.json();
         
         // Cards per metodo
@@ -960,8 +964,8 @@
           </div>
         `;
       } catch (err) {
-        container.innerHTML = '<p style="color:#ef4444">Errore caricamento bilancio</p>';
-        console.error(err);
+        container.innerHTML = '<p style="color:#ef4444">Errore caricamento bilancio: ' + err.message + '</p>';
+        console.error('Errore bilancio:', err);
       }
     }
     
