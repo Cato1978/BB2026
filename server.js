@@ -1612,7 +1612,7 @@ async function sendProveEmail(to, data) {
     <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
       <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
       <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
-      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛼 Prove Pista / Track Practice</p>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">Prove Pista / Track Practice</p>
     </div>
   `;
   

@@ -272,10 +272,10 @@
       <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
       <div style="display:flex;gap:1rem;flex-wrap:wrap">
-        <button id="btn-bonifico" onclick="inviaOrdine('bonifico')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#1a3a1a;color:#22c55e;border:2px solid #22c55e;border-radius:6px;cursor:pointer;font-weight:bold">
+        <button id="btn-bonifico" onclick="inviaOrdine('bonifico')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#1a3a1a;color:#22c55e;border:2px solid #22c55e;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchPagaBonifico">
           Paga con Bonifico
         </button>
-        <button id="btn-online" onclick="inviaOrdine('online')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+        <button id="btn-online" onclick="inviaOrdine('online')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchPagaOnline">
           Paga Online
         </button>
       </div>
@@ -503,15 +503,15 @@
           showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
           btnBonifico.disabled = false;
           btnOnline.disabled = false;
-          btnBonifico.textContent = 'Paga con Bonifico';
-          btnOnline.textContent = 'Paga Online';
+          btnBonifico.textContent = T[getLang()].merchPagaBonifico;
+          btnOnline.textContent = T[getLang()].merchPagaOnline;
         }
       } catch (err) {
         showMsg('Errore di rete: ' + err.message, true);
         btnBonifico.disabled = false;
         btnOnline.disabled = false;
-        btnBonifico.textContent = 'Paga con Bonifico';
-        btnOnline.textContent = 'Paga Online';
+        btnBonifico.textContent = T[getLang()].merchPagaBonifico;
+        btnOnline.textContent = T[getLang()].merchPagaOnline;
       }
     }
   </script>
