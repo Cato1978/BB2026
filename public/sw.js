@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bustobattle-v1';
+const CACHE_NAME = 'bustobattle-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -23,9 +23,12 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch - network first, fallback to cache (only GET requests)
+// Fetch - network first, fallback to cache (only GET requests, exclude API)
 self.addEventListener('fetch', e => {
+  // Skip non-GET and API requests
   if (e.request.method !== 'GET') return;
+  if (e.request.url.includes('/api/')) return;
+  
   e.respondWith(
     fetch(e.request).then(res => {
       const clone = res.clone();
