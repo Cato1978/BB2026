@@ -1775,6 +1775,146 @@ async function sendProveEmail(to, data) {
   }
 }
 
+// Funzione per inviare email merchandising via Brevo API
+async function sendMerchEmail(to, data) {
+  const { nome, cognome, codice, stato, items, totale, motivo } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛍️ Merchandising</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  // Lista articoli
+  const itemsList = items ? items.map(i => {
+    const taglia = i.taglia ? ` (${i.taglia})` : '';
+    return `<li>${i.quantita}x ${i.articolo}${taglia} - €${(i.prezzo_unitario || 5) * i.quantita}</li>`;
+  }).join('') : '';
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ordine in Attesa / Order Pending - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🛍️ ORDINE MERCHANDISING IN ATTESA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Pending</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è stato registrato!<br><em style="color:#888">Your merchandising order has been registered!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
+          
+          <p><strong>Effettua il bonifico / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Merch BB11 - ${codice} - ${cognome}</p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:1px solid #22c55e;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#22c55e">📦 Ritiro / Pickup:</strong><br>
+              <span style="color:#888">Il merchandising sarà disponibile per il ritiro durante l'evento.<br><em>Merchandise will be available for pickup during the event.</em></span>
+            </p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'confermata') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ordine Confermato / Order Confirmed! - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ ORDINE MERCHANDISING CONFERMATO!</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Confirmed!</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è stato <strong style="color:#22c55e">confermato</strong>!<br><em style="color:#888">Your merchandising order has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#22c55e"><strong>Totale pagato / Total paid: €${totale}</strong></p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:18px;color:#22c55e">📦 Ritira il tuo merchandising durante l'evento!</p>
+            <p style="margin:10px 0 0;color:#888">Pick up your merchandise during the event!</p>
+            <p style="margin:15px 0 0;color:#f0f0f0"><strong>📍 PalaCastiglioni</strong> - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  }
+  
+  try {
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const bccEmail = 'bustobattle@gmail.com';
+    
+    if (brevoApiKey && html) {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Busto Battle XI - Merchandising', email: 'bustobattle@gmail.com' },
+          to: [{ email: to }],
+          bcc: [{ email: bccEmail }],
+          subject: subject,
+          htmlContent: html
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Email merch inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
+      } else {
+        const errorData = await response.json();
+        console.error('Errore Brevo API (merch):', errorData);
+      }
+    } else {
+      console.log('Email merch non inviata (BREVO_API_KEY non configurata o HTML mancante):', { to, stato, codice });
+    }
+  } catch (err) {
+    console.error('Errore invio email merch:', err);
+  }
+}
+
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
   const { to, stato, nome, cognome, motivo, categoria } = req.query;
@@ -2078,14 +2218,25 @@ app.post('/api/merch/ordina', async (req, res) => {
     const ordineId = ordineRows[0]?.id;
 
     let totale = 0;
+    const itemsWithPrezzi = [];
     for (const item of items) {
       const prezzo = PREZZI_MERCH[item.articolo] || 5;
       await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
         [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
       totale += prezzo * item.quantita;
+      itemsWithPrezzi.push({ ...item, prezzo_unitario: prezzo });
     }
 
     console.log('Nuovo ordine merch:', { codice, nome, cognome, totale, items, origine: tipoOrigine });
+    
+    // Invia email solo per ordini standalone (non da iscrizione)
+    if (email && tipoOrigine === 'standalone') {
+      sendMerchEmail(email, {
+        nome, cognome, codice, stato: 'sospesa',
+        items: itemsWithPrezzi, totale
+      }).catch(console.error);
+    }
+    
     res.json({ codice, totale, ordineId });
   } catch (err) {
     console.error('Errore ordine merch:', err);
@@ -2240,7 +2391,14 @@ app.post('/api/merch/conferma-pagamento', async (req, res) => {
     if (ordine && ordine.email) {
       const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
       const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
-      // Qui potresti inviare una email di conferma merch
+      sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice,
+        stato: 'confermata',
+        items,
+        totale
+      }).catch(console.error);
     }
     
     res.json({ ok: true });
@@ -2255,6 +2413,23 @@ app.post('/api/merch/ordini/:codice/conferma', requireAdmin, async (req, res) =>
   try {
     await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', req.params.codice]);
     console.log('Ordine merch confermato da admin:', req.params.codice);
+    
+    // Invia email conferma
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    const ordine = ordineRows[0];
+    if (ordine && ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: req.params.codice,
+        stato: 'confermata',
+        items,
+        totale
+      }).catch(console.error);
+    }
+    
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore conferma merch:', err);
