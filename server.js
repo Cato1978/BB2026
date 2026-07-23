@@ -849,6 +849,39 @@ app.get('/api/me', (req, res) => {
   res.json(req.session.user);
 });
 
+// Cambio password admin
+app.post('/api/admin/change-password', requireAdmin, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Vecchia e nuova password richieste' });
+    }
+    
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'La nuova password deve essere almeno 8 caratteri' });
+    }
+    
+    // Verifica la vecchia password
+    const rows = await dbAll('SELECT * FROM users WHERE username=?', [req.session.user.username]);
+    const user = rows[0];
+    
+    if (!user || !bcrypt.compareSync(oldPassword, user.password)) {
+      return res.status(401).json({ error: 'Password attuale non corretta' });
+    }
+    
+    // Aggiorna con la nuova password
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    await dbRun('UPDATE users SET password=? WHERE username=?', [newHash, req.session.user.username]);
+    
+    console.log('Password admin aggiornata per:', req.session.user.username);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore cambio password:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Middleware protezione admin
 function requireAdmin(req, res, next) {
   if (!req.session.user || req.session.user.role !== 'admin') {

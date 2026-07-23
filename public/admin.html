@@ -16,6 +16,7 @@
     <nav>
       <a href="index.html">Home</a>
       <span id="admin-user" style="color:#F7AF40"></span>
+      <a href="#" onclick="cambiaPassword()" style="color:#3498db">🔑 Cambia Password</a>
       <a href="#" onclick="logout()" style="color:#e74c3c">Logout</a>
     </nav>
   </header>
@@ -499,6 +500,42 @@
     async function logout() {
       await fetch('/api/logout', { method: 'POST' });
       window.location.href = '/login.html';
+    }
+
+    async function cambiaPassword() {
+      const oldPassword = prompt('Inserisci la password attuale:');
+      if (!oldPassword) return;
+      
+      const newPassword = prompt('Inserisci la nuova password (min 8 caratteri):');
+      if (!newPassword) return;
+      
+      if (newPassword.length < 8) {
+        alert('La password deve essere almeno 8 caratteri');
+        return;
+      }
+      
+      const confirmPassword = prompt('Conferma la nuova password:');
+      if (newPassword !== confirmPassword) {
+        alert('Le password non corrispondono');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldPassword, newPassword })
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+          alert('Password aggiornata con successo!');
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
     }
 
     function exportExcel() {
