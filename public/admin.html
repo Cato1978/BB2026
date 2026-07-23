@@ -185,21 +185,39 @@
 
   <div id="section-bilancio" style="display:none">
     <h3>💰 Bilancio Incassi</h3>
-    <p style="color:#888;margin-bottom:1rem">Riepilogo incassi suddiviso per metodo di pagamento. I dati sono calcolati in base alle iscrizioni confermate/pagate.</p>
+    <p style="color:#888;margin-bottom:1rem">Riepilogo incassi complessivo: iscrizioni, prove pista e merchandising.</p>
     
     <button onclick="caricaBilancio()" style="margin-bottom:1rem">🔄 Aggiorna Bilancio</button>
     
-    <div id="bilancio-container" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;margin-bottom:2rem">
-      <!-- Cards bilancio -->
-    </div>
-    
+    <!-- TOTALE GENERALE -->
     <div id="bilancio-totale" style="background:#1a3a1a;border:2px solid #22c55e;padding:1.5rem;border-radius:8px;margin-bottom:2rem">
       <h4 style="color:#22c55e;margin:0 0 0.5rem">📊 TOTALE GENERALE</h4>
-      <p style="font-size:2rem;color:#22c55e;margin:0" id="bilancio-totale-importo">€ 0</p>
+      <p style="font-size:2.5rem;color:#22c55e;margin:0" id="bilancio-totale-importo">€ 0</p>
+      <div id="bilancio-totale-dettaglio" style="margin-top:1rem;display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;font-size:0.9rem"></div>
     </div>
     
-    <h4 style="margin-top:2rem">📋 Dettaglio per Metodo di Pagamento</h4>
-    <div id="bilancio-dettaglio"></div>
+    <!-- SEZIONI -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:1.5rem">
+      
+      <!-- ISCRIZIONI -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📝 Iscrizioni</h4>
+        <div id="bilancio-iscrizioni"></div>
+      </div>
+      
+      <!-- PROVE PISTA -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">🛼 Prove Pista</h4>
+        <div id="bilancio-prove"></div>
+      </div>
+      
+      <!-- MERCHANDISING -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">🛍️ Merchandising</h4>
+        <div id="bilancio-merch"></div>
+      </div>
+      
+    </div>
   </div>
 
   <div id="section-merch" style="display:none">
@@ -944,10 +962,6 @@
     // --- PROVE PISTA ---
     // --- BILANCIO ---
     async function caricaBilancio() {
-      const container = document.getElementById('bilancio-container');
-      const dettaglio = document.getElementById('bilancio-dettaglio');
-      container.innerHTML = '<p style="color:#888">Caricamento...</p>';
-      
       try {
         const res = await fetch('/api/bilancio');
         if (!res.ok) {
@@ -956,46 +970,53 @@
         }
         const data = await res.json();
         
-        // Cards per metodo
-        container.innerHTML = `
-          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #3b82f6">
-            <h4 style="color:#3b82f6;margin:0 0 0.5rem">🏦 Bonifico</h4>
-            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.bonifico.totale.toLocaleString('it-IT')}</p>
-            <p style="color:#888;margin:0.5rem 0 0">${data.bonifico.count} iscrizioni</p>
-          </div>
-          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #a855f7">
-            <h4 style="color:#a855f7;margin:0 0 0.5rem">💳 Carta di Credito</h4>
-            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.carta.totale.toLocaleString('it-IT')}</p>
-            <p style="color:#888;margin:0.5rem 0 0">${data.carta.count} iscrizioni</p>
-          </div>
-          <div style="background:#222;border-radius:8px;padding:1.5rem;border-left:4px solid #22c55e">
-            <h4 style="color:#22c55e;margin:0 0 0.5rem">💵 Contanti</h4>
-            <p style="font-size:1.8rem;color:#fff;margin:0">€ ${data.contanti.totale.toLocaleString('it-IT')}</p>
-            <p style="color:#888;margin:0.5rem 0 0">${data.contanti.count} iscrizioni</p>
+        // Totale generale
+        const tot = data.totaleGenerale || { bonifico: 0, carta: 0, contanti: 0, totale: 0 };
+        document.getElementById('bilancio-totale-importo').textContent = '€ ' + tot.totale.toLocaleString('it-IT');
+        document.getElementById('bilancio-totale-dettaglio').innerHTML = `
+          <div style="text-align:center"><span style="color:#3b82f6">🏦 Bonifico</span><br><strong>€${tot.bonifico.toLocaleString('it-IT')}</strong></div>
+          <div style="text-align:center"><span style="color:#a855f7">💳 Carta</span><br><strong>€${tot.carta.toLocaleString('it-IT')}</strong></div>
+          <div style="text-align:center"><span style="color:#22c55e">💵 Contanti</span><br><strong>€${tot.contanti.toLocaleString('it-IT')}</strong></div>
+        `;
+        
+        // Iscrizioni
+        const isc = data.iscrizioni || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totIsc = isc.bonifico.totale + isc.carta.totale + isc.contanti.totale;
+        document.getElementById('bilancio-iscrizioni').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totIsc.toLocaleString('it-IT')}</strong></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${isc.bonifico.items.length})</span><span>€${isc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${isc.carta.items.length})</span><span>€${isc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#22c55e">💵 Contanti (${isc.contanti.items.length})</span><span>€${isc.contanti.totale.toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
-        // Totale
-        const totaleGenerale = data.bonifico.totale + data.carta.totale + data.contanti.totale;
-        document.getElementById('bilancio-totale-importo').textContent = '€ ' + totaleGenerale.toLocaleString('it-IT');
-        
-        // Dettaglio tabelle
-        dettaglio.innerHTML = `
-          <div style="margin-top:1rem">
-            <h5 style="color:#3b82f6">🏦 Bonifico (${data.bonifico.count})</h5>
-            ${renderBilancioTable(data.bonifico.iscritti)}
-          </div>
-          <div style="margin-top:1.5rem">
-            <h5 style="color:#a855f7">💳 Carta di Credito (${data.carta.count})</h5>
-            ${renderBilancioTable(data.carta.iscritti)}
-          </div>
-          <div style="margin-top:1.5rem">
-            <h5 style="color:#22c55e">💵 Contanti (${data.contanti.count})</h5>
-            ${renderBilancioTable(data.contanti.iscritti)}
+        // Prove Pista
+        const prv = data.provePista || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+        const totPrv = prv.bonifico.totale + prv.carta.totale;
+        const totSlots = prv.bonifico.items.reduce((s,p) => s + p.slots, 0) + prv.carta.items.reduce((s,p) => s + p.slots, 0);
+        document.getElementById('bilancio-prove').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totPrv.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totSlots} slot)</span></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${prv.bonifico.items.length})</span><span>€${prv.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${prv.carta.items.length})</span><span>€${prv.carta.totale.toLocaleString('it-IT')}</span></div>
           </div>
         `;
+        
+        // Merchandising
+        const mrc = data.merch || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+        const totMrc = mrc.bonifico.totale + mrc.carta.totale;
+        const totOrdini = mrc.bonifico.items.length + mrc.carta.items.length;
+        document.getElementById('bilancio-merch').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totMrc.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totOrdini} ordini)</span></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${mrc.bonifico.items.length})</span><span>€${mrc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${mrc.carta.items.length})</span><span>€${mrc.carta.totale.toLocaleString('it-IT')}</span></div>
+          </div>
+        `;
+        
       } catch (err) {
-        container.innerHTML = '<p style="color:#ef4444">Errore caricamento bilancio: ' + err.message + '</p>';
+        document.getElementById('bilancio-iscrizioni').innerHTML = '<p style="color:#ef4444">Errore: ' + err.message + '</p>';
         console.error('Errore bilancio:', err);
       }
     }

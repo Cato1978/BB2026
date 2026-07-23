@@ -611,51 +611,112 @@ app.get('/api/iscritti', async (req, res) => {
 // --- BILANCIO ---
 app.get('/api/bilancio', requireAdmin, async (req, res) => {
   try {
-    // Prendi solo iscritti confermati/pagati
+    // ========== ISCRIZIONI ==========
     const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata' OR pagamento = 1");
     
-    // Funzione per calcolare totale iscrizione
-    function calcolaTotale(i) {
+    function calcolaTotaleIscrizione(i) {
       const numDisc = i.categoria ? i.categoria.split(',').length : 0;
       if (numDisc === 0) return 0;
-      let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
-      // Aggiungi felpa se presente nelle note
+      let totale = 50 + (numDisc - 1) * 30;
       if (i.note && i.note.toLowerCase().includes('felpa:')) totale += 35;
+      if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
       return totale;
     }
     
-    // Categorizza per metodo pagamento
-    const bonifico = { iscritti: [], totale: 0, count: 0 };
-    const carta = { iscritti: [], totale: 0, count: 0 };
-    const contanti = { iscritti: [], totale: 0, count: 0 };
+    const iscrizioni = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
     
     for (const i of iscritti) {
-      const totale = calcolaTotale(i);
-      const record = { id: i.id, nome: i.nome, cognome: i.cognome, categoria: i.categoria, totale };
-      
-      // Determina metodo pagamento
+      const totale = calcolaTotaleIscrizione(i);
+      const record = { id: i.id, nome: i.nome, cognome: i.cognome, totale };
       const noteAdmin = (i.note_admin || '').toLowerCase();
       const note = (i.note || '').toLowerCase();
       
       if (noteAdmin.includes('contanti') || note.includes('contanti')) {
-        // Contanti (priorità se menzionato nelle note)
-        contanti.iscritti.push(record);
-        contanti.totale += totale;
-        contanti.count++;
+        iscrizioni.contanti.items.push(record);
+        iscrizioni.contanti.totale += totale;
       } else if (i.ricevuta_bonifico || i.ricevuta_base64) {
-        // Bonifico (ha caricato ricevuta)
-        bonifico.iscritti.push(record);
-        bonifico.totale += totale;
-        bonifico.count++;
+        iscrizioni.bonifico.items.push(record);
+        iscrizioni.bonifico.totale += totale;
       } else {
-        // Carta (confermato senza ricevuta = pagamento Stripe)
-        carta.iscritti.push(record);
-        carta.totale += totale;
-        carta.count++;
+        iscrizioni.carta.items.push(record);
+        iscrizioni.carta.totale += totale;
       }
     }
     
-    res.json({ bonifico, carta, contanti });
+    // ========== PROVE PISTA ==========
+    const prove = await dbAll("SELECT * FROM prove_prenotazioni WHERE stato = 'confermata'");
+    const provePerCodice = {};
+    for (const p of prove) {
+      if (!provePerCodice[p.codice]) {
+        provePerCodice[p.codice] = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: 0, ricevuta: p.ricevuta_bonifico };
+      }
+      provePerCodice[p.codice].slots++;
+    }
+    
+    const provePista = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+    for (const codice in provePerCodice) {
+      const p = provePerCodice[codice];
+      const totale = p.slots * 5;
+      const record = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: p.slots, totale };
+      
+      if (p.ricevuta) {
+        provePista.bonifico.items.push(record);
+        provePista.bonifico.totale += totale;
+      } else {
+        provePista.carta.items.push(record);
+        provePista.carta.totale += totale;
+      }
+    }
+    
+    // ========== MERCHANDISING ==========
+    const merchOrdini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
+    const merch = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+    
+    for (const o of merchOrdini) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      const articoli = items.map(i => `${i.quantita}x ${i.articolo}`).join(', ');
+      const record = { codice: o.codice, nome: o.nome, cognome: o.cognome, articoli, totale };
+      
+      // Se origine è iscrizione, segue il metodo di pagamento dell'iscrizione collegata
+      // Altrimenti, se non ha ricevuta = carta
+      if (o.origine === 'iscrizione') {
+        // Trova l'iscrizione collegata
+        const iscrizioneRows = await dbAll('SELECT * FROM iscritti WHERE id=?', [parseInt(o.iscrizione_codice?.replace('BB11-','')) || 0]);
+        const isc = iscrizioneRows[0];
+        if (isc && (isc.ricevuta_bonifico || isc.ricevuta_base64)) {
+          merch.bonifico.items.push(record);
+          merch.bonifico.totale += totale;
+        } else {
+          merch.carta.items.push(record);
+          merch.carta.totale += totale;
+        }
+      } else {
+        // Standalone - per ora consideriamo carta (Stripe) come default
+        merch.carta.items.push(record);
+        merch.carta.totale += totale;
+      }
+    }
+    
+    // ========== TOTALI ==========
+    const totaleGenerale = {
+      bonifico: iscrizioni.bonifico.totale + provePista.bonifico.totale + merch.bonifico.totale,
+      carta: iscrizioni.carta.totale + provePista.carta.totale + merch.carta.totale,
+      contanti: iscrizioni.contanti.totale
+    };
+    totaleGenerale.totale = totaleGenerale.bonifico + totaleGenerale.carta + totaleGenerale.contanti;
+    
+    res.json({ 
+      iscrizioni, 
+      provePista, 
+      merch,
+      totaleGenerale,
+      // Retrocompatibilità
+      bonifico: { iscritti: iscrizioni.bonifico.items, totale: iscrizioni.bonifico.totale, count: iscrizioni.bonifico.items.length },
+      carta: { iscritti: iscrizioni.carta.items, totale: iscrizioni.carta.totale, count: iscrizioni.carta.items.length },
+      contanti: { iscritti: iscrizioni.contanti.items, totale: iscrizioni.contanti.totale, count: iscrizioni.contanti.items.length }
+    });
   } catch (err) {
     console.error('Errore bilancio:', err);
     res.status(500).json({ error: err.message });
