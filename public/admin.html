@@ -176,6 +176,7 @@
           <th>Sessioni</th>
           <th>Totale €</th>
           <th>Stato</th>
+          <th>Note Admin</th>
           <th>Azioni</th>
         </tr>
       </thead>
@@ -241,6 +242,7 @@
           <th>Totale</th>
           <th>Origine</th>
           <th>Stato</th>
+          <th>Note Admin</th>
           <th>Data</th>
           <th>Azioni</th>
         </tr>
@@ -1327,6 +1329,7 @@
           <td style="font-size:0.85rem">${oreList}</td>
           <td>€${totale}</td>
           <td>${statoBadge}</td>
+          <td><input type="text" value="${first.note_admin || ''}" onchange="salvaNoteAdminProve('${cod}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
           <td>${azioniHtml}</td>
         </tr>`;
       }
@@ -1397,6 +1400,18 @@
       } else {
         const err = await res.json();
         alert('Errore: ' + err.error);
+      }
+    }
+    
+    async function salvaNoteAdminProve(codice, note) {
+      try {
+        await fetch(`/api/prove/prenotazioni/${codice}/aggiorna`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_admin: note })
+        });
+      } catch (err) {
+        alert('Errore salvataggio note: ' + err.message);
       }
     }
 
@@ -1778,7 +1793,7 @@
     function renderMerch() {
       const tbody = document.querySelector('#tabella-merch tbody');
       if (!merchOrdini.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888">Nessun ordine</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888">Nessun ordine</td></tr>';
         return;
       }
       
@@ -1823,6 +1838,7 @@
             <td style="color:#22c55e">€${totale}</td>
             <td><span style="background:${origineBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${origineLabel}</span></td>
             <td><span style="background:${statoBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${statoLabel}</span></td>
+            <td><input type="text" value="${o.note_admin || ''}" onchange="salvaNoteAdminMerch('${o.codice}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
             <td>${data}</td>
             <td>
               ${btnConferma}
@@ -1850,6 +1866,18 @@
         caricaMerch();
       } catch (err) {
         alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function salvaNoteAdminMerch(codice, note) {
+      try {
+        await fetch('/api/merch/ordini/' + codice + '/aggiorna', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_admin: note })
+        });
+      } catch (err) {
+        alert('Errore salvataggio note: ' + err.message);
       }
     }
     

@@ -139,6 +139,7 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_items (
       id SERIAL PRIMARY KEY,
       ordine_id INTEGER NOT NULL,
@@ -168,6 +169,7 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note_admin TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
       giorno TEXT NOT NULL,
@@ -343,6 +345,7 @@ async function initDb() {
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS merch_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ordine_id INTEGER NOT NULL,
@@ -371,6 +374,7 @@ async function initDb() {
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
   try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note_admin TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     giorno TEXT NOT NULL,
@@ -2530,6 +2534,19 @@ app.post('/api/merch/ordini/:codice/conferma', requireAdmin, async (req, res) =>
   }
 });
 
+// Admin: aggiorna note_admin ordine merch
+app.put('/api/merch/ordini/:codice/aggiorna', requireAdmin, async (req, res) => {
+  try {
+    const { note_admin } = req.body;
+    await dbRun('UPDATE merch_ordini SET note_admin=? WHERE codice=?', [note_admin || null, req.params.codice]);
+    console.log('Ordine merch aggiornato:', req.params.codice, { note_admin });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore aggiorna merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- PROVE PISTA API ---
 app.get('/api/prove/slots', async (req, res) => {
   try {
@@ -2686,20 +2703,27 @@ app.post('/api/prove/prenota', async (req, res) => {
     for (const sess of sessioniNormalizzate) {
       const ora = sess.ora;
       const parts = ora.split('-');
-      const slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]]);
+      
+      // Cerca lo slot filtrando anche per giorno se disponibile
+      let slots;
+      if (sess.giorno) {
+        slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=? AND giorno=?', [parts[0], parts[1], sess.giorno]);
+      } else {
+        slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]]);
+      }
       const slot = slots[0];
       if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
       
-      // Conta prenotazioni per ora E giorno (incluse quelle senza giorno per retrocompatibilità)
+      // Conta prenotazioni per ora E giorno specifico
       let rows;
       if (sess.giorno) {
-        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND (giorno=? OR giorno IS NULL)', [ora, sess.giorno]);
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?', [ora, sess.giorno]);
       } else {
         rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
       }
       const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       if (occupati >= slot.posti_max) {
-        return res.status(400).json({ error: `Sessione ${ora} esaurita` });
+        return res.status(400).json({ error: `Sessione ${sess.giorno ? sess.giorno + ' ' : ''}${ora} esaurita` });
       }
       totale += slot.costo;
     }
@@ -2922,7 +2946,7 @@ app.delete('/api/prove/prenotazioni/:codice', async (req, res) => {
 app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, res) => {
   try {
     const { codice } = req.params;
-    const { giorno, slots } = req.body;
+    const { giorno, slots, note_admin } = req.body;
     // slots è un array di { ora, note } per aggiornare ogni singolo slot
     
     const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
@@ -2931,6 +2955,11 @@ app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, re
     // Aggiorna giorno per tutti gli slot
     if (giorno) {
       await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
+    }
+    
+    // Aggiorna note_admin per tutti gli slot della prenotazione
+    if (note_admin !== undefined) {
+      await dbRun('UPDATE prove_prenotazioni SET note_admin=? WHERE codice=?', [note_admin || null, codice]);
     }
     
     // Aggiorna note per ogni slot specifico
@@ -2942,7 +2971,7 @@ app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, re
       }
     }
     
-    console.log('Prenotazione aggiornata:', { codice, giorno, slots });
+    console.log('Prenotazione aggiornata:', { codice, giorno, note_admin, slots });
     res.json({ ok: true, message: 'Prenotazione aggiornata' });
   } catch (err) {
     console.error('Errore aggiornamento prove:', err);
