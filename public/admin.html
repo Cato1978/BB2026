@@ -961,6 +961,8 @@
 
     // --- PROVE PISTA ---
     // --- BILANCIO ---
+    let bilancioData = null; // Dati bilancio globali per accesso da popup
+    
     async function caricaBilancio() {
       try {
         const res = await fetch('/api/bilancio');
@@ -969,6 +971,7 @@
           throw new Error(errData.error || 'Errore server ' + res.status);
         }
         const data = await res.json();
+        bilancioData = data; // Salva per popup
         
         // Totale generale
         const tot = data.totaleGenerale || { bonifico: 0, carta: 0, contanti: 0, totale: 0 };
@@ -979,39 +982,39 @@
           <div style="text-align:center"><span style="color:#22c55e">💵 Contanti</span><br><strong>€${tot.contanti.toLocaleString('it-IT')}</strong></div>
         `;
         
-        // Iscrizioni
+        // Iscrizioni - cliccabile
         const isc = data.iscrizioni || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
         const totIsc = isc.bonifico.totale + isc.carta.totale + isc.contanti.totale;
         document.getElementById('bilancio-iscrizioni').innerHTML = `
           <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totIsc.toLocaleString('it-IT')}</strong></p>
           <div style="display:grid;gap:0.5rem;font-size:0.9rem">
-            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${isc.bonifico.items.length})</span><span>€${isc.bonifico.totale.toLocaleString('it-IT')}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${isc.carta.items.length})</span><span>€${isc.carta.totale.toLocaleString('it-IT')}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#22c55e">💵 Contanti (${isc.contanti.items.length})</span><span>€${isc.contanti.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('iscrizioni','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${isc.bonifico.items.length})</span><span>€${isc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('iscrizioni','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${isc.carta.items.length})</span><span>€${isc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('iscrizioni','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${isc.contanti.items.length})</span><span>€${isc.contanti.totale.toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
-        // Prove Pista
+        // Prove Pista - cliccabile
         const prv = data.provePista || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
         const totPrv = prv.bonifico.totale + prv.carta.totale;
         const totSlots = prv.bonifico.items.reduce((s,p) => s + p.slots, 0) + prv.carta.items.reduce((s,p) => s + p.slots, 0);
         document.getElementById('bilancio-prove').innerHTML = `
           <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totPrv.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totSlots} slot)</span></p>
           <div style="display:grid;gap:0.5rem;font-size:0.9rem">
-            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${prv.bonifico.items.length})</span><span>€${prv.bonifico.totale.toLocaleString('it-IT')}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${prv.carta.items.length})</span><span>€${prv.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('provePista','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${prv.bonifico.items.length})</span><span>€${prv.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('provePista','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${prv.carta.items.length})</span><span>€${prv.carta.totale.toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
-        // Merchandising
+        // Merchandising - cliccabile
         const mrc = data.merch || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
         const totMrc = mrc.bonifico.totale + mrc.carta.totale;
         const totOrdini = mrc.bonifico.items.length + mrc.carta.items.length;
         document.getElementById('bilancio-merch').innerHTML = `
           <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totMrc.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totOrdini} ordini)</span></p>
           <div style="display:grid;gap:0.5rem;font-size:0.9rem">
-            <div style="display:flex;justify-content:space-between"><span style="color:#3b82f6">🏦 Bonifico (${mrc.bonifico.items.length})</span><span>€${mrc.bonifico.totale.toLocaleString('it-IT')}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#a855f7">💳 Carta (${mrc.carta.items.length})</span><span>€${mrc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('merch','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${mrc.bonifico.items.length})</span><span>€${mrc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('merch','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${mrc.carta.items.length})</span><span>€${mrc.carta.totale.toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
@@ -1019,6 +1022,91 @@
         document.getElementById('bilancio-iscrizioni').innerHTML = '<p style="color:#ef4444">Errore: ' + err.message + '</p>';
         console.error('Errore bilancio:', err);
       }
+    }
+    
+    function mostraDettaglioBilancio(categoria, metodo) {
+      if (!bilancioData) return;
+      
+      const titoli = {
+        iscrizioni: { bonifico: 'Iscrizioni - Bonifico', carta: 'Iscrizioni - Carta', contanti: 'Iscrizioni - Contanti' },
+        provePista: { bonifico: 'Prove Pista - Bonifico', carta: 'Prove Pista - Carta' },
+        merch: { bonifico: 'Merchandising - Bonifico', carta: 'Merchandising - Carta' }
+      };
+      
+      const items = bilancioData[categoria]?.[metodo]?.items || [];
+      const totale = bilancioData[categoria]?.[metodo]?.totale || 0;
+      
+      let tableHtml = '';
+      if (categoria === 'iscrizioni') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(i => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">BB11-${String(i.id).padStart(4,'0')}</td>
+                <td style="padding:0.5rem">${i.cognome} ${i.nome}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${i.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } else if (categoria === 'provePista') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem">Slot</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(p => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">${p.codice}</td>
+                <td style="padding:0.5rem">${p.cognome} ${p.nome}</td>
+                <td style="padding:0.5rem">${p.slots}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${p.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } else if (categoria === 'merch') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem">Articoli</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(o => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">${o.codice}</td>
+                <td style="padding:0.5rem">${o.cognome} ${o.nome}</td>
+                <td style="padding:0.5rem;color:#888;font-size:0.8rem">${o.articoli}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${o.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      }
+      
+      if (items.length === 0) {
+        tableHtml = '<p style="color:#666;text-align:center;padding:2rem">Nessun elemento</p>';
+      }
+      
+      // Mostra popup
+      const popup = document.createElement('div');
+      popup.id = 'bilancio-popup';
+      popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999';
+      popup.innerHTML = `
+        <div style="background:#111;border:1px solid #333;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow:auto">
+          <div style="padding:1rem;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#111">
+            <h4 style="margin:0;color:#F7AF40">${titoli[categoria]?.[metodo] || 'Dettaglio'}</h4>
+            <button onclick="document.getElementById('bilancio-popup').remove()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer">&times;</button>
+          </div>
+          <div style="padding:1rem">
+            ${tableHtml}
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #333;text-align:right">
+              <strong style="color:#22c55e;font-size:1.2rem">Totale: €${totale.toLocaleString('it-IT')}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+      popup.onclick = (e) => { if (e.target === popup) popup.remove(); };
+      document.body.appendChild(popup);
     }
     
     function renderBilancioTable(iscritti) {

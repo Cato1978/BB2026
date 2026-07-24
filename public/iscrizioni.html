@@ -1077,7 +1077,9 @@
         const result = await res.json();
         
         if (!res.ok) {
-          msg.textContent = result.error || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
+          // Supporta messaggio in lingua (errorEn per inglese, error per italiano)
+          const errorMsg = getLang() === 'en' && result.errorEn ? result.errorEn : result.error;
+          msg.textContent = errorMsg || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
           msg.style.color = '#f44336';
           document.getElementById('btn-bonifico').disabled = false;
           if (btnOnline) btnOnline.disabled = false;

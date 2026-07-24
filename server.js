@@ -1056,6 +1056,38 @@ app.post('/api/iscritti', async (req, res) => {
       }
     }
     
+    // Estrai World Skate ID e Skate Italia Card dal campo note
+    let worldSkateId = null;
+    let skateItaliaCard = null;
+    if (note) {
+      const wsMatch = note.match(/WS ID:\s*(\S+)/i);
+      const fisrMatch = note.match(/FISR:\s*(\S+)/i);
+      if (wsMatch) worldSkateId = wsMatch[1];
+      if (fisrMatch) skateItaliaCard = fisrMatch[1];
+    }
+    
+    // Controllo duplicati per World Skate ID
+    if (worldSkateId) {
+      const existingWS = await dbAll("SELECT id, nome, cognome FROM iscritti WHERE note LIKE ?", [`%WS ID: ${worldSkateId}%`]);
+      if (existingWS.length > 0) {
+        return res.status(400).json({ 
+          error: `World Skate ID "${worldSkateId}" già registrato per ${existingWS[0].nome} ${existingWS[0].cognome}`,
+          errorEn: `World Skate ID "${worldSkateId}" already registered for ${existingWS[0].nome} ${existingWS[0].cognome}`
+        });
+      }
+    }
+    
+    // Controllo duplicati per Skate Italia Card
+    if (skateItaliaCard) {
+      const existingFISR = await dbAll("SELECT id, nome, cognome FROM iscritti WHERE note LIKE ?", [`%FISR: ${skateItaliaCard}%`]);
+      if (existingFISR.length > 0) {
+        return res.status(400).json({ 
+          error: `Skate Italia Card "${skateItaliaCard}" già registrata per ${existingFISR[0].nome} ${existingFISR[0].cognome}`,
+          errorEn: `Skate Italia Card "${skateItaliaCard}" already registered for ${existingFISR[0].nome} ${existingFISR[0].cognome}`
+        });
+      }
+    }
+    
     const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
