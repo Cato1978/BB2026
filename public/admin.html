@@ -1300,16 +1300,15 @@
         // Bottoni azione
         let azioniHtml = '';
         
-        // Se in verifica: mostra ricevuta, conferma bonifico, rigetta
-        if (stato === 'verifica') {
+        // Mostra ricevuta se presente (per qualsiasi stato)
+        if (first.ricevuta_bonifico) {
           azioniHtml += `<a href="/api/prove/prenotazioni/${cod}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
-          azioniHtml += `<button onclick="confermaBonificoProva('${cod}')" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
-          azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
         
-        // Se confermata: mostra ricevuta se c'è
-        if (stato === 'confermata' && first.ricevuta_bonifico) {
-          azioniHtml += `<a href="/api/prove/prenotazioni/${cod}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+        // Se in verifica: conferma bonifico, rigetta
+        if (stato === 'verifica') {
+          azioniHtml += `<button onclick="confermaBonificoProva('${cod}')" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
         
         // Se sospesa: conferma manuale
