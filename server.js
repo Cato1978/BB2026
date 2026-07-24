@@ -1151,14 +1151,21 @@ app.put('/api/iscritti/:id', async (req, res) => {
 app.delete('/api/iscritti/:id', async (req, res) => {
   try {
     const id = +req.params.id;
-    // Prima ottieni il codice per cancellare le prove associate
+    // Prima ottieni il codice per cancellare le prove e merch associate
     const rows = await dbAll('SELECT id FROM iscritti WHERE id=?', [id]);
     if (rows.length) {
       const codice = 'BB11-' + String(id).padStart(4, '0');
       const proveCodice = 'PRV-' + codice;
-      // Cancella le prenotazioni prove associate
-      await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [proveCodice]);
-      console.log('Cancellate prove associate:', proveCodice);
+      // Cancella le prenotazioni prove associate (sia per codice che per iscrizione_codice)
+      await dbRun('DELETE FROM prove_prenotazioni WHERE codice=? OR iscrizione_codice=?', [proveCodice, codice]);
+      console.log('Cancellate prove associate:', proveCodice, codice);
+      // Cancella anche merch associato
+      const merchRows = await dbAll('SELECT id FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+      for (const m of merchRows) {
+        await dbRun('DELETE FROM merch_items WHERE ordine_id=?', [m.id]);
+      }
+      await dbRun('DELETE FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+      console.log('Cancellato merch associato:', codice);
     }
     // Poi cancella l'iscritto
     await dbRun('DELETE FROM iscritti WHERE id=?', [id]);
