@@ -2661,10 +2661,9 @@ app.get('/api/prove/disponibilita', async (req, res) => {
       const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
       // Chiave unica: giorno + ora
       const key = `${slot.giorno}|${ora}`;
-      // Conta prenotazioni per ora E giorno (se il giorno è specificato nella prenotazione)
-      // Altrimenti conta anche quelle senza giorno per retrocompatibilità
+      // Conta prenotazioni per ora E giorno specifico
       const rows = await dbAll(
-        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND (giorno=? OR giorno IS NULL)',
+        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
         [ora, slot.giorno]
       );
       const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
@@ -2718,11 +2717,14 @@ app.post('/api/prove/prenota', async (req, res) => {
       let rows;
       if (sess.giorno) {
         rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?', [ora, sess.giorno]);
+        console.log(`[PROVE] Check disponibilità: ora=${ora}, giorno=${sess.giorno}, occupati=${rows[0]?.tot || 0}, posti_max=${slot.posti_max}`);
       } else {
         rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+        console.log(`[PROVE] Check disponibilità (no giorno): ora=${ora}, occupati=${rows[0]?.tot || 0}, posti_max=${slot.posti_max}`);
       }
       const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
       if (occupati >= slot.posti_max) {
+        console.log(`[PROVE] ESAURITO: ${ora} - occupati ${occupati} >= max ${slot.posti_max}`);
         return res.status(400).json({ error: `Sessione ${sess.giorno ? sess.giorno + ' ' : ''}${ora} esaurita` });
       }
       totale += slot.costo;
