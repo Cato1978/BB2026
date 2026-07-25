@@ -985,7 +985,7 @@
       // Validazione età minima (nati dal 2016 o prima)
       const annoNascita = parseInt(dataNascita.split('-')[0]);
       if (annoNascita > 2016) {
-        showError(getLang() === 'en' ? 'Athletes must be born in 2016 or earlier (minimum age U15)' : 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)');
+        showError(getLang() === 'en' ? 'Athletes must be born in 2016 or earlier' : 'Gli atleti devono essere nati nel 2016 o prima');
         return;
       }
 
