@@ -649,6 +649,7 @@
         // Bottone segna pagato (solo se sospesa)
         if (stato === 'sospesa') {
           azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Segna pagato">💰</button>`;
+          azioniHtml += `<button onclick="inviaSollecitoIscrizione(${i.id})" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
         }
         
         azioniHtml += `<button onclick="modifica(${i.id})">✏️</button>`;
@@ -825,6 +826,21 @@
       if (!confirm('Eliminare questo iscritto?')) return;
       await fetch(`/api/iscritti/${id}`, { method: 'DELETE' });
       carica();
+    }
+    
+    async function inviaSollecitoIscrizione(id) {
+      if (!confirm('Inviare email sollecito a questo iscritto?')) return;
+      try {
+        const res = await fetch(`/api/iscritti/${id}/sollecito`, { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Email sollecito inviata!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
     }
 
     carica();
@@ -1311,9 +1327,10 @@
           azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
         
-        // Se sospesa: conferma manuale
+        // Se sospesa: conferma manuale + sollecito
         if (stato === 'sospesa') {
           azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma manuale" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="inviaSollecitoProve('${cod}')" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
         }
         
         // Sempre: modifica giorno + annulla/elimina
@@ -1411,6 +1428,21 @@
         });
       } catch (err) {
         alert('Errore salvataggio note: ' + err.message);
+      }
+    }
+    
+    async function inviaSollecitoProve(codice) {
+      if (!confirm('Inviare email sollecito per questa prenotazione?')) return;
+      try {
+        const res = await fetch(`/api/prove/prenotazioni/${codice}/sollecito`, { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Email sollecito inviata!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
       }
     }
 
@@ -1814,19 +1846,37 @@
         const origineBg = o.origine === 'iscrizione' ? '#3b82f6' : '#8b5cf6';
         
         // Badge stato
+        const stato = o.stato || 'sospesa';
         let statoLabel, statoBg;
-        if (o.stato === 'confermata') {
+        if (stato === 'confermata') {
           statoLabel = '✅ Confermato';
           statoBg = '#22c55e';
+        } else if (stato === 'verifica') {
+          statoLabel = '🔍 In Verifica';
+          statoBg = '#3b82f6';
         } else {
-          statoLabel = '⏳ In attesa';
+          statoLabel = '⏳ Sospeso';
           statoBg = '#f59e0b';
         }
         
-        // Bottone conferma solo se sospesa
-        const btnConferma = o.stato !== 'confermata' 
-          ? `<button onclick="confermaMerch('${o.codice}')" style="background:#22c55e" title="Conferma">✅</button>` 
-          : '';
+        // Costruisco i bottoni azioni
+        let btns = '';
+        
+        // Bottone vedi ricevuta (se esiste)
+        if (o.ricevuta_bonifico) {
+          btns += `<a href="/api/merch/ordini/${o.codice}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px;display:inline-block">📄</a>`;
+        }
+        
+        // Bottoni in base allo stato
+        if (stato === 'sospesa') {
+          btns += `<button onclick="inviaSollecitoMerch('${o.codice}')" style="background:#f59e0b" title="Invia sollecito email">📧</button>`;
+          btns += `<button onclick="confermaMerch('${o.codice}')" style="background:#22c55e" title="Conferma pagamento">✅</button>`;
+        } else if (stato === 'verifica') {
+          btns += `<button onclick="confermaBonificoMerch('${o.codice}')" style="background:#22c55e" title="Conferma bonifico">✅</button>`;
+          btns += `<button onclick="rigettaBonificoMerch('${o.codice}')" style="background:#ef4444" title="Rigetta ricevuta">❌</button>`;
+        }
+        
+        btns += `<button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>`;
         
         return `
           <tr>
@@ -1839,10 +1889,7 @@
             <td><span style="background:${statoBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${statoLabel}</span></td>
             <td><input type="text" value="${o.note_admin || ''}" onchange="salvaNoteAdminMerch('${o.codice}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
             <td>${data}</td>
-            <td>
-              ${btnConferma}
-              <button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>
-            </td>
+            <td>${btns}</td>
           </tr>
         `;
       }).join('');
@@ -1877,6 +1924,58 @@
         });
       } catch (err) {
         alert('Errore salvataggio note: ' + err.message);
+      }
+    }
+    
+    async function inviaSollecitoMerch(codice) {
+      if (!confirm('Inviare email di sollecito per ordine ' + codice + '?')) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/sollecito', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Sollecito inviato con successo!');
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function confermaBonificoMerch(codice) {
+      if (!confirm('Confermare il bonifico per ordine ' + codice + '?')) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/conferma-bonifico', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Bonifico confermato!');
+          caricaMerch();
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function rigettaBonificoMerch(codice) {
+      const motivo = prompt('Motivo del rigetto:');
+      if (!motivo) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/rigetta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motivo })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Ricevuta rigettata. Email inviata.');
+          caricaMerch();
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
       }
     }
     

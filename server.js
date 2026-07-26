@@ -140,6 +140,7 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_items (
       id SERIAL PRIMARY KEY,
       ordine_id INTEGER NOT NULL,
@@ -346,6 +347,7 @@ async function initDb() {
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS merch_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ordine_id INTEGER NOT NULL,
@@ -1367,6 +1369,26 @@ app.post('/api/iscritti/:id/rigetta-bonifico', requireAdmin, async (req, res) =>
   }
 });
 
+// Admin: invia sollecito singolo iscrizione per richiedere ricevuta
+app.post('/api/iscritti/:id/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    if (!iscritto.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    await sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'sollecito' });
+    
+    console.log('Sollecito iscrizione inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito iscrizione:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin: unifica tutte le iscrizioni Pair Slalom a categoria UNICA
 app.post('/api/admin/unifica-pair-slalom', requireAdmin, async (req, res) => {
   try {
@@ -1568,6 +1590,41 @@ async function sendStatusEmail(to, data) {
             <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">📅 Programma / Schedule</a>
             <a href="https://bb2026.onrender.com/travel.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">✈️ Travel Info</a>
           </p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'sollecito') {
+    subject = `Busto Battle XI - Promemoria Iscrizione / Registration Reminder - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA ISCRIZIONE</h2>
+            <p style="margin:5px 0 0;font-size:14px">Registration Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è ancora in attesa di conferma!<br><em style="color:#888">Your registration is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline / Disciplines:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare l'iscrizione:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> ${codice} - ${nome} ${cognome}</p>
+          </div>
         </div>
         ${emailFooter}
       </div>
@@ -1776,6 +1833,43 @@ async function sendProveEmail(to, data) {
         ${emailFooter}
       </div>
     `;
+  } else if (stato === 'sollecito') {
+    subject = 'Busto Battle XI - Promemoria Prove Pista / Track Practice Reminder - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA PRENOTAZIONE</h2>
+            <p style="margin:5px 0 0;font-size:14px">Booking Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è ancora in attesa di conferma!<br><em style="color:#888">Your track practice booking is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare la prenotazione:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
   } else if (stato === 'rigettata') {
     const motivoText = motivo || 'Non specificato / Not specified';
     subject = 'Busto Battle XI - Ricevuta Prove Pista Rifiutata / Receipt Rejected - ' + codice;
@@ -1909,6 +2003,12 @@ async function sendMerchEmail(to, data) {
     return `<li>${i.quantita}x ${i.articolo}${taglia} - €${(i.prezzo_unitario || 5) * i.quantita}</li>`;
   }).join('') : '';
   
+  // Calcola totale se non fornito
+  const totaleCalc = totale || (items ? items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0) : 0);
+  
+  // Link per caricare ricevuta
+  const linkRicevuta = 'https://bb2026.onrender.com/carica-ricevuta-merch.html?codice=' + codice;
+  
   let subject, html;
   
   if (stato === 'sospesa') {
@@ -1929,12 +2029,12 @@ async function sendMerchEmail(to, data) {
             <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
             <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
             <ul style="margin:5px 0">${itemsList}</ul>
-            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
           </div>
           
           <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
           
-          <p><strong>Effettua il bonifico / Make a bank transfer:</strong></p>
+          <p><strong>1. Effettua il bonifico / Make a bank transfer:</strong></p>
           <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
             <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
             <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
@@ -1942,12 +2042,80 @@ async function sendMerchEmail(to, data) {
             <p style="margin:5px 0"><strong>Causale / Reference:</strong> Merch BB11 - ${codice} - ${cognome}</p>
           </div>
           
+          <p><strong>2. Carica la ricevuta / Upload the receipt:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
           <div style="background:#1a3a1a;border:1px solid #22c55e;padding:15px;border-radius:6px;margin:20px 0">
             <p style="margin:0;text-align:center">
               <strong style="color:#22c55e">📦 Ritiro / Pickup:</strong><br>
               <span style="color:#888">Il merchandising sarà disponibile per il ritiro durante l'evento.<br><em>Merchandise will be available for pickup during the event.</em></span>
             </p>
           </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'sollecito') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricordati di caricare la ricevuta! / Remember to upload receipt! - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA ORDINE MERCHANDISING</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è ancora in attesa di conferma!<br><em style="color:#888">Your merchandising order is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare l'ordine:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Merch BB11 - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'verifica') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricevuta in Verifica / Receipt Under Review - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 RICEVUTA IN VERIFICA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Receipt Under Review</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per il tuo ordine merchandising.<br><em style="color:#888">We have received the bank transfer receipt for your merchandising order.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <p>Il nostro team verificherà il pagamento e riceverai una email di conferma a breve.<br><em style="color:#888">Our team will verify the payment and you will receive a confirmation email shortly.</em></p>
         </div>
         ${emailFooter}
       </div>
@@ -1978,6 +2146,42 @@ async function sendMerchEmail(to, data) {
             <p style="margin:10px 0 0;color:#888">Pick up your merchandise during the event!</p>
             <p style="margin:15px 0 0;color:#f0f0f0"><strong>📍 PalaCastiglioni</strong> - Via Ariosto 3, Busto Arsizio (VA)</p>
           </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'rigettata') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricevuta Rigettata / Receipt Rejected - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ RICEVUTA RIGETTATA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Receipt Rejected</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta del bonifico per il tuo ordine merchandising è stata rigettata.<br><em style="color:#888">The bank transfer receipt for your merchandising order has been rejected.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <div style="background:#3a1a1a;border:1px solid #ef4444;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444"><strong>❌ Motivo del rigetto / Rejection reason:</strong></p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivo || 'Non specificato'}</p>
+          </div>
+          
+          <p>Per favore, carica una nuova ricevuta valida:<br><em style="color:#888">Please upload a new valid receipt:</em></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <p>Se hai domande, contattaci a: <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a></p>
         </div>
         ${emailFooter}
       </div>
@@ -2550,6 +2754,167 @@ app.put('/api/merch/ordini/:codice/aggiorna', requireAdmin, async (req, res) => 
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore aggiorna merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ottieni singolo ordine merch per codice (pubblico per carica-ricevuta)
+app.get('/api/merch/ordini/:codice', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    const ordine = rows[0];
+    const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+    ordine.items = items;
+    res.json(ordine);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Carica ricevuta bonifico merch
+app.post('/api/merch/ordini/:codice/ricevuta', upload.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
+    
+    const ricevutaBase64 = req.file.buffer.toString('base64');
+    const ricevutaData = `data:${req.file.mimetype};base64,${ricevutaBase64}`;
+    
+    await dbRun('UPDATE merch_ordini SET ricevuta_bonifico=?, stato=? WHERE codice=?', 
+      [ricevutaData, 'verifica', codice]);
+    
+    console.log('Ricevuta merch caricata:', codice);
+    
+    // Invia email stato verifica
+    const ordine = rows[0];
+    if (ordine.email) {
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: codice,
+        stato: 'verifica',
+        items: await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id])
+      });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore caricamento ricevuta merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Visualizza ricevuta merch (admin)
+app.get('/api/merch/ordini/:codice/ricevuta', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT ricevuta_bonifico FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    if (!rows.length || !rows[0].ricevuta_bonifico) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    const data = rows[0].ricevuta_bonifico;
+    const matches = data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Formato ricevuta non valido' });
+    
+    const mimeType = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    res.setHeader('Content-Type', mimeType);
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: conferma bonifico merch (dopo verifica ricevuta)
+app.post('/api/merch/ordini/:codice/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Merch confermato da admin (bonifico):', codice);
+    
+    // Invia email conferma
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (rows.length && rows[0].email) {
+      const ordine = rows[0];
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: codice,
+        stato: 'confermata',
+        items: items
+      });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma bonifico merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: invia sollecito singolo merch per richiedere ricevuta
+app.post('/api/merch/ordini/:codice/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const ordine = rows[0];
+    if (!ordine.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+    await sendMerchEmail(ordine.email, {
+      nome: ordine.nome,
+      cognome: ordine.cognome,
+      codice: ordine.codice,
+      stato: 'sollecito',
+      items: items
+    });
+    
+    console.log('Sollecito merch inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: rigetta ricevuta merch
+app.post('/api/merch/ordini/:codice/rigetta', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { motivo } = req.body;
+    
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const ordine = rows[0];
+    
+    // Rimuovi ricevuta e torna a sospesa
+    await dbRun('UPDATE merch_ordini SET stato=?, ricevuta_bonifico=NULL WHERE codice=?', ['sospesa', codice]);
+    
+    // Invia email con motivo rigetto
+    if (ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: ordine.codice,
+        stato: 'rigettata',
+        items: items,
+        motivo: motivo
+      });
+    }
+    
+    console.log('Ricevuta merch rigettata:', codice, motivo);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore rigetto ricevuta merch:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3157,6 +3522,36 @@ app.post('/api/prove/prenotazioni/:codice/rigetta', requireAdmin, async (req, re
     res.json({ ok: true, message: 'Ricevuta rigettata, email inviata' });
   } catch (err) {
     console.error('Errore rigetto prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: invia sollecito singolo prove pista per richiedere ricevuta
+app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    if (!first.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+    const totale = rows.length * 5;
+    
+    await sendProveEmail(first.email, {
+      nome: first.nome,
+      cognome: first.cognome,
+      codice,
+      stato: 'sollecito',
+      sessioni,
+      totale
+    });
+    
+    console.log('Sollecito prove pista inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito prove:', err);
     res.status(500).json({ error: err.message });
   }
 });
