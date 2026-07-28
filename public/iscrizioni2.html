@@ -284,7 +284,10 @@
           <div class="felpa-option">
             <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span data-t="aggiungiFelpa">Aggiungi <span class="preview-link" onclick="showPreview('felpa.jpg', event)">Felpa Ufficiale</span> (+€35)</span></label>
             <div id="felpa-taglia" style="display:none;margin-top:0.8rem">
-              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</p>
+              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem">
+                <span data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</span>
+                <a href="#" onclick="apriGuidaTaglieFelpa(); return false;" style="color:#F7AF40;margin-left:0.5rem;font-size:0.8rem" data-t="guidaTaglie">📏 Guida Taglie</a>
+              </p>
               <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
               <div class="size-select" id="taglia-felpa-uomo" style="margin-bottom:0.5rem">
                 <button type="button" class="size-btn" data-size="XS Uomo">XS</button>
@@ -841,59 +844,192 @@
       document.getElementById('modal-age-categories').style.display = 'none';
     }
 
-    // Guida taglie modal
+    // Guida taglie MAGLIA modal
     function apriGuidaTaglie() {
       const modal = document.createElement('div');
       modal.id = 'modal-guida-taglie';
       modal.className = 'modal';
       modal.style.display = 'flex';
+      const lang = getLang();
       modal.innerHTML = `
-        <div class="modal-content" style="max-width:600px">
-          <h3 style="color:#F7AF40;margin-bottom:1rem">📏 ${getLang() === 'en' ? 'Size Guide' : 'Guida Taglie'}</h3>
-          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+        <div class="modal-content" style="max-width:700px;max-height:90vh;overflow-y:auto">
+          <h3 style="color:#F7AF40;margin-bottom:1rem">📏 ${lang === 'en' ? 'T-Shirt Size Guide' : 'Guida Taglie Maglia'}</h3>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👔 ${lang === 'en' ? 'Men' : 'Uomo'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1rem">
             <thead>
               <tr style="background:#222">
-                <th style="padding:0.5rem;border:1px solid #333;text-align:left">${getLang() === 'en' ? 'SIZE' : 'TAGLIA'}</th>
-                <th style="padding:0.5rem;border:1px solid #333">XS</th>
-                <th style="padding:0.5rem;border:1px solid #333">S</th>
-                <th style="padding:0.5rem;border:1px solid #333">M</th>
-                <th style="padding:0.5rem;border:1px solid #333">L</th>
-                <th style="padding:0.5rem;border:1px solid #333">XL</th>
-                <th style="padding:0.5rem;border:1px solid #333">XXL</th>
-                <th style="padding:0.5rem;border:1px solid #333">3XL</th>
-                <th style="padding:0.5rem;border:1px solid #333">4XL</th>
-                <th style="padding:0.5rem;border:1px solid #333">5XL</th>
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">4XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">5XL</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style="padding:0.5rem;border:1px solid #333;font-weight:600">${getLang() === 'en' ? 'HEIGHT (cm)' : 'ALTEZZA (cm)'}</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">68</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">70</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">72</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">74</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">76</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">78</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">80</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">82</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">84</td>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">72</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">74</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">76</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">78</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">80</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">82</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">84</td>
               </tr>
               <tr>
-                <td style="padding:0.5rem;border:1px solid #333;font-weight:600">${getLang() === 'en' ? 'WIDTH (cm)' : 'LARGHEZZA (cm)'}</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">45</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">48</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">51</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">54</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">57</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">60</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">63</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">70</td>
-                <td style="padding:0.5rem;border:1px solid #333;text-align:center">75</td>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">45</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">48</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">51</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">54</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">57</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">60</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">63</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">75</td>
               </tr>
             </tbody>
           </table>
-          <p style="color:#888;font-size:0.8rem;margin-top:1rem">${getLang() === 'en' ? 'Measurements in centimeters' : 'Misure in centimetri'}</p>
-          <button onclick="this.closest('.modal').remove()" style="margin-top:1rem;background:#F7AF40;color:#000;border:none;padding:0.6rem 1.5rem;border-radius:4px;cursor:pointer">${getLang() === 'en' ? 'Close' : 'Chiudi'}</button>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👗 ${lang === 'en' ? 'Women' : 'Donna'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">58</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">60</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">64</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">41</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">44</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">47</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">50</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">53</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">56</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <p style="color:#888;font-size:0.8rem;margin-top:1rem">${lang === 'en' ? 'Measurements in centimeters' : 'Misure in centimetri'}</p>
+          <button onclick="this.closest('.modal').remove()" style="margin-top:1rem;background:#F7AF40;color:#000;border:none;padding:0.6rem 1.5rem;border-radius:4px;cursor:pointer">${lang === 'en' ? 'Close' : 'Chiudi'}</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    
+    // Guida taglie FELPA modal
+    function apriGuidaTaglieFelpa() {
+      const modal = document.createElement('div');
+      modal.id = 'modal-guida-taglie-felpa';
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      const lang = getLang();
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width:650px;max-height:90vh;overflow-y:auto">
+          <h3 style="color:#F7AF40;margin-bottom:1rem">📏 ${lang === 'en' ? 'Hoodie Size Guide' : 'Guida Taglie Felpa'}</h3>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👔 ${lang === 'en' ? 'Men' : 'Uomo'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">72</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">74</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">76</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">78</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">79</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">49</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">52</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">55.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👗 ${lang === 'en' ? 'Women' : 'Donna'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">64</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">69</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">44.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">47</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">50</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">53</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">56</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59.5</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <p style="color:#888;font-size:0.8rem;margin-top:1rem">${lang === 'en' ? 'Measurements in centimeters' : 'Misure in centimetri'}</p>
+          <button onclick="this.closest('.modal').remove()" style="margin-top:1rem;background:#F7AF40;color:#000;border:none;padding:0.6rem 1.5rem;border-radius:4px;cursor:pointer">${lang === 'en' ? 'Close' : 'Chiudi'}</button>
         </div>
       `;
       document.body.appendChild(modal);
