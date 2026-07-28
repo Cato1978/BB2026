@@ -836,7 +836,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     });
     
     // ========== FOGLI PER DISCIPLINA/CATEGORIA/GENERE ==========
-    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Pair Slalom', 'Free Jump'];
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump'];
     const categorie = ['U15', 'U19', 'SENIOR'];
     const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
     
@@ -895,6 +895,121 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
           sheet.addRow([`Totale iscritti: ${atleti.length}`]);
         }
       }
+    }
+    
+    // ========== FOGLIO PAIR SLALOM (Categoria Unica) ==========
+    const pairAtleti = iscritti.filter(isc => {
+      return isc.categoria && isc.categoria.includes('Pair Slalom');
+    });
+    
+    if (pairAtleti.length > 0) {
+      const sheetPair = workbook.addWorksheet('Pair Slalom');
+      sheetPair.columns = [
+        { header: 'N°', key: 'num', width: 5 },
+        { header: 'Atleta 1 - Cognome', key: 'cognome1', width: 18 },
+        { header: 'Atleta 1 - Nome', key: 'nome1', width: 15 },
+        { header: 'Atleta 1 - Società', key: 'societa1', width: 20 },
+        { header: 'Atleta 1 - WS ID', key: 'ws_id1', width: 15 },
+        { header: 'Atleta 2 - Cognome', key: 'cognome2', width: 18 },
+        { header: 'Atleta 2 - Nome', key: 'nome2', width: 15 },
+        { header: 'Atleta 2 - Società', key: 'societa2', width: 20 },
+        { header: 'Atleta 2 - WS ID', key: 'ws_id2', width: 15 },
+        { header: 'Note (Compagno indicato)', key: 'note', width: 35 }
+      ];
+      
+      // Stile header
+      sheetPair.getRow(1).font = { bold: true };
+      sheetPair.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+      
+      // Titolo
+      sheetPair.insertRow(1, ['PAIR SLALOM - Categoria Unica']);
+      sheetPair.getRow(1).font = { bold: true, size: 14 };
+      sheetPair.mergeCells('A1:J1');
+      
+      // Cerca di abbinare le coppie
+      const usati = new Set();
+      let numCoppia = 0;
+      
+      // Funzione per cercare il compagno nelle note
+      function cercaCompagno(note, nome, cognome) {
+        if (!note) return null;
+        const noteLower = note.toLowerCase();
+        // Cerca tra tutti gli altri atleti pair
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
+          const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+          if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+              noteLower.includes(altro.cognome.toLowerCase())) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      for (const isc of pairAtleti) {
+        if (usati.has(isc.id)) continue;
+        
+        const note = parseNote(isc.note);
+        // Estrai note extra per il compagno
+        let noteExtra = '';
+        if (isc.note) {
+          const parts = isc.note.split(' | ');
+          const extraParts = parts.filter(p => 
+            !p.startsWith('Genere:') && 
+            !p.startsWith('WS ID:') && 
+            !p.startsWith('FISR:') && 
+            !p.startsWith('Maglia:') && 
+            !p.startsWith('Felpa:') &&
+            !p.startsWith('Prove:') &&
+            !p.startsWith('Nazionalità:')
+          );
+          noteExtra = extraParts.join(' | ');
+        }
+        
+        // Cerca il compagno
+        const compagno = cercaCompagno(isc.note, isc.nome, isc.cognome);
+        
+        numCoppia++;
+        usati.add(isc.id);
+        
+        if (compagno && !usati.has(compagno.id)) {
+          // Coppia trovata!
+          usati.add(compagno.id);
+          const noteCompagno = parseNote(compagno.note);
+          
+          sheetPair.addRow({
+            num: numCoppia,
+            cognome1: isc.cognome,
+            nome1: isc.nome,
+            societa1: isc.societa,
+            ws_id1: note.wsId,
+            cognome2: compagno.cognome,
+            nome2: compagno.nome,
+            societa2: compagno.societa,
+            ws_id2: noteCompagno.wsId,
+            note: noteExtra
+          });
+        } else {
+          // Compagno non trovato, mostra solo atleta 1
+          sheetPair.addRow({
+            num: numCoppia,
+            cognome1: isc.cognome,
+            nome1: isc.nome,
+            societa1: isc.societa,
+            ws_id1: note.wsId,
+            cognome2: '???',
+            nome2: '???',
+            societa2: '',
+            ws_id2: '',
+            note: noteExtra || '⚠️ Compagno non indicato o non trovato'
+          });
+        }
+      }
+      
+      // Riga totale
+      sheetPair.addRow([]);
+      sheetPair.addRow([`Totale coppie: ${numCoppia}`]);
     }
     
     // Genera e invia file
