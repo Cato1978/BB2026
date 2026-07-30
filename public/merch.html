@@ -273,23 +273,9 @@
     <div class="form-section">
       <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
-      <div style="display:flex;gap:1rem;flex-wrap:wrap">
-        <button id="btn-bonifico" onclick="inviaOrdine('bonifico')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#1a3a1a;color:#22c55e;border:2px solid #22c55e;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchPagaBonifico">
-          Paga con Bonifico
-        </button>
-        <button id="btn-online" onclick="inviaOrdine('online')" style="flex:1;min-width:200px;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchPagaOnline">
-          Paga Online
-        </button>
-      </div>
-      
-      <div id="bonifico-info" style="display:none;margin-top:1rem;background:#0a2a0a;border:1px solid #22c55e;padding:1rem;border-radius:6px">
-        <p style="margin:0;color:#22c55e;font-weight:bold" data-t="merchBonifico">Bonifico Bancario</p>
-        <p style="margin:0.5rem 0 0;color:#ccc;font-size:0.9rem">
-          IBAN: <strong>IT54Y0326822800052416865080</strong><br>
-          Intestato a: Accademia Bustese Pattinaggio ASD<br>
-          Causale: Merch BB11 - [Nome Cognome]
-        </p>
-      </div>
+      <button id="btn-online" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchPagaOnline">
+        Paga Online
+      </button>
       
       <div id="commissioni-info" style="display:none;margin-top:1rem;padding:0.6rem;background:#1a1a1a;border-radius:4px;font-size:0.8rem">
         <p style="margin:0;color:#f59e0b">Pagando online verranno applicate commissioni carta: <strong id="commissioni-importo">€0</strong></p>
@@ -301,8 +287,7 @@
       <h3 style="color:#22c55e;margin:0 0 1rem" data-t="merchConfermata">Prenotazione Confermata!</h3>
       <p style="color:#ccc">Il tuo codice ordine è:</p>
       <p style="font-size:1.5rem;color:#F7AF40;font-weight:bold" id="codice-ordine"></p>
-      <p id="conferma-bonifico" style="color:#888;font-size:0.9rem">Conserva questo codice per il ritiro. Effettua il bonifico per completare l'ordine.</p>
-      <p id="conferma-online" style="display:none;color:#22c55e;font-size:0.9rem">Pagamento completato! Ti abbiamo inviato una email di conferma.</p>
+      <p id="conferma-online" style="color:#22c55e;font-size:0.9rem">Pagamento completato! Ti abbiamo inviato una email di conferma.</p>
     </div>
   </main>
 
@@ -411,7 +396,7 @@
       msg.style.border = '1px solid ' + (isError ? '#ef4444' : '#22c55e');
     }
 
-    async function inviaOrdine(metodo) {
+    async function inviaOrdine() {
       const nome = document.getElementById('nome').value.trim();
       const cognome = document.getElementById('cognome').value.trim();
       const email = document.getElementById('email').value.trim();
@@ -456,11 +441,9 @@
         return;
       }
 
-      const btnBonifico = document.getElementById('btn-bonifico');
       const btnOnline = document.getElementById('btn-online');
-      btnBonifico.disabled = true;
       btnOnline.disabled = true;
-      (metodo === 'bonifico' ? btnBonifico : btnOnline).textContent = 'Invio in corso...';
+      btnOnline.textContent = 'Invio in corso...';
 
       try {
         const res = await fetch('/api/merch/ordina', {
@@ -471,48 +454,30 @@
         const data = await res.json();
 
         if (data.codice) {
-          if (metodo === 'online') {
-            // Redirect a Stripe
-            const checkoutRes = await fetch('/api/merch/create-checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ codice: data.codice, totale: data.totale })
-            });
-            const checkoutData = await checkoutRes.json();
-            if (checkoutData.url) {
-              window.location.href = checkoutData.url;
-              return;
-            } else {
-              showMsg('Errore pagamento: ' + (checkoutData.error || 'Sconosciuto'), true);
-              btnBonifico.disabled = false;
-              btnOnline.disabled = false;
-              btnOnline.textContent = 'Paga Online';
-              return;
-            }
+          // Redirect a Stripe
+          const checkoutRes = await fetch('/api/merch/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codice: data.codice, totale: data.totale })
+          });
+          const checkoutData = await checkoutRes.json();
+          if (checkoutData.url) {
+            window.location.href = checkoutData.url;
+            return;
+          } else {
+            showMsg('Errore pagamento: ' + (checkoutData.error || 'Sconosciuto'), true);
+            btnOnline.disabled = false;
+            btnOnline.textContent = T[getLang()].merchPagaOnline;
+            return;
           }
-          
-          // Bonifico - mostra conferma
-          document.getElementById('codice-ordine').textContent = data.codice;
-          document.getElementById('conferma').style.display = 'block';
-          document.getElementById('conferma-bonifico').style.display = 'block';
-          document.getElementById('conferma-online').style.display = 'none';
-          document.getElementById('bonifico-info').style.display = 'block';
-          document.querySelector('.merch-grid').style.display = 'none';
-          document.querySelector('.totale-box').style.display = 'none';
-          document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
-          document.getElementById('msg').style.display = 'none';
         } else {
           showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
-          btnBonifico.disabled = false;
           btnOnline.disabled = false;
-          btnBonifico.textContent = T[getLang()].merchPagaBonifico;
           btnOnline.textContent = T[getLang()].merchPagaOnline;
         }
       } catch (err) {
         showMsg('Errore di rete: ' + err.message, true);
-        btnBonifico.disabled = false;
         btnOnline.disabled = false;
-        btnBonifico.textContent = T[getLang()].merchPagaBonifico;
         btnOnline.textContent = T[getLang()].merchPagaOnline;
       }
     }
