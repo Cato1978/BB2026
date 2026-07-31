@@ -2695,6 +2695,15 @@ app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
   }
 });
 
+// ============ CONFIGURAZIONE ORDINI STAMPATI ============
+// Aggiungere qui gli ordini fatti al fornitore con data e quantità per articolo
+const ORDINI_STAMPATI = [
+  // Esempio: { data: '12/08/2026', articoli: { 'Maglia S Uomo': 10, 'Maglia M Uomo': 15, 'Felpa L Uomo': 5 } }
+  // Ordine 1 - DA COMPILARE
+  // { data: '??/??/2026', articoli: {} },
+];
+// =========================================================
+
 // Export Excel ordini merch - con separazione merch/iscrizioni e riepilogo taglie
 app.get('/api/merch/export', requireAdmin, async (req, res) => {
   try {
@@ -2849,16 +2858,20 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
       }
     }
     
-    // Colonne riepilogo con date ordini stampati
-    sheetRiepilogo.columns = [
+    // Colonne riepilogo dinamiche basate su ORDINI_STAMPATI
+    const columns = [
       { header: 'Articolo', key: 'articolo', width: 22 },
-      { header: 'Totale Ordinati', key: 'totale', width: 15 },
-      { header: 'Stampati 12/08', key: 'stamp1', width: 14 },
-      { header: 'Stampati 01/09', key: 'stamp2', width: 14 },
-      { header: 'Stampati 15/09', key: 'stamp3', width: 14 },
-      { header: 'Stampati 01/10', key: 'stamp4', width: 14 },
-      { header: 'DA ORDINARE', key: 'daOrdinare', width: 15 }
+      { header: 'Totale Ordinati', key: 'totale', width: 15 }
     ];
+    
+    // Aggiungi una colonna per ogni ordine stampato
+    ORDINI_STAMPATI.forEach((ordine, idx) => {
+      columns.push({ header: `Stampati ${ordine.data}`, key: `stamp${idx}`, width: 16 });
+    });
+    
+    columns.push({ header: 'DA ORDINARE', key: 'daOrdinare', width: 15 });
+    sheetRiepilogo.columns = columns;
+    
     sheetRiepilogo.getRow(1).font = { bold: true };
     sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6366F1' } };
     
@@ -2884,34 +2897,52 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     for (const art of ordineArticoli) {
       const totale = conteggio[art] || 0;
       if (totale > 0 || art.includes('Maglia') || art.includes('Felpa')) {
-        const row = sheetRiepilogo.addRow({
+        const rowData = {
           articolo: art,
-          totale: totale,
-          stamp1: 0,  // Compilare manualmente
-          stamp2: 0,
-          stamp3: 0,
-          stamp4: 0,
-          daOrdinare: { formula: `B${sheetRiepilogo.rowCount}-C${sheetRiepilogo.rowCount}-D${sheetRiepilogo.rowCount}-E${sheetRiepilogo.rowCount}-F${sheetRiepilogo.rowCount}` }
+          totale: totale
+        };
+        
+        // Aggiungi quantità stampate per ogni ordine
+        let totaleStampato = 0;
+        ORDINI_STAMPATI.forEach((ordine, idx) => {
+          const qty = ordine.articoli[art] || 0;
+          rowData[`stamp${idx}`] = qty;
+          totaleStampato += qty;
         });
         
-        // Colora la colonna "DA ORDINARE" se > 0
-        row.getCell('daOrdinare').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-        row.getCell('daOrdinare').font = { bold: true };
+        // Calcola DA ORDINARE
+        rowData.daOrdinare = totale - totaleStampato;
+        
+        const row = sheetRiepilogo.addRow(rowData);
+        
+        // Colora la colonna "DA ORDINARE" in base al valore
+        const daOrdCell = row.getCell('daOrdinare');
+        if (rowData.daOrdinare > 0) {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Giallo
+        } else if (rowData.daOrdinare === 0) {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Verde
+        } else {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Rosso (ordinato troppo)
+        }
+        daOrdCell.font = { bold: true };
       }
     }
     
     // Riga totali
     const lastRow = sheetRiepilogo.rowCount;
     sheetRiepilogo.addRow({});
-    const totRow = sheetRiepilogo.addRow({
+    const totRowData = {
       articolo: 'TOTALE',
-      totale: { formula: `SUM(B2:B${lastRow})` },
-      stamp1: { formula: `SUM(C2:C${lastRow})` },
-      stamp2: { formula: `SUM(D2:D${lastRow})` },
-      stamp3: { formula: `SUM(E2:E${lastRow})` },
-      stamp4: { formula: `SUM(F2:F${lastRow})` },
-      daOrdinare: { formula: `SUM(G2:G${lastRow})` }
+      totale: { formula: `SUM(B2:B${lastRow})` }
+    };
+    ORDINI_STAMPATI.forEach((_, idx) => {
+      const col = String.fromCharCode(67 + idx); // C, D, E, ...
+      totRowData[`stamp${idx}`] = { formula: `SUM(${col}2:${col}${lastRow})` };
     });
+    const lastCol = String.fromCharCode(67 + ORDINI_STAMPATI.length); // Colonna DA ORDINARE
+    totRowData.daOrdinare = { formula: `SUM(${lastCol}2:${lastCol}${lastRow})` };
+    
+    const totRow = sheetRiepilogo.addRow(totRowData);
     totRow.font = { bold: true };
     totRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     
