@@ -1796,40 +1796,14 @@ async function sendStatusEmail(to, data) {
   
   if (!subject) return;
   
-  // Usa Brevo API per inviare email
-  try {
-    const brevoApiKey = process.env.BREVO_API_KEY;
-    const bccEmail = 'bustobattle@gmail.com'; // Copia di sicurezza
-    
-    if (brevoApiKey) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
-          to: [{ email: to }],
-          bcc: [{ email: bccEmail }],
-          subject: subject,
-          htmlContent: html
-        })
-      });
-      
-      if (response.ok) {
-        console.log('Email stato inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
-      } else {
-        const errorData = await response.json();
-        console.error('Errore Brevo API:', errorData);
-      }
-    } else {
-      console.log('Email non inviata (BREVO_API_KEY non configurata):', { to, stato, codice });
-    }
-  } catch (err) {
-    console.error('Errore invio email stato:', err);
-  }
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
 }
 
 // Funzione per inviare email prove pista via Brevo API
@@ -2066,40 +2040,14 @@ async function sendProveEmail(to, data) {
   
   if (!subject) return;
   
-  // Usa Brevo API per inviare email
-  try {
-    const brevoApiKey = process.env.BREVO_API_KEY;
-    const bccEmail = 'bustobattle@gmail.com';
-    
-    if (brevoApiKey) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
-          to: [{ email: to }],
-          bcc: [{ email: bccEmail }],
-          subject: subject,
-          htmlContent: html
-        })
-      });
-      
-      if (response.ok) {
-        console.log('Email prove pista inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
-      } else {
-        const errorData = await response.json();
-        console.error('Errore Brevo API (prove):', errorData);
-      }
-    } else {
-      console.log('Email prove non inviata (BREVO_API_KEY non configurata):', { to, stato, codice });
-    }
-  } catch (err) {
-    console.error('Errore invio email prove:', err);
-  }
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
 }
 
 // Funzione per inviare email merchandising via Brevo API
@@ -2317,39 +2265,16 @@ async function sendMerchEmail(to, data) {
     `;
   }
   
-  try {
-    const brevoApiKey = process.env.BREVO_API_KEY;
-    const bccEmail = 'bustobattle@gmail.com';
-    
-    if (brevoApiKey && html) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: 'Busto Battle XI - Merchandising', email: 'bustobattle@gmail.com' },
-          to: [{ email: to }],
-          bcc: [{ email: bccEmail }],
-          subject: subject,
-          htmlContent: html
-        })
-      });
-      
-      if (response.ok) {
-        console.log('Email merch inviata via Brevo API:', { to, bcc: bccEmail, stato, codice });
-      } else {
-        const errorData = await response.json();
-        console.error('Errore Brevo API (merch):', errorData);
-      }
-    } else {
-      console.log('Email merch non inviata (BREVO_API_KEY non configurata o HTML mancante):', { to, stato, codice });
-    }
-  } catch (err) {
-    console.error('Errore invio email merch:', err);
-  }
+  if (!html) return;
+  
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
 }
 
 // Endpoint per inviare email di test (solo per admin)
@@ -4237,6 +4162,89 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS || ''
   }
 });
+
+// Helper per convertire HTML in testo plain (per evitare spam filters)
+function htmlToPlainText(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&euro;/g, '€')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Funzione centralizzata per invio email via Brevo con best practices anti-spam
+async function sendBrevoEmail({ to, toName, subject, html, replyTo }) {
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (!brevoApiKey) {
+    console.log('Email non inviata (BREVO_API_KEY non configurata):', { to, subject });
+    return { success: false, reason: 'no_api_key' };
+  }
+  
+  try {
+    const plainText = htmlToPlainText(html);
+    
+    const emailData = {
+      sender: { 
+        name: 'Busto Battle XI', 
+        email: process.env.BREVO_FROM || 'noreply@bustobattle.it' 
+      },
+      to: [{ 
+        email: to, 
+        name: toName || to 
+      }],
+      replyTo: { 
+        email: replyTo || 'bustobattle@gmail.com',
+        name: 'Busto Battle XI'
+      },
+      subject: subject,
+      htmlContent: html,
+      textContent: plainText,
+      headers: {
+        'X-Mailer': 'Busto Battle XI Registration System',
+        'Precedence': 'bulk'
+      }
+    };
+    
+    // Aggiungi BCC solo se non è già il destinatario
+    if (to !== 'bustobattle@gmail.com') {
+      emailData.bcc = [{ email: 'bustobattle@gmail.com' }];
+    }
+    
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(emailData)
+    });
+    
+    if (response.ok) {
+      console.log('Email inviata via Brevo:', { to, subject });
+      return { success: true };
+    } else {
+      const errorData = await response.json();
+      console.error('Errore Brevo API:', errorData);
+      return { success: false, error: errorData };
+    }
+  } catch (err) {
+    console.error('Errore invio email:', err);
+    return { success: false, error: err.message };
+  }
+}
 
 // --- EMAIL BROADCAST ---
 // Anteprima destinatari email broadcast
