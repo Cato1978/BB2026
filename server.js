@@ -3502,7 +3502,7 @@ app.post('/api/prove/notifica-admin', async (req, res) => {
             'content-type': 'application/json'
           },
           body: JSON.stringify({
-            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
             to: [{ email: 'bustobattle@gmail.com' }],
             subject: '🆕 Nuova Prenotazione Prove Pista - ' + atleti.length + ' atleta/i - €' + totaleComplessivo,
             htmlContent: html
@@ -4198,7 +4198,7 @@ async function sendBrevoEmail({ to, toName, subject, html, replyTo }) {
     const emailData = {
       sender: { 
         name: 'Busto Battle XI', 
-        email: process.env.BREVO_FROM || 'noreply@bustobattle.it' 
+        email: process.env.BREVO_FROM || 'noreply@bustobattle.com' 
       },
       to: [{ 
         email: to, 
@@ -4318,7 +4318,7 @@ app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
             'content-type': 'application/json'
           },
           body: JSON.stringify({
-            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
             to: [{ email: iscritto.email, name: `${iscritto.nome} ${iscritto.cognome}` }],
             bcc: [{ email: 'bustobattle@gmail.com' }],
             subject: oggetto,
@@ -4389,7 +4389,7 @@ async function sendContactEmail({ nome, email, oggetto, messaggio }) {
         'content-type': 'application/json'
       },
       body: JSON.stringify({
-        sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.it' },
+        sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
         to: [{ email: 'bustobattle@gmail.com' }],
         replyTo: { email: email, name: nome },
         subject: `[Contatto BB XI] ${oggetto}`,
