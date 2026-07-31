@@ -739,14 +739,14 @@
         const noteAdminShort = noteAdmin.length > 30 ? noteAdmin.substring(0, 30) + '...' : noteAdmin;
         
         return `<tr>
-          <td><strong>${codice(i.id)}</strong></td>
+          <td style="white-space:nowrap"><strong>${codice(i.id)}</strong></td>
           <td>${i.cognome}</td>
           <td>${i.nome}</td>
           <td style="max-width:200px;font-size:0.85rem">${i.categoria || ''}</td>
           <td>€${calcolaTotale(i)}</td>
           <td>${getStatoBadge(i)}</td>
           <td style="max-width:150px;font-size:0.8rem;color:#888" title="${noteAdmin}">${noteAdminShort}</td>
-          <td>${azioniHtml}</td>
+          <td style="white-space:nowrap">${azioniHtml}</td>
         </tr>`;
       }).join('');
 
