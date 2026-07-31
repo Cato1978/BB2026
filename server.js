@@ -2695,32 +2695,50 @@ app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
   }
 });
 
-// Export Excel ordini merch
+// Export Excel ordini merch - con separazione merch/iscrizioni e riepilogo taglie
 app.get('/api/merch/export', requireAdmin, async (req, res) => {
   try {
-    const ordini = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    // Fetch tutti gli ordini merch
+    const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    
+    // Fetch tutti gli iscritti con merch (maglia/felpa/cappellino/asciugamano)
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
     
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Busto Battle XI';
-    const sheet = workbook.addWorksheet('Ordini Merch');
     
-    sheet.columns = [
+    // Helper per parsing note iscritti
+    function parseNote(note) {
+      const result = { maglia: '', felpa: '', cappellino: false, asciugamano: false };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+        else if (p.toLowerCase().includes('cappellino')) result.cappellino = true;
+        else if (p.toLowerCase().includes('asciugamano')) result.asciugamano = true;
+      }
+      return result;
+    }
+    
+    // ========== FOGLIO 1: ORDINI DA MERCH ==========
+    const sheetMerch = workbook.addWorksheet('Ordini Merch');
+    sheetMerch.columns = [
       { header: 'Codice', key: 'codice', width: 15 },
       { header: 'Cognome', key: 'cognome', width: 15 },
       { header: 'Nome', key: 'nome', width: 15 },
       { header: 'Email', key: 'email', width: 25 },
       { header: 'Telefono', key: 'telefono', width: 15 },
-      { header: 'Articoli', key: 'articoli', width: 40 },
+      { header: 'Articoli', key: 'articoli', width: 45 },
       { header: 'Totale €', key: 'totale', width: 10 },
+      { header: 'Stato', key: 'stato', width: 12 },
       { header: 'Note', key: 'note', width: 20 },
       { header: 'Data', key: 'data', width: 12 }
     ];
+    sheetMerch.getRow(1).font = { bold: true };
+    sheetMerch.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
     
-    // Header style
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
-    
-    for (const o of ordini) {
+    for (const o of ordiniMerch) {
       const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
       const articoliStr = items.map(i => {
         const taglia = i.taglia ? ` (${i.taglia})` : '';
@@ -2728,10 +2746,11 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
       }).join(', ');
       
       const totale = items.reduce((sum, i) => {
-        return sum + (i.prezzo_unitario || 5) * (i.quantita || 1);
+        const prezzi = { Felpa: 35, Maglia: 15, Cappellino: 5, Asciugamano: 5 };
+        return sum + (prezzi[i.articolo] || 5) * (i.quantita || 1);
       }, 0);
       
-      sheet.addRow({
+      sheetMerch.addRow({
         codice: o.codice,
         cognome: o.cognome,
         nome: o.nome,
@@ -2739,13 +2758,165 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
         telefono: o.telefono || '',
         articoli: articoliStr,
         totale: totale,
+        stato: o.stato || 'sospeso',
         note: o.note || '',
         data: o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : ''
       });
     }
     
+    // ========== FOGLIO 2: ORDINI DA ISCRIZIONI ==========
+    const sheetIscr = workbook.addWorksheet('Ordini Iscrizioni');
+    sheetIscr.columns = [
+      { header: 'Cognome', key: 'cognome', width: 18 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Maglia', key: 'maglia', width: 15 },
+      { header: 'Felpa', key: 'felpa', width: 15 },
+      { header: 'Cappellino', key: 'cappellino', width: 12 },
+      { header: 'Asciugamano', key: 'asciugamano', width: 12 },
+      { header: 'Pagamento', key: 'pagamento', width: 12 }
+    ];
+    sheetIscr.getRow(1).font = { bold: true };
+    sheetIscr.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+    
+    for (const isc of iscritti) {
+      const note = parseNote(isc.note);
+      // Solo se ha almeno un articolo merch
+      if (note.maglia || note.felpa || note.cappellino || note.asciugamano) {
+        sheetIscr.addRow({
+          cognome: isc.cognome,
+          nome: isc.nome,
+          email: isc.email || '',
+          maglia: note.maglia || '',
+          felpa: note.felpa || '',
+          cappellino: note.cappellino ? 'Sì' : '',
+          asciugamano: note.asciugamano ? 'Sì' : '',
+          pagamento: isc.stato === 'confermata' ? 'Confermato' : (isc.stato || 'Sospeso')
+        });
+      }
+    }
+    
+    // ========== FOGLIO 3: RIEPILOGO TAGLIE ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo Taglie');
+    
+    // Struttura per conteggio
+    const conteggio = {
+      // Maglie
+      'Maglia XS Uomo': 0, 'Maglia S Uomo': 0, 'Maglia M Uomo': 0, 'Maglia L Uomo': 0, 'Maglia XL Uomo': 0,
+      'Maglia XXL Uomo': 0, 'Maglia 3XL Uomo': 0, 'Maglia 4XL Uomo': 0, 'Maglia 5XL Uomo': 0,
+      'Maglia XS Donna': 0, 'Maglia S Donna': 0, 'Maglia M Donna': 0, 'Maglia L Donna': 0, 'Maglia XL Donna': 0,
+      'Maglia XXL Donna': 0, 'Maglia 3XL Donna': 0,
+      // Felpe
+      'Felpa XS Uomo': 0, 'Felpa S Uomo': 0, 'Felpa M Uomo': 0, 'Felpa L Uomo': 0, 'Felpa XL Uomo': 0,
+      'Felpa XXL Uomo': 0, 'Felpa 3XL Uomo': 0,
+      'Felpa XS Donna': 0, 'Felpa S Donna': 0, 'Felpa M Donna': 0, 'Felpa L Donna': 0, 'Felpa XL Donna': 0,
+      'Felpa XXL Donna': 0,
+      // Accessori
+      'Cappellino': 0,
+      'Asciugamano': 0
+    };
+    
+    // Conta da iscrizioni
+    for (const isc of iscritti) {
+      const note = parseNote(isc.note);
+      if (note.maglia) {
+        const key = 'Maglia ' + note.maglia;
+        if (conteggio[key] !== undefined) conteggio[key]++;
+      }
+      if (note.felpa) {
+        const key = 'Felpa ' + note.felpa;
+        if (conteggio[key] !== undefined) conteggio[key]++;
+      }
+      if (note.cappellino) conteggio['Cappellino']++;
+      if (note.asciugamano) conteggio['Asciugamano']++;
+    }
+    
+    // Conta da ordini merch
+    for (const o of ordiniMerch) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      for (const item of items) {
+        if (item.articolo === 'Maglia' && item.taglia) {
+          const key = 'Maglia ' + item.taglia;
+          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
+        } else if (item.articolo === 'Felpa' && item.taglia) {
+          const key = 'Felpa ' + item.taglia;
+          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
+        } else if (item.articolo === 'Cappellino') {
+          conteggio['Cappellino'] += (item.quantita || 1);
+        } else if (item.articolo === 'Asciugamano') {
+          conteggio['Asciugamano'] += (item.quantita || 1);
+        }
+      }
+    }
+    
+    // Colonne riepilogo con date ordini stampati
+    sheetRiepilogo.columns = [
+      { header: 'Articolo', key: 'articolo', width: 22 },
+      { header: 'Totale Ordinati', key: 'totale', width: 15 },
+      { header: 'Stampati 12/08', key: 'stamp1', width: 14 },
+      { header: 'Stampati 01/09', key: 'stamp2', width: 14 },
+      { header: 'Stampati 15/09', key: 'stamp3', width: 14 },
+      { header: 'Stampati 01/10', key: 'stamp4', width: 14 },
+      { header: 'DA ORDINARE', key: 'daOrdinare', width: 15 }
+    ];
+    sheetRiepilogo.getRow(1).font = { bold: true };
+    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6366F1' } };
+    
+    // Ordine logico degli articoli
+    const ordineArticoli = [
+      // Maglie Uomo
+      'Maglia XS Uomo', 'Maglia S Uomo', 'Maglia M Uomo', 'Maglia L Uomo', 'Maglia XL Uomo',
+      'Maglia XXL Uomo', 'Maglia 3XL Uomo', 'Maglia 4XL Uomo', 'Maglia 5XL Uomo',
+      // Maglie Donna
+      'Maglia XS Donna', 'Maglia S Donna', 'Maglia M Donna', 'Maglia L Donna', 'Maglia XL Donna',
+      'Maglia XXL Donna', 'Maglia 3XL Donna',
+      // Felpe Uomo
+      'Felpa XS Uomo', 'Felpa S Uomo', 'Felpa M Uomo', 'Felpa L Uomo', 'Felpa XL Uomo',
+      'Felpa XXL Uomo', 'Felpa 3XL Uomo',
+      // Felpe Donna
+      'Felpa XS Donna', 'Felpa S Donna', 'Felpa M Donna', 'Felpa L Donna', 'Felpa XL Donna',
+      'Felpa XXL Donna',
+      // Accessori
+      'Cappellino',
+      'Asciugamano'
+    ];
+    
+    for (const art of ordineArticoli) {
+      const totale = conteggio[art] || 0;
+      if (totale > 0 || art.includes('Maglia') || art.includes('Felpa')) {
+        const row = sheetRiepilogo.addRow({
+          articolo: art,
+          totale: totale,
+          stamp1: 0,  // Compilare manualmente
+          stamp2: 0,
+          stamp3: 0,
+          stamp4: 0,
+          daOrdinare: { formula: `B${sheetRiepilogo.rowCount}-C${sheetRiepilogo.rowCount}-D${sheetRiepilogo.rowCount}-E${sheetRiepilogo.rowCount}-F${sheetRiepilogo.rowCount}` }
+        });
+        
+        // Colora la colonna "DA ORDINARE" se > 0
+        row.getCell('daOrdinare').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+        row.getCell('daOrdinare').font = { bold: true };
+      }
+    }
+    
+    // Riga totali
+    const lastRow = sheetRiepilogo.rowCount;
+    sheetRiepilogo.addRow({});
+    const totRow = sheetRiepilogo.addRow({
+      articolo: 'TOTALE',
+      totale: { formula: `SUM(B2:B${lastRow})` },
+      stamp1: { formula: `SUM(C2:C${lastRow})` },
+      stamp2: { formula: `SUM(D2:D${lastRow})` },
+      stamp3: { formula: `SUM(E2:E${lastRow})` },
+      stamp4: { formula: `SUM(F2:F${lastRow})` },
+      daOrdinare: { formula: `SUM(G2:G${lastRow})` }
+    });
+    totRow.font = { bold: true };
+    totRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=ordini_merch.xlsx');
+    res.setHeader('Content-Disposition', 'attachment; filename=merchandising_completo.xlsx');
     await workbook.xlsx.write(res);
   } catch (err) {
     console.error('Errore export merch:', err);
