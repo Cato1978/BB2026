@@ -149,6 +149,13 @@ async function initDb() {
       quantita INTEGER NOT NULL DEFAULT 1,
       prezzo_unitario REAL NOT NULL
     )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_stampati (
+      id SERIAL PRIMARY KEY,
+      data_ordine TEXT NOT NULL,
+      articolo TEXT NOT NULL,
+      quantita INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
     await pgPool.query(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -356,6 +363,13 @@ async function initDb() {
     quantita INTEGER NOT NULL DEFAULT 1,
     prezzo_unitario REAL NOT NULL,
     FOREIGN KEY (ordine_id) REFERENCES merch_ordini(id)
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS merch_stampati (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_ordine TEXT NOT NULL,
+    articolo TEXT NOT NULL,
+    quantita INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
   )`);
   db.run(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2695,14 +2709,60 @@ app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
   }
 });
 
-// ============ CONFIGURAZIONE ORDINI STAMPATI ============
-// Aggiungere qui gli ordini fatti al fornitore con data e quantità per articolo
-const ORDINI_STAMPATI = [
-  // Esempio: { data: '12/08/2026', articoli: { 'Maglia S Uomo': 10, 'Maglia M Uomo': 15, 'Felpa L Uomo': 5 } }
-  // Ordine 1 - DA COMPILARE
-  // { data: '??/??/2026', articoli: {} },
-];
-// =========================================================
+// ============ API ORDINI STAMPATI (per tracking stampe fornitore) ============
+
+// GET lista date ordini stampati
+app.get('/api/merch/stampati/date', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT DISTINCT data_ordine FROM merch_stampati ORDER BY data_ordine');
+    res.json(rows.map(r => r.data_ordine));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET dettaglio ordine stampato per data
+app.get('/api/merch/stampati/:data', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM merch_stampati WHERE data_ordine=?', [req.params.data]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST nuovo ordine stampato
+app.post('/api/merch/stampati', requireAdmin, async (req, res) => {
+  try {
+    const { data_ordine, articoli } = req.body;
+    if (!data_ordine || !articoli) return res.status(400).json({ error: 'Data e articoli richiesti' });
+    
+    // Elimina eventuali record esistenti per questa data
+    await dbRun('DELETE FROM merch_stampati WHERE data_ordine=?', [data_ordine]);
+    
+    // Inserisci nuovi record
+    for (const [articolo, quantita] of Object.entries(articoli)) {
+      if (quantita > 0) {
+        await dbRun('INSERT INTO merch_stampati (data_ordine, articolo, quantita) VALUES (?, ?, ?)', 
+          [data_ordine, articolo, quantita]);
+      }
+    }
+    
+    res.json({ success: true, data_ordine });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE ordine stampato per data
+app.delete('/api/merch/stampati/:data', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('DELETE FROM merch_stampati WHERE data_ordine=?', [req.params.data]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Export Excel ordini merch - con separazione merch/iscrizioni e riepilogo taglie
 app.get('/api/merch/export', requireAdmin, async (req, res) => {
@@ -2712,6 +2772,20 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     
     // Fetch tutti gli iscritti con merch (maglia/felpa/cappellino/asciugamano)
     const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Fetch ordini stampati dal database
+    const stampatiRows = await dbAll('SELECT * FROM merch_stampati ORDER BY data_ordine');
+    
+    // Raggruppa per data
+    const ORDINI_STAMPATI = [];
+    const dateMap = {};
+    for (const row of stampatiRows) {
+      if (!dateMap[row.data_ordine]) {
+        dateMap[row.data_ordine] = { data: row.data_ordine, articoli: {} };
+        ORDINI_STAMPATI.push(dateMap[row.data_ordine]);
+      }
+      dateMap[row.data_ordine].articoli[row.articolo] = row.quantita;
+    }
     
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Busto Battle XI';

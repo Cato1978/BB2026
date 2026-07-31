@@ -227,6 +227,85 @@
     
     <button onclick="caricaMerch()" style="margin-bottom:1rem">🔄 Aggiorna</button>
     <button onclick="exportMerchExcel()" style="margin-bottom:1rem;background:#217346">📥 Esporta Excel</button>
+    <button onclick="mostraGestioneStampati()" style="margin-bottom:1rem;background:#6366F1">🖨️ Gestione Ordini Stampati</button>
+    
+    <!-- Modal Gestione Ordini Stampati -->
+    <div id="modal-stampati" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;overflow-y:auto">
+      <div style="background:#1a1a1a;max-width:900px;margin:2rem auto;padding:1.5rem;border-radius:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 style="margin:0;color:#6366F1">🖨️ Gestione Ordini Stampati</h3>
+          <button onclick="chiudiGestioneStampati()" style="background:#333;border:none;padding:0.5rem 1rem;cursor:pointer;border-radius:4px">✕ Chiudi</button>
+        </div>
+        
+        <p style="color:#888;margin-bottom:1rem">Registra qui gli ordini che fai al fornitore. Ogni ordine avrà una colonna nell'export Excel.</p>
+        
+        <!-- Ordini esistenti -->
+        <div id="lista-ordini-stampati" style="margin-bottom:1.5rem"></div>
+        
+        <!-- Form nuovo ordine -->
+        <div style="background:#222;padding:1rem;border-radius:6px">
+          <h4 style="margin:0 0 1rem;color:#F7AF40">➕ Nuovo Ordine Stampato</h4>
+          <div style="margin-bottom:1rem">
+            <label style="display:block;margin-bottom:0.3rem;color:#888">Data ordine:</label>
+            <input type="date" id="stampati-data" style="padding:0.5rem;border-radius:4px;border:1px solid #444;background:#111;color:#fff">
+          </div>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:0.8rem;margin-bottom:1rem">
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Maglie Uomo</p>
+              <div class="stampati-inputs" data-tipo="Maglia" data-genere="Uomo">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Maglia XS Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Maglia S Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Maglia M Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Maglia L Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Maglia XL Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XXL:</span><input type="number" min="0" value="0" data-art="Maglia XXL Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>3XL:</span><input type="number" min="0" value="0" data-art="Maglia 3XL Uomo" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Maglie Donna</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Maglia XS Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Maglia S Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Maglia M Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Maglia L Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Maglia XL Donna" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Felpe Uomo</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Felpa XS Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Felpa S Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Felpa M Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Felpa L Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Felpa XL Uomo" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Felpe Donna</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Felpa XS Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Felpa S Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Felpa M Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Felpa L Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Felpa XL Donna" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Accessori</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>Cappellino:</span><input type="number" min="0" value="0" data-art="Cappellino" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>Asciugamano:</span><input type="number" min="0" value="0" data-art="Asciugamano" style="width:50px"></label>
+              </div>
+            </div>
+          </div>
+          
+          <button onclick="salvaOrdineStampato()" style="background:#22c55e;padding:0.8rem 1.5rem;font-weight:bold">💾 Salva Ordine</button>
+        </div>
+      </div>
+    </div>
     
     <div id="merch-stats" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:1rem;margin-bottom:1.5rem">
       <!-- Stats cards -->
@@ -1981,6 +2060,116 @@
     
     function exportMerchExcel() {
       window.location.href = '/api/merch/export';
+    }
+    
+    // --- GESTIONE ORDINI STAMPATI ---
+    async function mostraGestioneStampati() {
+      document.getElementById('modal-stampati').style.display = 'block';
+      await caricaOrdiniStampati();
+    }
+    
+    function chiudiGestioneStampati() {
+      document.getElementById('modal-stampati').style.display = 'none';
+    }
+    
+    async function caricaOrdiniStampati() {
+      try {
+        const res = await fetch('/api/merch/stampati/date');
+        const date = await res.json();
+        
+        const container = document.getElementById('lista-ordini-stampati');
+        
+        if (date.length === 0) {
+          container.innerHTML = '<p style="color:#888;text-align:center;padding:1rem">Nessun ordine stampato registrato</p>';
+          return;
+        }
+        
+        let html = '<h4 style="color:#22c55e;margin-bottom:0.8rem">📋 Ordini Registrati</h4>';
+        
+        for (const data of date) {
+          const detRes = await fetch('/api/merch/stampati/' + encodeURIComponent(data));
+          const items = await detRes.json();
+          
+          const totale = items.reduce((sum, i) => sum + i.quantita, 0);
+          const articoliStr = items.map(i => `${i.quantita}x ${i.articolo}`).join(', ');
+          
+          html += `
+            <div style="background:#222;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong style="color:#F7AF40">${data}</strong>
+                <span style="color:#888;margin-left:1rem">${totale} pezzi</span>
+                <p style="color:#666;font-size:0.8rem;margin:0.3rem 0 0">${articoliStr}</p>
+              </div>
+              <button onclick="eliminaOrdineStampato('${data}')" style="background:#dc2626;padding:0.4rem 0.8rem;font-size:0.8rem">🗑️ Elimina</button>
+            </div>
+          `;
+        }
+        
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Errore caricamento ordini stampati:', err);
+      }
+    }
+    
+    async function salvaOrdineStampato() {
+      const dataInput = document.getElementById('stampati-data').value;
+      if (!dataInput) {
+        alert('Seleziona una data');
+        return;
+      }
+      
+      // Converti da YYYY-MM-DD a DD/MM/YYYY
+      const [y, m, d] = dataInput.split('-');
+      const data_ordine = `${d}/${m}/${y}`;
+      
+      // Raccogli tutti i valori
+      const articoli = {};
+      document.querySelectorAll('#modal-stampati input[data-art]').forEach(input => {
+        const qty = parseInt(input.value) || 0;
+        if (qty > 0) {
+          articoli[input.dataset.art] = qty;
+        }
+      });
+      
+      if (Object.keys(articoli).length === 0) {
+        alert('Inserisci almeno un articolo');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/merch/stampati', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data_ordine, articoli })
+        });
+        
+        if (res.ok) {
+          // Reset form
+          document.getElementById('stampati-data').value = '';
+          document.querySelectorAll('#modal-stampati input[data-art]').forEach(input => input.value = 0);
+          
+          await caricaOrdiniStampati();
+          alert('Ordine salvato!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + err.error);
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function eliminaOrdineStampato(data) {
+      if (!confirm(`Eliminare l'ordine del ${data}?`)) return;
+      
+      try {
+        const res = await fetch('/api/merch/stampati/' + encodeURIComponent(data), { method: 'DELETE' });
+        if (res.ok) {
+          await caricaOrdiniStampati();
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
     }
 
     async function caricaPagine() {
