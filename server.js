@@ -669,18 +669,23 @@ app.get('/api/bilancio', requireAdmin, async (req, res) => {
     const provePerCodice = {};
     for (const p of prove) {
       if (!provePerCodice[p.codice]) {
-        provePerCodice[p.codice] = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: 0, ricevuta: p.ricevuta_bonifico };
+        provePerCodice[p.codice] = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: 0, ricevuta: p.ricevuta_bonifico, note: p.note, note_admin: p.note_admin };
       }
       provePerCodice[p.codice].slots++;
     }
     
-    const provePista = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+    const provePista = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
     for (const codice in provePerCodice) {
       const p = provePerCodice[codice];
       const totale = p.slots * 5;
       const record = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: p.slots, totale };
+      const noteAdmin = (p.note_admin || '').toLowerCase();
+      const note = (p.note || '').toLowerCase();
       
-      if (p.ricevuta) {
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        provePista.contanti.items.push(record);
+        provePista.contanti.totale += totale;
+      } else if (p.ricevuta) {
         provePista.bonifico.items.push(record);
         provePista.bonifico.totale += totale;
       } else {
@@ -691,29 +696,47 @@ app.get('/api/bilancio', requireAdmin, async (req, res) => {
     
     // ========== MERCHANDISING ==========
     const merchOrdini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
-    const merch = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
+    const merch = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
     
     for (const o of merchOrdini) {
       const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
       const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
       const articoli = items.map(i => `${i.quantita}x ${i.articolo}`).join(', ');
       const record = { codice: o.codice, nome: o.nome, cognome: o.cognome, articoli, totale };
+      const noteAdmin = (o.note_admin || '').toLowerCase();
+      const note = (o.note || '').toLowerCase();
       
-      // Se origine è iscrizione, segue il metodo di pagamento dell'iscrizione collegata
-      // Altrimenti, se non ha ricevuta = carta
-      if (o.origine === 'iscrizione') {
-        // Trova l'iscrizione collegata
+      // Prima controlla se è pagamento in contanti
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        merch.contanti.items.push(record);
+        merch.contanti.totale += totale;
+      } else if (o.origine === 'iscrizione') {
+        // Se origine è iscrizione, segue il metodo di pagamento dell'iscrizione collegata
         const iscrizioneRows = await dbAll('SELECT * FROM iscritti WHERE id=?', [parseInt(o.iscrizione_codice?.replace('BB11-','')) || 0]);
         const isc = iscrizioneRows[0];
-        if (isc && (isc.ricevuta_bonifico || isc.ricevuta_base64)) {
-          merch.bonifico.items.push(record);
-          merch.bonifico.totale += totale;
+        if (isc) {
+          const iscNoteAdmin = (isc.note_admin || '').toLowerCase();
+          const iscNote = (isc.note || '').toLowerCase();
+          if (iscNoteAdmin.includes('contanti') || iscNote.includes('contanti')) {
+            merch.contanti.items.push(record);
+            merch.contanti.totale += totale;
+          } else if (isc.ricevuta_bonifico || isc.ricevuta_base64) {
+            merch.bonifico.items.push(record);
+            merch.bonifico.totale += totale;
+          } else {
+            merch.carta.items.push(record);
+            merch.carta.totale += totale;
+          }
         } else {
           merch.carta.items.push(record);
           merch.carta.totale += totale;
         }
+      } else if (o.ricevuta_bonifico) {
+        // Standalone con bonifico
+        merch.bonifico.items.push(record);
+        merch.bonifico.totale += totale;
       } else {
-        // Standalone - per ora consideriamo carta (Stripe) come default
+        // Standalone - carta (Stripe) come default
         merch.carta.items.push(record);
         merch.carta.totale += totale;
       }
@@ -723,7 +746,7 @@ app.get('/api/bilancio', requireAdmin, async (req, res) => {
     const totaleGenerale = {
       bonifico: iscrizioni.bonifico.totale + provePista.bonifico.totale + merch.bonifico.totale,
       carta: iscrizioni.carta.totale + provePista.carta.totale + merch.carta.totale,
-      contanti: iscrizioni.contanti.totale
+      contanti: iscrizioni.contanti.totale + provePista.contanti.totale + merch.contanti.totale
     };
     totaleGenerale.totale = totaleGenerale.bonifico + totaleGenerale.carta + totaleGenerale.contanti;
     

@@ -1092,26 +1092,28 @@
         `;
         
         // Prove Pista - cliccabile
-        const prv = data.provePista || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
-        const totPrv = prv.bonifico.totale + prv.carta.totale;
-        const totSlots = prv.bonifico.items.reduce((s,p) => s + p.slots, 0) + prv.carta.items.reduce((s,p) => s + p.slots, 0);
+        const prv = data.provePista || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totPrv = prv.bonifico.totale + prv.carta.totale + (prv.contanti?.totale || 0);
+        const totSlots = prv.bonifico.items.reduce((s,p) => s + p.slots, 0) + prv.carta.items.reduce((s,p) => s + p.slots, 0) + (prv.contanti?.items || []).reduce((s,p) => s + p.slots, 0);
         document.getElementById('bilancio-prove').innerHTML = `
           <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totPrv.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totSlots} slot)</span></p>
           <div style="display:grid;gap:0.5rem;font-size:0.9rem">
             <div onclick="mostraDettaglioBilancio('provePista','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${prv.bonifico.items.length})</span><span>€${prv.bonifico.totale.toLocaleString('it-IT')}</span></div>
             <div onclick="mostraDettaglioBilancio('provePista','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${prv.carta.items.length})</span><span>€${prv.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('provePista','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${(prv.contanti?.items || []).length})</span><span>€${(prv.contanti?.totale || 0).toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
         // Merchandising - cliccabile
-        const mrc = data.merch || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 } };
-        const totMrc = mrc.bonifico.totale + mrc.carta.totale;
-        const totOrdini = mrc.bonifico.items.length + mrc.carta.items.length;
+        const mrc = data.merch || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totMrc = mrc.bonifico.totale + mrc.carta.totale + (mrc.contanti?.totale || 0);
+        const totOrdini = mrc.bonifico.items.length + mrc.carta.items.length + (mrc.contanti?.items || []).length;
         document.getElementById('bilancio-merch').innerHTML = `
           <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totMrc.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totOrdini} ordini)</span></p>
           <div style="display:grid;gap:0.5rem;font-size:0.9rem">
             <div onclick="mostraDettaglioBilancio('merch','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${mrc.bonifico.items.length})</span><span>€${mrc.bonifico.totale.toLocaleString('it-IT')}</span></div>
             <div onclick="mostraDettaglioBilancio('merch','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${mrc.carta.items.length})</span><span>€${mrc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('merch','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${(mrc.contanti?.items || []).length})</span><span>€${(mrc.contanti?.totale || 0).toLocaleString('it-IT')}</span></div>
           </div>
         `;
         
