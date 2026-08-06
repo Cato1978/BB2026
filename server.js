@@ -178,6 +178,22 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note_admin TEXT'); } catch(e) {}
+    
+    // Migration: fix prove esistenti - imposta stato e collega a iscrizioni
+    // 1. Imposta stato = 'sospesa' dove è NULL
+    await pgPool.query("UPDATE prove_prenotazioni SET stato = 'sospesa' WHERE stato IS NULL");
+    // 2. Popola iscrizione_codice per prove collegate a iscrizioni (codice inizia con PRV-BB11-)
+    await pgPool.query("UPDATE prove_prenotazioni SET iscrizione_codice = REPLACE(codice, 'PRV-', ''), origine = 'iscrizione' WHERE codice LIKE 'PRV-BB11-%' AND iscrizione_codice IS NULL");
+    // 3. Conferma prove collegate a iscrizioni confermate
+    await pgPool.query(`
+      UPDATE prove_prenotazioni pp
+      SET stato = 'confermata'
+      FROM iscritti i
+      WHERE pp.iscrizione_codice = 'BB11-' || LPAD(i.id::TEXT, 4, '0')
+      AND i.stato = 'confermata'
+      AND pp.stato != 'confermata'
+    `);
+    
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
       giorno TEXT NOT NULL,
@@ -1269,8 +1285,8 @@ app.post('/api/iscritti', async (req, res) => {
           specialita = p.specialita || null;
         }
         const noteProva = specialita ? `${ora}: ${specialita}` : null;
-        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, note) VALUES (?,?,?,?,?,?,?,?)',
-          [nome, cognome, email || null, telefono || null, ora, giorno, proveCodice, noteProva]);
+        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, origine, iscrizione_codice, note) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+          [nome, cognome, email || null, telefono || null, ora, giorno, proveCodice, 'sospesa', 'iscrizione', codice, noteProva]);
       }
       console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
     }
