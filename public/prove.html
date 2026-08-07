@@ -221,16 +221,29 @@
     async function caricaProveDisponibilita() {
       try {
         const res = await fetch('/api/prove/disponibilita');
+        if (!res.ok) {
+          throw new Error('Errore server: ' + res.status);
+        }
         proveDisponibilita = await res.json();
+        console.log('Prove disponibilita caricati:', Object.keys(proveDisponibilita).length, 'slot');
+        if (Object.keys(proveDisponibilita).length === 0) {
+          document.getElementById('msg').textContent = 'Nessuno slot prove configurato nel sistema';
+          document.getElementById('msg').style.color = '#f59e0b';
+        }
         aggiungiAtleta();
       } catch (e) {
         console.error('Errore caricamento prove:', e);
+        document.getElementById('msg').textContent = 'Errore caricamento disponibilità: ' + e.message;
+        document.getElementById('msg').style.color = '#ef4444';
+        // Comunque aggiungi l'atleta per mostrare il form
+        aggiungiAtleta();
       }
     }
 
     function renderSlotsPerAtleta(atletaId) {
       const entries = Object.entries(proveDisponibilita);
-      if (!entries.length) return '<p style="color:#888">Nessuno slot disponibile</p>';
+      console.log('renderSlotsPerAtleta:', atletaId, 'entries:', entries.length);
+      if (!entries.length) return '<p style="color:#888">Nessuno slot disponibile - ricarica la pagina o contatta bustobattle@gmail.com</p>';
       
       const perGiorno = {};
       for (const [key, data] of entries) {
