@@ -774,8 +774,10 @@
       const numDisc = numDiscipline(i.categoria);
       if (numDisc === 0) return 0;
       let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
-      // Aggiungi felpa se presente nelle note
+      // Aggiungi merch se presente nelle note
       if (i.note && i.note.includes('Felpa:')) totale += 35;
+      if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
       return totale;
     }
 
