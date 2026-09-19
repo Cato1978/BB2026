@@ -76,6 +76,7 @@
           <th>Nome</th>
           <th>Discipline</th>
           <th>Totale €</th>
+          <th>Metodo</th>
           <th>Stato</th>
           <th>Note Admin</th>
           <th>Azioni</th>
@@ -707,6 +708,14 @@
       return badges[stato] || stato;
     }
 
+    function getMetodoPagamento(i) {
+      const noteAdmin = (i.note_admin || '').toLowerCase();
+      const note = (i.note || '').toLowerCase();
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#9ca3af">💵 Contanti</span>';
+      if (i.ricevuta_bonifico || i.ricevuta_base64) return '<span style="color:#22d3ee">🏦 Bonifico</span>';
+      return '<span style="color:#a78bfa">💳 Carta</span>';
+    }
+
     function render() {
       const list = getFiltered();
       const tbody = document.querySelector('#tabella tbody');
@@ -744,6 +753,7 @@
           <td>${i.nome}</td>
           <td style="max-width:200px;font-size:0.85rem">${i.categoria || ''}</td>
           <td>€${calcolaTotale(i)}</td>
+          <td style="font-size:0.85rem">${getMetodoPagamento(i)}</td>
           <td>${getStatoBadge(i)}</td>
           <td style="max-width:150px;font-size:0.8rem;color:#888" title="${noteAdmin}">${noteAdminShort}</td>
           <td style="white-space:nowrap">${azioniHtml}</td>

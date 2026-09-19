@@ -824,6 +824,34 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       return disc;
     }
     
+    // Helper per calcolare totale iscrizione
+    function calcolaTotaleIscrizioneExcel(isc) {
+      const numDisc = isc.categoria ? isc.categoria.split(',').length : 0;
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30;
+      if (isc.note && isc.note.toLowerCase().includes('felpa:')) totale += 35;
+      if (isc.note && isc.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (isc.note && isc.note.toLowerCase().includes('asciugamano')) totale += 5;
+      return totale;
+    }
+    
+    // Helper per determinare metodo pagamento
+    function getMetodoPagamento(isc) {
+      const noteAdmin = (isc.note_admin || '').toLowerCase();
+      const note = (isc.note || '').toLowerCase();
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) return 'Contanti';
+      if (isc.ricevuta_bonifico || isc.ricevuta_base64) return 'Bonifico';
+      return 'Carta';
+    }
+    
+    // Helper per stato pagamento leggibile
+    function getStatoPagamento(isc) {
+      if (isc.stato === 'confermata' || isc.pagamento === 1) return 'Confermato';
+      if (isc.stato === 'sospesa') return 'Sospeso';
+      if (isc.stato === 'rifiutata') return 'Rifiutato';
+      return isc.stato || 'Sospeso';
+    }
+
     // ========== FOGLIO 1: TUTTI GLI ATLETI ==========
     const sheetAtleti = workbook.addWorksheet('Tutti gli Atleti');
     sheetAtleti.columns = [
@@ -841,7 +869,9 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       { header: 'Maglia', key: 'maglia', width: 8 },
       { header: 'Felpa', key: 'felpa', width: 8 },
       { header: 'Discipline', key: 'discipline', width: 40 },
-      { header: 'Pagamento', key: 'pagamento', width: 10 },
+      { header: 'Importo €', key: 'importo', width: 10 },
+      { header: 'Stato Pagamento', key: 'stato_pagamento', width: 15 },
+      { header: 'Metodo', key: 'metodo_pagamento', width: 10 },
       { header: 'Note', key: 'note_extra', width: 30 },
       { header: 'Note Admin', key: 'note_admin', width: 30 }
     ];
@@ -882,7 +912,9 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
         maglia: note.maglia,
         felpa: note.felpa || '-',
         discipline: isc.categoria,
-        pagamento: isc.pagamento ? 'Sì' : 'No',
+        importo: calcolaTotaleIscrizioneExcel(isc),
+        stato_pagamento: getStatoPagamento(isc),
+        metodo_pagamento: getMetodoPagamento(isc),
         note_extra: noteExtra,
         note_admin: isc.note_admin || ''
       });
