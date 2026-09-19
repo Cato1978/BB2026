@@ -174,19 +174,19 @@
         <div id="sizes-felpa" style="display:none">
           <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieUomo">Uomo:</p>
           <div class="size-select" style="margin-bottom:0.5rem">
-            <button class="size-btn" onclick="selectSize('felpa', 'XS Uomo')">XS</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'S Uomo')">S</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'M Uomo')">M</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'L Uomo')">L</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'XL Uomo')">XL</button>
+            <button class="size-btn" data-size="XS Uomo" onclick="selectSize('felpa', 'XS Uomo')">XS</button>
+            <button class="size-btn" data-size="S Uomo" onclick="selectSize('felpa', 'S Uomo')">S</button>
+            <button class="size-btn" data-size="M Uomo" onclick="selectSize('felpa', 'M Uomo')">M</button>
+            <button class="size-btn" data-size="L Uomo" onclick="selectSize('felpa', 'L Uomo')">L</button>
+            <button class="size-btn" data-size="XL Uomo" onclick="selectSize('felpa', 'XL Uomo')">XL</button>
           </div>
           <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieDonna">Donna:</p>
           <div class="size-select">
-            <button class="size-btn" onclick="selectSize('felpa', 'XS Donna')">XS</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'S Donna')">S</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'M Donna')">M</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'L Donna')">L</button>
-            <button class="size-btn" onclick="selectSize('felpa', 'XL Donna')">XL</button>
+            <button class="size-btn" data-size="XS Donna" onclick="selectSize('felpa', 'XS Donna')">XS</button>
+            <button class="size-btn" data-size="S Donna" onclick="selectSize('felpa', 'S Donna')">S</button>
+            <button class="size-btn" data-size="M Donna" onclick="selectSize('felpa', 'M Donna')">M</button>
+            <button class="size-btn" data-size="L Donna" onclick="selectSize('felpa', 'L Donna')">L</button>
+            <button class="size-btn" data-size="XL Donna" onclick="selectSize('felpa', 'XL Donna')">XL</button>
           </div>
           <a href="#" onclick="apriGuidaTaglieFelpa(); return false;" style="display:block;margin-top:0.8rem;color:#F7AF40;font-size:0.85rem" data-t="guidaTaglie">📏 Guida Taglie</a>
         </div>
@@ -229,19 +229,19 @@
         <div id="sizes-maglia" style="display:none">
           <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieUomo">Uomo:</p>
           <div class="size-select" style="margin-bottom:0.5rem">
-            <button class="size-btn" onclick="selectSize('maglia', 'XS Uomo')">XS</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'S Uomo')">S</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'M Uomo')">M</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'L Uomo')">L</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'XL Uomo')">XL</button>
+            <button class="size-btn" data-size="XS Uomo" onclick="selectSize('maglia', 'XS Uomo')">XS</button>
+            <button class="size-btn" data-size="S Uomo" onclick="selectSize('maglia', 'S Uomo')">S</button>
+            <button class="size-btn" data-size="M Uomo" onclick="selectSize('maglia', 'M Uomo')">M</button>
+            <button class="size-btn" data-size="L Uomo" onclick="selectSize('maglia', 'L Uomo')">L</button>
+            <button class="size-btn" data-size="XL Uomo" onclick="selectSize('maglia', 'XL Uomo')">XL</button>
           </div>
           <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem" data-t="taglieDonna">Donna:</p>
           <div class="size-select">
-            <button class="size-btn" onclick="selectSize('maglia', 'XS Donna')">XS</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'S Donna')">S</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'M Donna')">M</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'L Donna')">L</button>
-            <button class="size-btn" onclick="selectSize('maglia', 'XL Donna')">XL</button>
+            <button class="size-btn" data-size="XS Donna" onclick="selectSize('maglia', 'XS Donna')">XS</button>
+            <button class="size-btn" data-size="S Donna" onclick="selectSize('maglia', 'S Donna')">S</button>
+            <button class="size-btn" data-size="M Donna" onclick="selectSize('maglia', 'M Donna')">M</button>
+            <button class="size-btn" data-size="L Donna" onclick="selectSize('maglia', 'L Donna')">L</button>
+            <button class="size-btn" data-size="XL Donna" onclick="selectSize('maglia', 'XL Donna')">XL</button>
           </div>
           <a href="#" onclick="apriGuidaTaglie(); return false;" style="display:block;margin-top:0.8rem;color:#F7AF40;font-size:0.85rem" data-t="guidaTaglie">📏 Guida Taglie</a>
         </div>
@@ -362,9 +362,12 @@
 
     function selectSize(item, size) {
       carrello[item].taglia = size;
-      // Aggiorna UI
+      // Aggiorna UI - deseleziona tutti e seleziona solo quello con data-size corretto
       document.querySelectorAll('#sizes-' + item + ' .size-btn').forEach(btn => {
-        btn.classList.toggle('selected', btn.dataset && btn.dataset.size === size || btn.textContent + ' Uomo' === size || btn.textContent + ' Donna' === size);
+        btn.classList.remove('selected');
+        if (btn.dataset.size === size) {
+          btn.classList.add('selected');
+        }
       });
     }
 
