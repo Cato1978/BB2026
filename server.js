@@ -852,6 +852,11 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       return isc.stato || 'Sospeso';
     }
 
+    // ========== FOGLIO RIEPILOGO (creato per primo per essere in apertura) ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo Gara');
+    // Dati per il riepilogo (popolato dopo)
+    const riepilogoData = [];
+
     // ========== FOGLIO 1: TUTTI GLI ATLETI ==========
     const sheetAtleti = workbook.addWorksheet('Tutti gli Atleti');
     sheetAtleti.columns = [
@@ -938,6 +943,20 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
           
           if (atleti.length === 0) continue; // Salta fogli vuoti
           
+          // Raccogli nazionalità per riepilogo
+          const nazionalitaSet = new Set();
+          atleti.forEach(a => {
+            const naz = a.nazionalita || parseNote(a.note).nazionalita || 'N/D';
+            if (naz && naz !== 'N/D') nazionalitaSet.add(naz);
+          });
+          riepilogoData.push({
+            disciplina: disc,
+            categoria: cat,
+            genere: gen.name,
+            numPartecipanti: atleti.length,
+            nazionalita: Array.from(nazionalitaSet).sort()
+          });
+          
           // Nome foglio max 31 caratteri
           let sheetName = `${disc.replace(' Slalom', '').replace(' ', '')} ${cat} ${gen.code}`;
           if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
@@ -948,6 +967,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
             { header: 'Cognome', key: 'cognome', width: 18 },
             { header: 'Nome', key: 'nome', width: 15 },
             { header: 'Data Nascita', key: 'data_nascita', width: 12 },
+            { header: 'Nazionalità', key: 'nazionalita', width: 12 },
             { header: 'Società', key: 'societa', width: 25 },
             { header: 'World Skate ID', key: 'ws_id', width: 15 },
             { header: 'Skate Italia Card', key: 'fisr', width: 15 }
@@ -960,7 +980,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
           // Titolo
           sheet.insertRow(1, [`${disc} - ${cat} - ${gen.name}`]);
           sheet.getRow(1).font = { bold: true, size: 14 };
-          sheet.mergeCells('A1:G1');
+          sheet.mergeCells('A1:H1');
           
           atleti.forEach((isc, idx) => {
             const note = parseNote(isc.note);
@@ -969,6 +989,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
               cognome: isc.cognome,
               nome: isc.nome,
               data_nascita: isc.data_nascita,
+              nazionalita: isc.nazionalita || note.nazionalita || '',
               societa: isc.societa,
               ws_id: note.wsId,
               fisr: note.fisr
@@ -1095,7 +1116,65 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       // Riga totale
       sheetPair.addRow([]);
       sheetPair.addRow([`Totale coppie: ${numCoppia}`]);
+      
+      // Aggiungi Pair Slalom al riepilogo
+      const nazPair = new Set();
+      pairAtleti.forEach(a => {
+        const naz = a.nazionalita || parseNote(a.note).nazionalita || 'N/D';
+        if (naz && naz !== 'N/D') nazPair.add(naz);
+      });
+      riepilogoData.push({
+        disciplina: 'Pair Slalom',
+        categoria: 'UNICA',
+        genere: 'Misto',
+        numPartecipanti: pairAtleti.length,
+        nazionalita: Array.from(nazPair).sort()
+      });
     }
+    
+    // ========== POPOLA FOGLIO RIEPILOGO ==========
+    // Intestazione
+    sheetRiepilogo.mergeCells('A1:E1');
+    sheetRiepilogo.getCell('A1').value = 'BUSTO BATTLE XI - RIEPILOGO GARA';
+    sheetRiepilogo.getCell('A1').font = { bold: true, size: 16 };
+    sheetRiepilogo.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    sheetRiepilogo.getRow(3).values = ['Disciplina', 'Categoria', 'Genere', 'N° Partecipanti', 'Nazionalità rappresentate'];
+    sheetRiepilogo.getRow(3).font = { bold: true };
+    sheetRiepilogo.getRow(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+    
+    sheetRiepilogo.columns = [
+      { key: 'disciplina', width: 18 },
+      { key: 'categoria', width: 12 },
+      { key: 'genere', width: 12 },
+      { key: 'numPartecipanti', width: 15 },
+      { key: 'nazionalita', width: 50 }
+    ];
+    
+    let totalePartecipanti = 0;
+    const tutteNazionalita = new Set();
+    
+    riepilogoData.forEach(r => {
+      sheetRiepilogo.addRow({
+        disciplina: r.disciplina,
+        categoria: r.categoria,
+        genere: r.genere,
+        numPartecipanti: r.numPartecipanti,
+        nazionalita: r.nazionalita.join(', ')
+      });
+      totalePartecipanti += r.numPartecipanti;
+      r.nazionalita.forEach(n => tutteNazionalita.add(n));
+    });
+    
+    // Righe totali
+    sheetRiepilogo.addRow([]);
+    const rowTotale = sheetRiepilogo.addRow(['TOTALE ISCRIZIONI', '', '', totalePartecipanti, '']);
+    rowTotale.font = { bold: true };
+    rowTotale.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+    
+    sheetRiepilogo.addRow([]);
+    sheetRiepilogo.addRow(['TOTALE ATLETI UNICI:', '', '', iscritti.length, '']);
+    sheetRiepilogo.addRow(['NAZIONALITÀ TOTALI:', '', '', tutteNazionalita.size, Array.from(tutteNazionalita).sort().join(', ')]);
     
     // Genera e invia file
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
