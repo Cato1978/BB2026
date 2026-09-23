@@ -709,16 +709,18 @@
     }
 
     function getMetodoPagamento(i) {
+      // Se c'è il campo metodo_pagamento salvato, usalo
+      if (i.metodo_pagamento === 'online') return '<span style="color:#a78bfa">💳 Carta</span>';
+      if (i.metodo_pagamento === 'bonifico') return '<span style="color:#22d3ee">🏦 Bonifico</span>';
+      
+      // Fallback per iscrizioni vecchie senza il campo
       const stato = i.stato || 'sospesa';
-      // Se non è confermata, non mostrare un metodo (non ancora pagato)
-      if (stato !== 'confermata' && stato !== 'verifica') {
-        return '<span style="color:#888">⏳ In attesa</span>';
-      }
       const noteAdmin = (i.note_admin || '').toLowerCase();
       const note = (i.note || '').toLowerCase();
       if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#9ca3af">💵 Contanti</span>';
       if (i.ricevuta_bonifico || i.ricevuta_base64) return '<span style="color:#22d3ee">🏦 Bonifico</span>';
-      return '<span style="color:#a78bfa">💳 Carta</span>';
+      if (stato === 'confermata') return '<span style="color:#a78bfa">💳 Carta</span>';
+      return '<span style="color:#888">⏳ In attesa</span>';
     }
 
     function render() {

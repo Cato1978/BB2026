@@ -83,6 +83,7 @@ async function initDb() {
     // Migrazione: aggiungi colonna note_admin se non esiste
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN metodo_pagamento TEXT'); } catch(e) {}
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -837,16 +838,18 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     
     // Helper per determinare metodo pagamento
     function getMetodoPagamento(isc) {
+      // Se c'è il campo metodo_pagamento salvato, usalo
+      if (isc.metodo_pagamento === 'online') return 'Carta';
+      if (isc.metodo_pagamento === 'bonifico') return 'Bonifico';
+      
+      // Fallback per iscrizioni vecchie senza il campo
       const stato = isc.stato || 'sospesa';
-      // Se non è confermata/verifica, non c'è ancora un pagamento
-      if (stato !== 'confermata' && stato !== 'verifica') {
-        return 'In attesa';
-      }
       const noteAdmin = (isc.note_admin || '').toLowerCase();
       const note = (isc.note || '').toLowerCase();
       if (noteAdmin.includes('contanti') || note.includes('contanti')) return 'Contanti';
       if (isc.ricevuta_bonifico || isc.ricevuta_base64) return 'Bonifico';
-      return 'Carta';
+      if (stato === 'confermata') return 'Carta'; // Se confermata senza ricevuta = Stripe
+      return 'In attesa';
     }
     
     // Helper per stato pagamento leggibile
@@ -1378,9 +1381,9 @@ app.post('/api/iscritti', async (req, res) => {
       }
     }
     
-    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null]);
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, metodo_pagamento)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null, paymentMethod || 'bonifico']);
     
     const codice = 'BB11-' + String(id).padStart(4, '0');
     console.log('Nuovo iscritto:', { id, codice, nome, cognome, paymentMethod });
