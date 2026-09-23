@@ -709,6 +709,11 @@
     }
 
     function getMetodoPagamento(i) {
+      const stato = i.stato || 'sospesa';
+      // Se non è confermata, non mostrare un metodo (non ancora pagato)
+      if (stato !== 'confermata' && stato !== 'verifica') {
+        return '<span style="color:#888">⏳ In attesa</span>';
+      }
       const noteAdmin = (i.note_admin || '').toLowerCase();
       const note = (i.note || '').toLowerCase();
       if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#9ca3af">💵 Contanti</span>';

@@ -837,6 +837,11 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     
     // Helper per determinare metodo pagamento
     function getMetodoPagamento(isc) {
+      const stato = isc.stato || 'sospesa';
+      // Se non è confermata/verifica, non c'è ancora un pagamento
+      if (stato !== 'confermata' && stato !== 'verifica') {
+        return 'In attesa';
+      }
       const noteAdmin = (isc.note_admin || '').toLowerCase();
       const note = (isc.note || '').toLowerCase();
       if (noteAdmin.includes('contanti') || note.includes('contanti')) return 'Contanti';
