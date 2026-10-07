@@ -1510,6 +1510,54 @@ app.post('/api/iscritti', async (req, res) => {
   }
 });
 
+// Endpoint per aggiungere testo alle note senza cancellare
+app.post('/api/iscritti/:id/append-note', requireAdmin, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Testo mancante' });
+    
+    const rows = await dbAll('SELECT note FROM iscritti WHERE id=?', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    const noteAttuali = rows[0].note || '';
+    const nuoveNote = noteAttuali ? `${noteAttuali} | ${text}` : text;
+    
+    await dbRun('UPDATE iscritti SET note=? WHERE id=?', [nuoveNote, req.params.id]);
+    res.json({ ok: true, note: nuoveNote });
+  } catch (err) {
+    console.error('Errore append note:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint one-time per accoppiare le sorelle Ditta
+app.get('/api/fix-ditta-sisters', requireAdmin, async (req, res) => {
+  try {
+    // Adele Ditta (154) -> aggiungi Vittoria Ditta
+    const adele = await dbAll('SELECT note FROM iscritti WHERE id=154');
+    if (adele.length > 0) {
+      const noteAdele = adele[0].note || '';
+      if (!noteAdele.toLowerCase().includes('vittoria')) {
+        await dbRun('UPDATE iscritti SET note=? WHERE id=154', [noteAdele + ' | Compagno Pair: Vittoria Ditta']);
+      }
+    }
+    
+    // Vittoria Ditta (155) -> aggiungi Adele Ditta
+    const vittoria = await dbAll('SELECT note FROM iscritti WHERE id=155');
+    if (vittoria.length > 0) {
+      const noteVittoria = vittoria[0].note || '';
+      if (!noteVittoria.toLowerCase().includes('adele')) {
+        await dbRun('UPDATE iscritti SET note=? WHERE id=155', [noteVittoria + ' | Compagno Pair: Adele Ditta']);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Sorelle Ditta accoppiate!' });
+  } catch (err) {
+    console.error('Errore fix Ditta:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put('/api/iscritti/:id', async (req, res) => {
   try {
     const { nome, cognome, data_nascita, categoria, societa, nazionalita, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
