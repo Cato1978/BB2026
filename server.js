@@ -645,6 +645,49 @@ app.get('/api/iscritti', async (req, res) => {
   }
 });
 
+// --- DEBUG PAIR SLALOM ---
+app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Filtra solo chi ha Pair Slalom
+    const pairAtleti = iscritti.filter(i => i.categoria && i.categoria.includes('Pair Slalom'));
+    
+    // Funzione per cercare il compagno nelle note
+    function cercaCompagno(note, nome, cognome) {
+      if (!note) return null;
+      const noteLower = note.toLowerCase();
+      for (const altro of pairAtleti) {
+        if (altro.nome === nome && altro.cognome === cognome) continue;
+        const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
+        const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+        if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+            noteLower.includes(altro.cognome.toLowerCase())) {
+          return altro;
+        }
+      }
+      return null;
+    }
+    
+    // Crea lista con abbinamenti
+    const risultato = pairAtleti.map(i => {
+      const compagno = cercaCompagno(i.note, i.nome, i.cognome);
+      return {
+        codice: 'BB11-' + String(i.id).padStart(4, '0'),
+        nome: i.nome,
+        cognome: i.cognome,
+        note: i.note,
+        compagno_trovato: compagno ? `${compagno.nome} ${compagno.cognome} (BB11-${String(compagno.id).padStart(4, '0')})` : '❌ NON TROVATO'
+      };
+    });
+    
+    res.json(risultato);
+  } catch (err) {
+    console.error('Errore debug pair:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- BILANCIO ---
 app.get('/api/bilancio', requireAdmin, async (req, res) => {
   try {
