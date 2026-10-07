@@ -337,11 +337,13 @@
           </div>
         </div>
 
+        <div id="pair-warning" style="display:none;margin-top:0.5rem;padding:0.8rem;background:#4a3000;border:1px solid #f59e0b;border-radius:6px">
+          <p style="margin:0 0 0.8rem;color:#f59e0b;font-weight:bold" data-t="pairWarning">⚠️ Indicare il nome del compagno di coppia</p>
+          <input type="text" id="compagno_pair" placeholder="Nome e Cognome compagno *" style="width:100%;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #f59e0b;border-radius:4px">
+        </div>
+
         <div class="form-row">
           <textarea id="note" data-t="notePlaceholder" placeholder="Note aggiuntive (opzionale)"></textarea>
-        </div>
-        <div id="pair-warning" style="display:none;margin-top:0.5rem;padding:0.8rem;background:#4a3000;border:1px solid #f59e0b;border-radius:6px">
-          <p style="margin:0;color:#f59e0b;font-weight:bold" data-t="pairWarning">⚠️ Indicare nelle note il nome del compagno di coppia</p>
         </div>
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
@@ -703,16 +705,15 @@
     function checkPairSlalom() {
       const pairChecked = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
       const pairWarning = document.getElementById('pair-warning');
-      const noteField = document.getElementById('note');
+      const compagnoField = document.getElementById('compagno_pair');
       
       if (pairChecked) {
         pairWarning.style.display = 'block';
-        noteField.required = true;
-        noteField.placeholder = T[currentLang].pairWarning || 'Indicare il compagno di coppia (obbligatorio)';
+        compagnoField.required = true;
       } else {
         pairWarning.style.display = 'none';
-        noteField.required = false;
-        noteField.placeholder = T[currentLang].notePlaceholder || 'Note aggiuntive (opzionale)';
+        compagnoField.required = false;
+        compagnoField.value = '';
       }
     }
 
@@ -1127,6 +1128,14 @@
         return;
       }
 
+      // Validazione compagno Pair Slalom
+      const pairCheckedValidation = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
+      const compagnoPairValidation = document.getElementById('compagno_pair').value.trim();
+      if (pairCheckedValidation && !compagnoPairValidation) {
+        showError(getLang() === 'en' ? 'Enter pair partner name for Pair Slalom' : 'Inserisci il nome del compagno per il Pair Slalom');
+        return;
+      }
+
       // Costruisci categoria con dettaglio per ogni disciplina
       const disciplineConCategoria = [];
       checkedBoxes.forEach(cb => {
@@ -1166,6 +1175,12 @@
       noteFinali.push(`Genere: ${genere.value}`);
       if (worldSkateId) noteFinali.push(`WS ID: ${worldSkateId}`);
       if (skateItaliaCard) noteFinali.push(`FISR: ${skateItaliaCard}`);
+      // Compagno Pair Slalom
+      const pairChecked = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
+      const compagnoPair = document.getElementById('compagno_pair').value.trim();
+      if (pairChecked && compagnoPair) {
+        noteFinali.push(`Compagno Pair: ${compagnoPair}`);
+      }
       noteFinali.push(`Maglia: ${tagliaMaglia}`);
       if (vuoleFelpa) {
         noteFinali.push(`Felpa: ${tagliaFelpa}`);

@@ -653,8 +653,8 @@ app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
     // Filtra solo chi ha Pair Slalom
     const pairAtleti = iscritti.filter(i => i.categoria && i.categoria.includes('Pair Slalom'));
     
-    // Funzione per cercare il compagno nelle note
-    function cercaCompagno(note, nome, cognome) {
+    // Funzione per cercare il compagno nelle note (chi ho indicato io)
+    function cercaCompagnoIndicato(note, nome, cognome) {
       if (!note) return null;
       const noteLower = note.toLowerCase();
       for (const altro of pairAtleti) {
@@ -669,15 +669,36 @@ app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
       return null;
     }
     
+    // Funzione per cercare chi mi ha indicato come compagno
+    function cercaChiMiHaIndicato(nome, cognome) {
+      const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+      const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+      const mioCognome = cognome.toLowerCase();
+      for (const altro of pairAtleti) {
+        if (altro.nome === nome && altro.cognome === cognome) continue;
+        const altroNote = (altro.note || '').toLowerCase();
+        if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+            altroNote.includes(mioCognome)) {
+          return altro;
+        }
+      }
+      return null;
+    }
+    
     // Crea lista con abbinamenti
     const risultato = pairAtleti.map(i => {
-      const compagno = cercaCompagno(i.note, i.nome, i.cognome);
+      let compagno = cercaCompagnoIndicato(i.note, i.nome, i.cognome);
+      let metodo = 'indicato da me';
+      if (!compagno) {
+        compagno = cercaChiMiHaIndicato(i.nome, i.cognome);
+        metodo = 'mi ha indicato';
+      }
       return {
         codice: 'BB11-' + String(i.id).padStart(4, '0'),
         nome: i.nome,
         cognome: i.cognome,
         note: i.note,
-        compagno_trovato: compagno ? `${compagno.nome} ${compagno.cognome} (BB11-${String(compagno.id).padStart(4, '0')})` : '❌ NON TROVATO'
+        compagno_trovato: compagno ? `${compagno.nome} ${compagno.cognome} (BB11-${String(compagno.id).padStart(4, '0')}) [${metodo}]` : '❌ NON TROVATO'
       };
     });
     
@@ -1087,8 +1108,8 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
       const usati = new Set();
       let numCoppia = 0;
       
-      // Funzione per cercare il compagno nelle note
-      function cercaCompagno(note, nome, cognome) {
+      // Funzione per cercare il compagno nelle note (chi ho indicato io)
+      function cercaCompagnoIndicato(note, nome, cognome) {
         if (!note) return null;
         const noteLower = note.toLowerCase();
         // Cerca tra tutti gli altri atleti pair
@@ -1098,6 +1119,22 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
           const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
           if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
               noteLower.includes(altro.cognome.toLowerCase())) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Funzione per cercare chi mi ha indicato come compagno
+      function cercaChiMiHaIndicato(nome, cognome) {
+        const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+        const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+        const mioCognome = cognome.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const altroNote = (altro.note || '').toLowerCase();
+          if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+              altroNote.includes(mioCognome)) {
             return altro;
           }
         }
@@ -1119,13 +1156,18 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
             !p.startsWith('Maglia:') && 
             !p.startsWith('Felpa:') &&
             !p.startsWith('Prove:') &&
-            !p.startsWith('Nazionalità:')
+            !p.startsWith('Nazionalità:') &&
+            !p.startsWith('Compagno Pair:')
           );
           noteExtra = extraParts.join(' | ');
         }
         
-        // Cerca il compagno
-        const compagno = cercaCompagno(isc.note, isc.nome, isc.cognome);
+        // Cerca il compagno: prima chi ho indicato, poi chi mi ha indicato
+        let compagno = cercaCompagnoIndicato(isc.note, isc.nome, isc.cognome);
+        if (!compagno || usati.has(compagno.id)) {
+          // Se non ho indicato nessuno o il mio indicato è già usato, cerca chi mi ha indicato
+          compagno = cercaChiMiHaIndicato(isc.nome, isc.cognome);
+        }
         
         numCoppia++;
         usati.add(isc.id);
