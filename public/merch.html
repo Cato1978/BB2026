@@ -277,12 +277,27 @@
     </div>
 
     <div class="form-section">
-      <h3 data-t="merchPrenota">Prenota Merchandising</h3>
+      <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
-      <p style="color:#888;font-size:0.9rem;margin-bottom:1rem" data-t="merchPagamentoSulPosto">💰 Il pagamento verrà effettuato al momento del ritiro durante l'evento.</p>
+      <div style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1rem">
+        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a1a1a;border:2px solid #333;border-radius:8px;cursor:pointer;transition:border-color 0.2s">
+          <input type="radio" name="metodoPagamento" value="online" style="width:20px;height:20px;accent-color:#F7AF40">
+          <div>
+            <span style="font-weight:bold;color:#F7AF40" data-t="merchPagaOnline">💳 Paga Online</span>
+            <p style="margin:0.3rem 0 0;font-size:0.85rem;color:#888" data-t="merchPagaOnlineDesc">Paga subito con carta di credito/debito</p>
+          </div>
+        </label>
+        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a1a1a;border:2px solid #333;border-radius:8px;cursor:pointer;transition:border-color 0.2s">
+          <input type="radio" name="metodoPagamento" value="prenotazione" checked style="width:20px;height:20px;accent-color:#F7AF40">
+          <div>
+            <span style="font-weight:bold;color:#22c55e" data-t="merchPrenotaSulPosto">📦 Prenota e paga sul posto</span>
+            <p style="margin:0.3rem 0 0;font-size:0.85rem;color:#888" data-t="merchPrenotaSulPostoDesc">Pagherai al momento del ritiro durante l'evento</p>
+          </div>
+        </label>
+      </div>
       
-      <button id="btn-prenota" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchConfermaPrenotazione">
-        📦 Conferma Prenotazione
+      <button id="btn-conferma" onclick="inviaOrdine()" style="width:100%;padding:1rem;font-size:1rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold" data-t="merchConferma">
+        Conferma Ordine
       </button>
     </div>
 
@@ -369,6 +384,7 @@
       const email = document.getElementById('email').value.trim();
       const telefono = document.getElementById('telefono').value.trim();
       const note = document.getElementById('note').value.trim();
+      const metodoPagamento = document.querySelector('input[name="metodoPagamento"]:checked')?.value || 'prenotazione';
 
       // Validazione
       if (!nome || !cognome) {
@@ -408,35 +424,74 @@
         return;
       }
 
-      const btnPrenota = document.getElementById('btn-prenota');
-      btnPrenota.disabled = true;
-      btnPrenota.textContent = 'Invio in corso...';
+      const btnConferma = document.getElementById('btn-conferma');
+      btnConferma.disabled = true;
+      btnConferma.textContent = 'Invio in corso...';
 
       try {
-        const res = await fetch('/api/merch/prenota', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, cognome, email, telefono, items, note })
-        });
-        const data = await res.json();
+        if (metodoPagamento === 'online') {
+          // Pagamento online con Stripe
+          const res = await fetch('/api/merch/ordina', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, cognome, email, telefono, items, note, metodo: 'carta' })
+          });
+          const data = await res.json();
 
-        if (data.codice) {
-          // Mostra conferma prenotazione
-          document.getElementById('codice-ordine').textContent = data.codice;
-          document.getElementById('conferma').style.display = 'block';
-          document.querySelector('.merch-grid').style.display = 'none';
-          document.querySelector('.totale-box').style.display = 'none';
-          document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
-          document.getElementById('msg').style.display = 'none';
+          if (data.codice) {
+            // Calcola totale per checkout
+            let totale = 0;
+            for (const item of items) {
+              totale += PREZZI[item.articolo.toLowerCase()] * item.quantita;
+            }
+            
+            // Avvia checkout Stripe
+            const checkoutRes = await fetch('/api/merch/create-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ codice: data.codice, totale })
+            });
+            const checkoutData = await checkoutRes.json();
+            
+            if (checkoutData.url) {
+              window.location.href = checkoutData.url;
+            } else {
+              showMsg('Errore pagamento: ' + (checkoutData.error || 'Sconosciuto'), true);
+              btnConferma.disabled = false;
+              btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
+            }
+          } else {
+            showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
+            btnConferma.disabled = false;
+            btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
+          }
         } else {
-          showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
-          btnPrenota.disabled = false;
-          btnPrenota.textContent = T[getLang()].merchConfermaPrenotazione || '📦 Conferma Prenotazione';
+          // Prenotazione senza pagamento (pagamento sul posto)
+          const res = await fetch('/api/merch/prenota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, cognome, email, telefono, items, note })
+          });
+          const data = await res.json();
+
+          if (data.codice) {
+            // Mostra conferma prenotazione
+            document.getElementById('codice-ordine').textContent = data.codice;
+            document.getElementById('conferma').style.display = 'block';
+            document.querySelector('.merch-grid').style.display = 'none';
+            document.querySelector('.totale-box').style.display = 'none';
+            document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
+            document.getElementById('msg').style.display = 'none';
+          } else {
+            showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
+            btnConferma.disabled = false;
+            btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
+          }
         }
       } catch (err) {
         showMsg('Errore di rete: ' + err.message, true);
-        btnPrenota.disabled = false;
-        btnPrenota.textContent = T[getLang()].merchConfermaPrenotazione || '📦 Conferma Prenotazione';
+        btnConferma.disabled = false;
+        btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
       }
     }
 
@@ -628,6 +683,44 @@
       `;
       document.body.appendChild(modal);
     }
+
+    // Gestione ritorno da Stripe
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const payment = urlParams.get('payment');
+      const codice = urlParams.get('codice');
+
+      if (payment === 'success' && codice) {
+        // Conferma pagamento sul server
+        try {
+          await fetch('/api/merch/conferma-pagamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codice })
+          });
+        } catch (e) {
+          console.error('Errore conferma pagamento:', e);
+        }
+        
+        // Mostra conferma
+        document.getElementById('codice-ordine').textContent = codice;
+        document.getElementById('conferma-msg').innerHTML = getLang() === 'en' 
+          ? '✅ Payment completed! We have sent you a confirmation email. You can pick up the merchandise during the event.'
+          : '✅ Pagamento completato! Ti abbiamo inviato una email di conferma. Potrai ritirare il merchandising durante l\'evento.';
+        document.getElementById('conferma').style.display = 'block';
+        document.querySelector('.merch-grid').style.display = 'none';
+        document.querySelector('.totale-box').style.display = 'none';
+        document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
+        
+        // Pulisci URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (payment === 'cancel') {
+        showMsg(getLang() === 'en' 
+          ? 'Payment canceled. You can try again or choose to pay on site.'
+          : 'Pagamento annullato. Puoi riprovare o scegliere di pagare sul posto.', true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    });
   </script>
 </body>
 </html>
