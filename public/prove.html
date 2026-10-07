@@ -103,7 +103,13 @@
     <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
     <nav>
       <a href="index.html" data-t="home">HOME</a>
-      <a href="iscrizioni.html" data-t="iscrizioni">ISCRIZIONI</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
       <a href="prove.html" data-t="prove">PROVE PISTA</a>
       <a href="programma.html" data-t="programma">PROGRAMMA</a>
       <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>

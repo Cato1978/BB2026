@@ -46,6 +46,105 @@ nav a {
 
 nav a:hover { color: #ffd080; }
 
+/* Dropdown menu per Iscrizioni */
+.nav-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 1.5rem;
+}
+
+.nav-dropdown > span {
+  color: #F7AF40;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.nav-dropdown > span:hover { color: #ffd080; }
+
+.nav-dropdown .dropdown-arrow {
+  font-size: 0.6rem;
+  transition: transform 0.2s;
+}
+
+.nav-dropdown:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #111;
+  border: 1px solid #F7AF40;
+  border-radius: 6px;
+  min-width: 200px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  margin-top: 0.5rem;
+}
+
+.nav-dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 0.8rem 1rem;
+  color: #f0f0f0;
+  text-decoration: none;
+  margin: 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #222;
+}
+
+.dropdown-content a:last-child {
+  border-bottom: none;
+}
+
+.dropdown-content a:hover {
+  background: #1a1a1a;
+  color: #F7AF40;
+}
+
+/* Mobile dropdown */
+@media (max-width: 768px) {
+  .nav-dropdown {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .nav-dropdown > span {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+  }
+  
+  .dropdown-content {
+    position: static;
+    display: none;
+    border: none;
+    background: #0a0a0a;
+    margin-top: 0;
+    padding-left: 1rem;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  .nav-dropdown.open .dropdown-content {
+    display: block;
+  }
+  
+  .dropdown-content a {
+    padding: 0.5rem 0;
+    border-bottom: none;
+    font-size: 0.85rem;
+  }
+}
+
 main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
 
 .info {

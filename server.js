@@ -2568,6 +2568,82 @@ async function sendMerchEmail(to, data) {
   });
 }
 
+// Funzione per inviare email conferma prenotazione merchandising (pagamento sul posto)
+async function sendMerchPrenotazioneEmail(to, data) {
+  const { nome, cognome, codice, items, totale } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛍️ Merchandising</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  // Lista articoli
+  const itemsList = items.map(i => {
+    const taglia = i.taglia ? ` (${i.taglia})` : '';
+    return `<li>${i.quantita}x ${i.articolo}${taglia} - €${(i.prezzo_unitario || 5) * i.quantita}</li>`;
+  }).join('');
+  
+  const subject = `Busto Battle XI - 🛍️ MERCHANDISING - Prenotazione Confermata / Booking Confirmed - ${codice}`;
+  const html = `
+    <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+      ${emailHeader}
+      <div style="padding:30px;color:#f0f0f0">
+        <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+          <h2 style="margin:0">✅ PRENOTAZIONE MERCHANDISING CONFERMATA!</h2>
+          <p style="margin:5px 0 0;font-size:14px">Merchandising Booking Confirmed!</p>
+        </div>
+        
+        <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+        <p>La tua prenotazione merchandising è stata <strong style="color:#22c55e">confermata</strong>!<br><em style="color:#888">Your merchandising booking has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+        
+        <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+          <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+          <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+          <ul style="margin:5px 0">${itemsList}</ul>
+          <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale da pagare al ritiro / Total to pay at pickup: €${totale}</strong></p>
+        </div>
+        
+        <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+          <p style="margin:0;font-size:18px;color:#22c55e">📦 Ritira e paga il tuo merchandising durante l'evento!</p>
+          <p style="margin:10px 0 0;color:#888">Pick up and pay for your merchandise during the event!</p>
+          <p style="margin:15px 0 0;color:#f0f0f0"><strong>📍 PalaCastiglioni</strong> - Via Ariosto 3, Busto Arsizio (VA)</p>
+        </div>
+        
+        <div style="background:#332200;border:1px solid #f59e0b;padding:15px;border-radius:6px;margin:20px 0">
+          <p style="margin:0;color:#f59e0b"><strong>💰 Importante / Important:</strong></p>
+          <p style="margin:10px 0 0;color:#f0f0f0">Il pagamento verrà effettuato al momento del ritiro durante l'evento.<br><em style="color:#888">Payment will be made at pickup during the event.</em></p>
+        </div>
+        
+        <p style="color:#888;font-size:0.9rem;text-align:center">Conserva questa email e il codice ordine per il ritiro.<br><em>Keep this email and order code for pickup.</em></p>
+      </div>
+      ${emailFooter}
+    </div>
+  `;
+  
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
+}
+
 // Endpoint per inviare email di test (solo per admin)
 app.get('/api/test-email', async (req, res) => {
   const { to, stato, nome, cognome, motivo, categoria } = req.query;
@@ -2893,6 +2969,53 @@ app.post('/api/merch/ordina', async (req, res) => {
     res.json({ codice, totale, ordineId });
   } catch (err) {
     console.error('Errore ordine merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Prenotazione merch (senza pagamento - pagamento sul posto)
+app.post('/api/merch/prenota', async (req, res) => {
+  try {
+    const { nome, cognome, email, telefono, items, note } = req.body;
+    if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+    if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
+
+    const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+    const stato = 'prenotato'; // Pagamento sarà sul posto
+    
+    // Inserisci ordine con stato prenotato
+    const result = await dbRun(
+      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note, stato, origine) VALUES (?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, codice, note || null, stato, 'standalone']
+    );
+    
+    // Recupera l'ID dell'ordine appena inserito
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [codice]);
+    const ordineId = ordineRows[0]?.id;
+
+    let totale = 0;
+    const itemsWithPrezzi = [];
+    for (const item of items) {
+      const prezzo = PREZZI_MERCH[item.articolo] || 5;
+      await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+        [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
+      totale += prezzo * item.quantita;
+      itemsWithPrezzi.push({ ...item, prezzo_unitario: prezzo });
+    }
+
+    console.log('Nuova prenotazione merch:', { codice, nome, cognome, totale, items });
+    
+    // Invia email di conferma prenotazione
+    if (email) {
+      sendMerchPrenotazioneEmail(email, {
+        nome, cognome, codice,
+        items: itemsWithPrezzi, totale
+      }).catch(console.error);
+    }
+    
+    res.json({ codice, totale, ordineId });
+  } catch (err) {
+    console.error('Errore prenotazione merch:', err);
     res.status(500).json({ error: err.message });
   }
 });

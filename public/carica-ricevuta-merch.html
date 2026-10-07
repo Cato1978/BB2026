@@ -18,7 +18,13 @@
     <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
     <nav>
       <a href="index.html">HOME</a>
-      <a href="iscrizioni.html">ISCRIZIONI</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span>ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html">Nuova Iscrizione</a>
+          <a href="verifica.html">Verifica Iscrizione</a>
+        </div>
+      </div>
       <a href="merch.html">MERCH</a>
       <a href="programma.html">PROGRAMMA</a>
       <a href="contact.html">CONTATTI</a>
