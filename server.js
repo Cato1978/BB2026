@@ -645,6 +645,37 @@ app.get('/api/iscritti', async (req, res) => {
   }
 });
 
+// Endpoint per vedere iscritti con prove pista
+app.get('/api/iscritti/con-prove', async (req, res) => {
+  try {
+    const rows = await dbAll("SELECT id, nome, cognome, categoria, note, stato FROM iscritti WHERE note LIKE '%Prove:%' ORDER BY cognome, nome");
+    const risultato = rows.map(r => {
+      // Conta slot prove
+      const proveMatch = r.note.match(/Prove:\s*([^\n|]+)/);
+      let numSlots = 0;
+      let dettaglioProve = '';
+      if (proveMatch) {
+        dettaglioProve = proveMatch[1].trim();
+        numSlots = (dettaglioProve.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g) || []).length;
+      }
+      return {
+        id: r.id,
+        nome: r.nome,
+        cognome: r.cognome,
+        categoria: r.categoria,
+        stato: r.stato,
+        numSlotProve: numSlots,
+        costoProve: numSlots * 5,
+        dettaglioProve: dettaglioProve
+      };
+    });
+    res.json({ totaleIscritti: risultato.length, totaleSlot: risultato.reduce((s, r) => s + r.numSlotProve, 0), iscritti: risultato });
+  } catch (err) {
+    console.error('Errore GET iscritti con prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
