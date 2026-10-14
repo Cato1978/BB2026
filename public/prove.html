@@ -220,6 +220,23 @@
   <script>
     const PREZZO_SLOT = 5;
     const SPECIALITA = ['Classic Slalom', 'Speed Slalom', 'Slides', 'Free Jump'];
+    
+    // Restrizioni discipline per giorno
+    // Slides: solo 13/11
+    // Classic: non il 14/11
+    function getSpecialitaPerGiorno(giorno) {
+      if (giorno === '2026-11-13') {
+        // 13 novembre: tutte le discipline
+        return SPECIALITA;
+      } else if (giorno === '2026-11-14') {
+        // 14 novembre: NO Classic Slalom, NO Slides
+        return SPECIALITA.filter(s => s !== 'Classic Slalom' && s !== 'Slides');
+      } else {
+        // Altri giorni (es. 12): NO Slides
+        return SPECIALITA.filter(s => s !== 'Slides');
+      }
+    }
+    
     let proveDisponibilita = {};
     let atletaCounter = 0;
     let atleti = [];
@@ -288,7 +305,7 @@
             </label>
             <select id="spec-${slotId}" onchange="updateSpecialita(${atletaId}, '${slot.ora}', '${giorno}', this)" disabled>
               <option value="">-- Disciplina --</option>
-              ${SPECIALITA.map(s => `<option value="${s}">${s}</option>`).join('')}
+              ${getSpecialitaPerGiorno(giorno).map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>`;
         }
