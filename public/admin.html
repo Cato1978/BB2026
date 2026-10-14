@@ -785,6 +785,17 @@
       if (i.note && i.note.includes('Felpa:')) totale += 35;
       if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
       if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
+      // Aggiungi prove pista (€5 per slot)
+      if (i.note && i.note.includes('Prove:')) {
+        // Conta gli slot - formato "Prove: 2026-11-13 22:00-22:30 (Speed), 2026-11-13 22:30-23:00 (Slides)"
+        const proveMatch = i.note.match(/Prove:\s*([^\n|]+)/);
+        if (proveMatch) {
+          // Conta le virgole + 1 per il numero di slot, o conta i pattern data/ora
+          const proveStr = proveMatch[1];
+          const slots = (proveStr.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g) || []).length;
+          totale += slots * 5;
+        }
+      }
       return totale;
     }
 
