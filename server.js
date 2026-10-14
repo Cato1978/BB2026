@@ -676,6 +676,63 @@ app.get('/api/iscritti/con-prove', async (req, res) => {
   }
 });
 
+// Endpoint riepilogo prove pista SENZA duplicati
+app.get('/api/prove/riepilogo', async (req, res) => {
+  try {
+    // Prendi tutte le prenotazioni dalla tabella prove_prenotazioni
+    const prenotazioni = await dbAll("SELECT * FROM prove_prenotazioni ORDER BY cognome, nome");
+    
+    // Separa: da iscrizione (PRV-BB11-xxx) vs standalone
+    const daIscrizione = prenotazioni.filter(p => p.codice && p.codice.includes('BB11'));
+    const standalone = prenotazioni.filter(p => p.codice && !p.codice.includes('BB11'));
+    
+    // Conta slot unici per persona (evita duplicati)
+    const slotPerPersona = {};
+    for (const p of prenotazioni) {
+      const key = `${p.nome}-${p.cognome}-${p.email}`.toLowerCase();
+      if (!slotPerPersona[key]) {
+        slotPerPersona[key] = { nome: p.nome, cognome: p.cognome, email: p.email, slots: [], totale: 0, stato: p.stato, fonte: [] };
+      }
+      const slotKey = `${p.giorno}-${p.ora}`;
+      if (!slotPerPersona[key].slots.includes(slotKey)) {
+        slotPerPersona[key].slots.push(slotKey);
+        slotPerPersona[key].totale += 5;
+      }
+      if (p.codice.includes('BB11') && !slotPerPersona[key].fonte.includes('iscrizione')) {
+        slotPerPersona[key].fonte.push('iscrizione');
+      } else if (!p.codice.includes('BB11') && !slotPerPersona[key].fonte.includes('standalone')) {
+        slotPerPersona[key].fonte.push('standalone');
+      }
+      // Stato: se almeno uno è confermato, considera confermato
+      if (p.stato === 'confermata') slotPerPersona[key].stato = 'confermata';
+    }
+    
+    const persone = Object.values(slotPerPersona);
+    const confermate = persone.filter(p => p.stato === 'confermata');
+    const sospese = persone.filter(p => p.stato !== 'confermata');
+    
+    const totaleSlotUnici = persone.reduce((s, p) => s + p.slots.length, 0);
+    const totaleConfermato = confermate.reduce((s, p) => s + p.totale, 0);
+    const totaleSospeso = sospese.reduce((s, p) => s + p.totale, 0);
+    
+    res.json({
+      riepilogo: {
+        totalePersone: persone.length,
+        totaleSlotUnici,
+        totaleEuroConfermato: totaleConfermato,
+        totaleEuroSospeso: totaleSospeso,
+        personeConfermate: confermate.length,
+        personeSospese: sospese.length
+      },
+      dettaglioConfermate: confermate.map(p => ({ nome: p.nome, cognome: p.cognome, email: p.email, numSlot: p.slots.length, totale: p.totale, fonte: p.fonte.join('+') })),
+      dettaglioSospese: sospese.map(p => ({ nome: p.nome, cognome: p.cognome, email: p.email, numSlot: p.slots.length, totale: p.totale, fonte: p.fonte.join('+') }))
+    });
+  } catch (err) {
+    console.error('Errore riepilogo prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
