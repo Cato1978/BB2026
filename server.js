@@ -1473,8 +1473,16 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       return disc;
     }
     
-    // Crea PDF
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
+    // Crea PDF - layout verticale (portrait)
+    const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 40 });
+    
+    // Registra font con supporto caratteri speciali (polacco, etc.)
+    const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+    const fontBoldPath = path.join(__dirname, 'fonts', 'NotoSans-Bold.ttf');
+    if (fs.existsSync(fontPath) && fs.existsSync(fontBoldPath)) {
+      doc.registerFont('NotoSans', fontPath);
+      doc.registerFont('NotoSans-Bold', fontBoldPath);
+    }
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.pdf');
@@ -1485,23 +1493,23 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Logo
     const logoPath = path.join(__dirname, 'public', 'LogoBB.jpeg');
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 350, 20, { width: 60 });
+      doc.image(logoPath, 260, 20, { width: 60 });
     }
     
     doc.moveDown(2);
-    doc.fontSize(24).font('Helvetica-Bold').text('BUSTO BATTLE XI', { align: 'center' });
+    doc.fontSize(24).font('NotoSans-Bold').text('BUSTO BATTLE XI', { align: 'center' });
     doc.fontSize(16).text('Elenco Completo Iscritti', { align: 'center' });
     doc.moveDown(0.3);
-    doc.fontSize(11).font('Helvetica').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
+    doc.fontSize(11).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
     doc.moveDown(1);
     
-    // Header tabella - più spazio a Discipline
+    // Header tabella - adattato per layout verticale (portrait)
     const startX = 40;
     let y = doc.y;
-    const colWidths = [100, 80, 40, 30, 280, 100];
+    const colWidths = [90, 70, 35, 25, 180, 90];
     const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
     
-    doc.fontSize(11).font('Helvetica-Bold');
+    doc.fontSize(10).font('NotoSans-Bold');
     let x = startX;
     headers.forEach((h, i) => {
       doc.text(h, x, y, { width: colWidths[i], align: 'left' });
@@ -1513,15 +1521,15 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     y += 8;
     
     // Righe
-    doc.font('Helvetica').fontSize(10);
+    doc.font('NotoSans').fontSize(9);
     
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
-      if (y > 500) {
+      if (y > 780) {
         doc.addPage();
         y = 40;
         // Ripeti header
-        doc.fontSize(11).font('Helvetica-Bold');
+        doc.fontSize(10).font('NotoSans-Bold');
         x = startX;
         headers.forEach((h, i) => {
           doc.text(h, x, y, { width: colWidths[i], align: 'left' });
@@ -1530,7 +1538,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         y += 18;
         doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
         y += 8;
-        doc.font('Helvetica').fontSize(10);
+        doc.font('NotoSans').fontSize(9);
       }
       
       const note = parseNote(isc.note);
@@ -1585,8 +1593,8 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         // Nuova pagina per ogni disciplina + categoria
         doc.addPage();
         
-        doc.fontSize(22).font('Helvetica-Bold').text(disc.toUpperCase(), { align: 'center' });
-        doc.fontSize(16).font('Helvetica').text(cat, { align: 'center' });
+        doc.fontSize(22).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
+        doc.fontSize(16).font('NotoSans').text(cat, { align: 'center' });
         doc.fontSize(12).text(`${atletiCat.length} iscritti`, { align: 'center' });
         doc.moveDown(1);
         
@@ -1600,15 +1608,15 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           if (atleti.length === 0) continue;
           
           // Titolo genere
-          doc.fontSize(14).font('Helvetica-Bold').text(`${gen.name} (${atleti.length})`, { underline: true });
+          doc.fontSize(14).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, { underline: true });
           doc.moveDown(0.5);
           
-          // Header mini-tabella
+          // Header mini-tabella - adattato per portrait
           y = doc.y;
-          const miniColWidths = [140, 120, 50, 180];
+          const miniColWidths = [120, 100, 45, 150];
           const miniHeaders = ['Cognome', 'Nome', 'Naz', 'WS ID'];
           
-          doc.fontSize(10).font('Helvetica-Bold');
+          doc.fontSize(10).font('NotoSans-Bold');
           x = startX;
           miniHeaders.forEach((h, i) => {
             doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
@@ -1618,15 +1626,15 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
           y += 6;
           
-          doc.font('Helvetica').fontSize(10);
+          doc.font('NotoSans').fontSize(10);
           
           atleti.forEach((isc) => {
-            if (y > 520) {
+            if (y > 780) {
               doc.addPage();
-              doc.fontSize(14).font('Helvetica-Bold').text(`${disc.toUpperCase()} - ${cat} - ${gen.name} (cont.)`, { align: 'center' });
+              doc.fontSize(14).font('NotoSans-Bold').text(`${disc.toUpperCase()} - ${cat} - ${gen.name} (cont.)`, { align: 'center' });
               doc.moveDown(0.5);
               y = doc.y;
-              doc.fontSize(10).font('Helvetica-Bold');
+              doc.fontSize(10).font('NotoSans-Bold');
               x = startX;
               miniHeaders.forEach((h, i) => {
                 doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
@@ -1635,7 +1643,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
               y += 14;
               doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
               y += 6;
-              doc.font('Helvetica').fontSize(10);
+              doc.font('NotoSans').fontSize(10);
             }
             
             const note = parseNote(isc.note);
