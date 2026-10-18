@@ -46,7 +46,8 @@
       <span id="totale">Totale: 0</span>
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
-      <button onclick="exportExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
+      <button onclick="exportExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Excel</button>
+      <button onclick="exportPDF()" style="background:#dc2626;border:none;padding:0.5rem 1rem;cursor:pointer;margin-left:0.5rem">📄 PDF</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -670,6 +671,10 @@
 
     function exportExcel() {
       window.location.href = '/api/iscritti/export';
+    }
+    
+    function exportPDF() {
+      window.location.href = '/api/iscritti/export-pdf';
     }
 
     let iscritti = [];

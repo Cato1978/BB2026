@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const Stripe = require('stripe');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 
 // Stripe config - imposta la chiave segreta nelle variabili d'ambiente
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
@@ -944,6 +945,33 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
     workbook.creator = 'Busto Battle XI';
     workbook.created = new Date();
     
+    // Mappatura ISO 2 → ISO 3 lettere
+    const ISO2_TO_ISO3 = {
+      'IT': 'ITA', 'AL': 'ALB', 'AD': 'AND', 'AT': 'AUT', 'BE': 'BEL', 'BY': 'BLR', 'BA': 'BIH',
+      'BG': 'BGR', 'CY': 'CYP', 'HR': 'HRV', 'DK': 'DNK', 'EE': 'EST', 'FI': 'FIN', 'FR': 'FRA',
+      'DE': 'DEU', 'GR': 'GRC', 'IE': 'IRL', 'IS': 'ISL', 'XK': 'XKX', 'LV': 'LVA', 'LI': 'LIE',
+      'LT': 'LTU', 'LU': 'LUX', 'MK': 'MKD', 'MT': 'MLT', 'MD': 'MDA', 'MC': 'MCO', 'ME': 'MNE',
+      'NO': 'NOR', 'NL': 'NLD', 'PL': 'POL', 'PT': 'PRT', 'GB': 'GBR', 'CZ': 'CZE', 'RO': 'ROU',
+      'RU': 'RUS', 'SM': 'SMR', 'RS': 'SRB', 'SK': 'SVK', 'SI': 'SVN', 'ES': 'ESP', 'SE': 'SWE',
+      'CH': 'CHE', 'UA': 'UKR', 'HU': 'HUN', 'SA': 'SAU', 'BH': 'BHR', 'AE': 'ARE', 'JO': 'JOR',
+      'IR': 'IRN', 'IL': 'ISR', 'KW': 'KWT', 'LB': 'LBN', 'OM': 'OMN', 'QA': 'QAT', 'TR': 'TUR',
+      'YE': 'YEM', 'CN': 'CHN', 'KR': 'KOR', 'JP': 'JPN', 'IN': 'IND', 'PH': 'PHL', 'TH': 'THA',
+      'VN': 'VNM', 'MY': 'MYS', 'SG': 'SGP', 'ID': 'IDN', 'TW': 'TWN', 'HK': 'HKG', 'US': 'USA',
+      'CA': 'CAN', 'MX': 'MEX', 'BR': 'BRA', 'AR': 'ARG', 'CL': 'CHL', 'CO': 'COL', 'PE': 'PER',
+      'VE': 'VEN', 'EC': 'ECU', 'UY': 'URY', 'PY': 'PRY', 'BO': 'BOL', 'AU': 'AUS', 'NZ': 'NZL',
+      'EG': 'EGY', 'ZA': 'ZAF', 'MA': 'MAR', 'TN': 'TUN', 'NG': 'NGA', 'KE': 'KEN', 'GH': 'GHA'
+    };
+    
+    // Funzione per convertire ISO2 a ISO3 con bandierina
+    function formatNazionalita(code) {
+      if (!code) return '';
+      const iso3 = ISO2_TO_ISO3[code.toUpperCase()] || code.toUpperCase();
+      // Genera bandierina emoji da codice ISO2
+      const flag = code.length === 2 ? 
+        String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '';
+      return flag ? `${flag} ${iso3}` : iso3;
+    }
+    
     // Helper per parsing note
     function parseNote(note) {
       const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
@@ -1068,7 +1096,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
         nome: isc.nome,
         data_nascita: isc.data_nascita,
         genere: note.genere,
-        nazionalita: isc.nazionalita || note.nazionalita || '',
+        nazionalita: formatNazionalita(isc.nazionalita || note.nazionalita || ''),
         societa: isc.societa,
         email: isc.email,
         telefono: isc.telefono,
@@ -1149,7 +1177,7 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
               cognome: isc.cognome,
               nome: isc.nome,
               data_nascita: isc.data_nascita,
-              nazionalita: isc.nazionalita || note.nazionalita || '',
+              nazionalita: formatNazionalita(isc.nazionalita || note.nazionalita || ''),
               societa: isc.societa,
               ws_id: note.wsId,
               fisr: note.fisr
@@ -1366,6 +1394,129 @@ app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Excel export error:', err);
     res.status(500).json({ error: 'Errore generazione Excel: ' + err.message });
+  }
+});
+
+// --- EXPORT PDF ISCRITTI ---
+app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Mappatura ISO 2 → ISO 3 lettere
+    const ISO2_TO_ISO3 = {
+      'IT': 'ITA', 'AL': 'ALB', 'AD': 'AND', 'AT': 'AUT', 'BE': 'BEL', 'BY': 'BLR', 'BA': 'BIH',
+      'BG': 'BGR', 'CY': 'CYP', 'HR': 'HRV', 'DK': 'DNK', 'EE': 'EST', 'FI': 'FIN', 'FR': 'FRA',
+      'DE': 'DEU', 'GR': 'GRC', 'IE': 'IRL', 'IS': 'ISL', 'XK': 'XKX', 'LV': 'LVA', 'LI': 'LIE',
+      'LT': 'LTU', 'LU': 'LUX', 'MK': 'MKD', 'MT': 'MLT', 'MD': 'MDA', 'MC': 'MCO', 'ME': 'MNE',
+      'NO': 'NOR', 'NL': 'NLD', 'PL': 'POL', 'PT': 'PRT', 'GB': 'GBR', 'CZ': 'CZE', 'RO': 'ROU',
+      'RU': 'RUS', 'SM': 'SMR', 'RS': 'SRB', 'SK': 'SVK', 'SI': 'SVN', 'ES': 'ESP', 'SE': 'SWE',
+      'CH': 'CHE', 'UA': 'UKR', 'HU': 'HUN', 'SA': 'SAU', 'BH': 'BHR', 'AE': 'ARE', 'JO': 'JOR',
+      'IR': 'IRN', 'IL': 'ISR', 'KW': 'KWT', 'LB': 'LBN', 'OM': 'OMN', 'QA': 'QAT', 'TR': 'TUR',
+      'YE': 'YEM', 'CN': 'CHN', 'KR': 'KOR', 'JP': 'JPN', 'IN': 'IND', 'PH': 'PHL', 'TH': 'THA',
+      'VN': 'VNM', 'MY': 'MYS', 'SG': 'SGP', 'ID': 'IDN', 'TW': 'TWN', 'HK': 'HKG', 'US': 'USA',
+      'CA': 'CAN', 'MX': 'MEX', 'BR': 'BRA', 'AR': 'ARG', 'CL': 'CHL', 'CO': 'COL', 'PE': 'PER',
+      'VE': 'VEN', 'EC': 'ECU', 'UY': 'URY', 'PY': 'PRY', 'BO': 'BOL', 'AU': 'AUS', 'NZ': 'NZL',
+      'EG': 'EGY', 'ZA': 'ZAF', 'MA': 'MAR', 'TN': 'TUN', 'NG': 'NGA', 'KE': 'KEN', 'GH': 'GHA'
+    };
+    
+    function toISO3(code) {
+      if (!code) return '';
+      return ISO2_TO_ISO3[code.toUpperCase()] || code.toUpperCase();
+    }
+    
+    function parseNote(note) {
+      const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Genere:')) result.genere = p.replace('Genere:', '').trim();
+        else if (p.startsWith('Nazionalità:')) result.nazionalita = p.replace('Nazionalità:', '').trim();
+        else if (p.startsWith('WS ID:')) result.wsId = p.replace('WS ID:', '').trim();
+        else if (p.startsWith('FISR:')) result.fisr = p.replace('FISR:', '').trim();
+      }
+      return result;
+    }
+    
+    // Crea PDF
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.pdf');
+    
+    doc.pipe(res);
+    
+    // Titolo
+    doc.fontSize(20).font('Helvetica-Bold').text('BUSTO BATTLE XI - Elenco Iscritti', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
+    doc.moveDown(1);
+    
+    // Header tabella
+    const startX = 30;
+    let y = doc.y;
+    const colWidths = [25, 90, 70, 35, 35, 120, 100, 100];
+    const headers = ['N°', 'Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID', 'Società'];
+    
+    doc.fontSize(8).font('Helvetica-Bold');
+    let x = startX;
+    headers.forEach((h, i) => {
+      doc.text(h, x, y, { width: colWidths[i], align: 'left' });
+      x += colWidths[i];
+    });
+    
+    y += 15;
+    doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
+    y += 5;
+    
+    // Righe
+    doc.font('Helvetica').fontSize(7);
+    
+    iscritti.forEach((isc, idx) => {
+      // Nuova pagina se necessario
+      if (y > 520) {
+        doc.addPage();
+        y = 30;
+        // Ripeti header
+        doc.fontSize(8).font('Helvetica-Bold');
+        x = startX;
+        headers.forEach((h, i) => {
+          doc.text(h, x, y, { width: colWidths[i], align: 'left' });
+          x += colWidths[i];
+        });
+        y += 15;
+        doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
+        y += 5;
+        doc.font('Helvetica').fontSize(7);
+      }
+      
+      const note = parseNote(isc.note);
+      const naz = toISO3(isc.nazionalita || note.nazionalita);
+      
+      x = startX;
+      const rowData = [
+        String(idx + 1),
+        isc.cognome || '',
+        isc.nome || '',
+        naz,
+        note.genere || '',
+        (isc.categoria || '').substring(0, 35),
+        note.wsId || '',
+        (isc.societa || '').substring(0, 25)
+      ];
+      
+      rowData.forEach((cell, i) => {
+        doc.text(cell, x, y, { width: colWidths[i], align: 'left' });
+        x += colWidths[i];
+      });
+      
+      y += 12;
+    });
+    
+    doc.end();
+    
+  } catch (err) {
+    console.error('PDF export error:', err);
+    res.status(500).json({ error: 'Errore generazione PDF: ' + err.message });
   }
 });
 
