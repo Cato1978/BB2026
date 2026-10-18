@@ -1424,6 +1424,27 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       return ISO2_TO_ISO3[code.toUpperCase()] || code.toUpperCase();
     }
     
+    // Funzione per disegnare bandiera + codice ISO3
+    function drawFlag(doc, code, x, y, width) {
+      if (!code) return;
+      const iso3 = toISO3(code);
+      const flagPath = path.join(__dirname, 'public', 'flags', `${iso3}.png`);
+      
+      if (fs.existsSync(flagPath)) {
+        try {
+          doc.image(flagPath, x, y - 2, { height: 10 });
+          doc.text(iso3, x + 16, y, { width: width - 16, align: 'left' });
+        } catch (e) {
+          doc.text(iso3, x, y, { width: width, align: 'left' });
+        }
+      } else {
+        doc.text(iso3, x, y, { width: width, align: 'left' });
+      }
+    }
+    
+    // Traccia bandiere mancanti
+    const missingFlags = new Set();
+    
     function parseNote(note) {
       const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
       if (!note) return result;
@@ -1461,16 +1482,23 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     doc.pipe(res);
     
     // ========== PAGINA 1: TUTTI GLI ATLETI ==========
+    // Logo
+    const logoPath = path.join(__dirname, 'public', 'LogoBB.jpeg');
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 350, 20, { width: 60 });
+    }
+    
+    doc.moveDown(2);
     doc.fontSize(24).font('Helvetica-Bold').text('BUSTO BATTLE XI', { align: 'center' });
     doc.fontSize(16).text('Elenco Completo Iscritti', { align: 'center' });
     doc.moveDown(0.3);
     doc.fontSize(11).font('Helvetica').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
     doc.moveDown(1);
     
-    // Header tabella
+    // Header tabella - più spazio a Discipline
     const startX = 40;
     let y = doc.y;
-    const colWidths = [120, 100, 50, 40, 140, 130];
+    const colWidths = [110, 90, 45, 35, 200, 130];
     const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
     
     doc.fontSize(11).font('Helvetica-Bold');
@@ -1506,22 +1534,35 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       }
       
       const note = parseNote(isc.note);
-      const naz = toISO3(isc.nazionalita || note.nazionalita);
+      const nazCode = isc.nazionalita || note.nazionalita;
+      const naz = toISO3(nazCode);
+      
+      // Traccia bandiere mancanti
+      if (nazCode) {
+        const flagPath = path.join(__dirname, 'public', 'flags', `${naz}.png`);
+        if (!fs.existsSync(flagPath)) {
+          missingFlags.add(naz);
+        }
+      }
       
       x = startX;
-      const rowData = [
-        isc.cognome || '',
-        isc.nome || '',
-        naz,
-        note.genere || '',
-        (isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 40),
-        note.wsId || ''
-      ];
-      
-      rowData.forEach((cell, i) => {
-        doc.text(cell, x, y, { width: colWidths[i], align: 'left' });
-        x += colWidths[i];
-      });
+      // Cognome
+      doc.text(isc.cognome || '', x, y, { width: colWidths[0], align: 'left' });
+      x += colWidths[0];
+      // Nome
+      doc.text(isc.nome || '', x, y, { width: colWidths[1], align: 'left' });
+      x += colWidths[1];
+      // Nazionalità con bandiera
+      drawFlag(doc, nazCode, x, y, colWidths[2]);
+      x += colWidths[2];
+      // Genere
+      doc.text(note.genere || '', x, y, { width: colWidths[3], align: 'left' });
+      x += colWidths[3];
+      // Discipline
+      doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 40), x, y, { width: colWidths[4], align: 'left' });
+      x += colWidths[4];
+      // WS ID
+      doc.text(note.wsId || '', x, y, { width: colWidths[5], align: 'left' });
       
       y += 15;
     });
@@ -1599,14 +1640,21 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             }
             
             const note = parseNote(isc.note);
-            const naz = toISO3(isc.nazionalita || note.nazionalita);
+            const nazCode = isc.nazionalita || note.nazionalita;
             
             x = startX;
-            const rowData = [isc.cognome || '', isc.nome || '', naz, note.wsId || ''];
-            rowData.forEach((cell, i) => {
-              doc.text(cell, x, y, { width: miniColWidths[i], align: 'left' });
-              x += miniColWidths[i];
-            });
+            // Cognome
+            doc.text(isc.cognome || '', x, y, { width: miniColWidths[0], align: 'left' });
+            x += miniColWidths[0];
+            // Nome
+            doc.text(isc.nome || '', x, y, { width: miniColWidths[1], align: 'left' });
+            x += miniColWidths[1];
+            // Nazionalità con bandiera
+            drawFlag(doc, nazCode, x, y, miniColWidths[2]);
+            x += miniColWidths[2];
+            // WS ID
+            doc.text(note.wsId || '', x, y, { width: miniColWidths[3], align: 'left' });
+            
             y += 14;
           });
           
@@ -1614,6 +1662,11 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           y = doc.y;
         }
       }
+    }
+    
+    // Log bandiere mancanti
+    if (missingFlags.size > 0) {
+      console.log('Bandiere mancanti:', Array.from(missingFlags).join(', '));
     }
     
     doc.end();
