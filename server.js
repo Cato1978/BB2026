@@ -1497,48 +1497,48 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     }
     
     doc.moveDown(2);
-    doc.fontSize(24).font('NotoSans-Bold').text('BUSTO BATTLE XI', { align: 'center' });
-    doc.fontSize(16).text('Elenco Completo Iscritti', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(11).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
-    doc.moveDown(1);
+    doc.fontSize(20).font('NotoSans-Bold').text('BUSTO BATTLE XI', { align: 'center' });
+    doc.fontSize(14).text('Elenco Completo Iscritti', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
+    doc.moveDown(0.8);
     
     // Header tabella - adattato per layout verticale (portrait)
     const startX = 40;
     let y = doc.y;
-    const colWidths = [90, 70, 35, 25, 180, 90];
+    const colWidths = [85, 65, 35, 22, 160, 120];
     const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
     
-    doc.fontSize(10).font('NotoSans-Bold');
+    doc.fontSize(8).font('NotoSans-Bold');
     let x = startX;
     headers.forEach((h, i) => {
       doc.text(h, x, y, { width: colWidths[i], align: 'left' });
       x += colWidths[i];
     });
     
-    y += 18;
+    y += 14;
     doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
-    y += 8;
+    y += 5;
     
-    // Righe
-    doc.font('NotoSans').fontSize(9);
+    // Righe - font più piccolo
+    doc.font('NotoSans').fontSize(7);
     
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
-      if (y > 780) {
+      if (y > 800) {
         doc.addPage();
         y = 40;
         // Ripeti header
-        doc.fontSize(10).font('NotoSans-Bold');
+        doc.fontSize(8).font('NotoSans-Bold');
         x = startX;
         headers.forEach((h, i) => {
           doc.text(h, x, y, { width: colWidths[i], align: 'left' });
           x += colWidths[i];
         });
-        y += 18;
+        y += 14;
         doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
-        y += 8;
-        doc.font('NotoSans').fontSize(9);
+        y += 5;
+        doc.font('NotoSans').fontSize(7);
       }
       
       const note = parseNote(isc.note);
@@ -1567,14 +1567,14 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       doc.text(note.genere || '', x, y, { width: colWidths[3], align: 'left' });
       x += colWidths[3];
       // Discipline
-      doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 40), x, y, { width: colWidths[4], align: 'left' });
+      doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 35), x, y, { width: colWidths[4], align: 'left' });
       x += colWidths[4];
-      // WS ID - più grande
-      doc.fontSize(11);
+      // WS ID
+      doc.fontSize(8);
       doc.text(note.wsId || '', x, y, { width: colWidths[5], align: 'left' });
-      doc.fontSize(9);
+      doc.fontSize(7);
       
-      y += 15;
+      y += 11;
     });
     
     // Traccia info pagina per footer
@@ -1602,10 +1602,10 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         const sectionLabel = `${disc} - ${cat}`;
         pageInfo.push({ start: currentPageStart, label: sectionLabel });
         
-        doc.fontSize(22).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
-        doc.fontSize(16).font('NotoSans').text(cat, { align: 'center' });
-        doc.fontSize(12).text(`${atletiCat.length} iscritti`, { align: 'center' });
-        doc.moveDown(1);
+        doc.fontSize(18).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
+        doc.fontSize(14).font('NotoSans').text(cat, { align: 'center' });
+        doc.fontSize(10).text(`${atletiCat.length} iscritti`, { align: 'center' });
+        doc.moveDown(0.8);
         
         // Dividi per genere
         for (const gen of generi) {
@@ -1616,42 +1616,42 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           
           if (atleti.length === 0) continue;
           
-          // Titolo genere - allineato a sinistra
-          doc.fontSize(14).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, { underline: true, align: 'left' });
-          doc.moveDown(0.5);
+          // Titolo genere - allineato a sinistra con posizione X esplicita
+          doc.fontSize(11).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, startX, doc.y, { underline: true });
+          doc.moveDown(0.3);
           
           // Header mini-tabella - adattato per portrait
           y = doc.y;
-          const miniColWidths = [120, 100, 45, 150];
+          const miniColWidths = [110, 90, 40, 170];
           const miniHeaders = ['Cognome', 'Nome', 'Naz', 'WS ID'];
           
-          doc.fontSize(10).font('NotoSans-Bold');
+          doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
           miniHeaders.forEach((h, i) => {
             doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
             x += miniColWidths[i];
           });
-          y += 14;
+          y += 12;
           doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
-          y += 6;
+          y += 4;
           
-          doc.font('NotoSans').fontSize(10);
+          doc.font('NotoSans').fontSize(8);
           
           atleti.forEach((isc) => {
-            if (y > 780) {
+            if (y > 800) {
               doc.addPage();
               y = 40;
               // Solo header tabella
-              doc.fontSize(10).font('NotoSans-Bold');
+              doc.fontSize(8).font('NotoSans-Bold');
               x = startX;
               miniHeaders.forEach((h, i) => {
                 doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
                 x += miniColWidths[i];
               });
-              y += 14;
+              y += 12;
               doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
-              y += 6;
-              doc.font('NotoSans').fontSize(10);
+              y += 4;
+              doc.font('NotoSans').fontSize(8);
             }
             
             const note = parseNote(isc.note);
@@ -1670,10 +1670,10 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             // WS ID
             doc.text(note.wsId || '', x, y, { width: miniColWidths[3], align: 'left' });
             
-            y += 14;
+            y += 11;
           });
           
-          doc.moveDown(1);
+          doc.moveDown(0.8);
           y = doc.y;
         }
       }
@@ -1693,9 +1693,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         }
       }
       
-      doc.fontSize(8).font('NotoSans').text(
+      doc.fontSize(7).font('NotoSans').text(
         `${label} - ${i + 1} di ${totalPages}`,
-        40, 810,
+        40, 820,
         { align: 'center', width: 515 }
       );
     }
