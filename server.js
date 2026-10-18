@@ -1437,56 +1437,72 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       return result;
     }
     
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
     // Crea PDF
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.pdf');
     
     doc.pipe(res);
     
-    // Titolo
-    doc.fontSize(20).font('Helvetica-Bold').text('BUSTO BATTLE XI - Elenco Iscritti', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(10).font('Helvetica').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
+    // ========== PAGINA 1: TUTTI GLI ATLETI ==========
+    doc.fontSize(24).font('Helvetica-Bold').text('BUSTO BATTLE XI', { align: 'center' });
+    doc.fontSize(16).text('Elenco Completo Iscritti', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(11).font('Helvetica').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
     doc.moveDown(1);
     
     // Header tabella
-    const startX = 30;
+    const startX = 40;
     let y = doc.y;
-    const colWidths = [25, 90, 70, 35, 35, 120, 100, 100];
-    const headers = ['N°', 'Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID', 'Società'];
+    const colWidths = [120, 100, 50, 40, 140, 130];
+    const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
     
-    doc.fontSize(8).font('Helvetica-Bold');
+    doc.fontSize(11).font('Helvetica-Bold');
     let x = startX;
     headers.forEach((h, i) => {
       doc.text(h, x, y, { width: colWidths[i], align: 'left' });
       x += colWidths[i];
     });
     
-    y += 15;
+    y += 18;
     doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
-    y += 5;
+    y += 8;
     
     // Righe
-    doc.font('Helvetica').fontSize(7);
+    doc.font('Helvetica').fontSize(10);
     
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
-      if (y > 520) {
+      if (y > 500) {
         doc.addPage();
-        y = 30;
+        y = 40;
         // Ripeti header
-        doc.fontSize(8).font('Helvetica-Bold');
+        doc.fontSize(11).font('Helvetica-Bold');
         x = startX;
         headers.forEach((h, i) => {
           doc.text(h, x, y, { width: colWidths[i], align: 'left' });
           x += colWidths[i];
         });
-        y += 15;
+        y += 18;
         doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
-        y += 5;
-        doc.font('Helvetica').fontSize(7);
+        y += 8;
+        doc.font('Helvetica').fontSize(10);
       }
       
       const note = parseNote(isc.note);
@@ -1494,14 +1510,12 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       
       x = startX;
       const rowData = [
-        String(idx + 1),
         isc.cognome || '',
         isc.nome || '',
         naz,
         note.genere || '',
-        (isc.categoria || '').substring(0, 35),
-        note.wsId || '',
-        (isc.societa || '').substring(0, 25)
+        (isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 40),
+        note.wsId || ''
       ];
       
       rowData.forEach((cell, i) => {
@@ -1509,8 +1523,98 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         x += colWidths[i];
       });
       
-      y += 12;
+      y += 15;
     });
+    
+    // ========== PAGINE PER DISCIPLINA ==========
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump', 'Pair Slalom'];
+    const categorie = ['U15', 'U19', 'SENIOR', 'UNICA'];
+    const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
+    
+    for (const disc of discipline) {
+      // Filtra atleti per questa disciplina
+      const atletiDisc = iscritti.filter(isc => {
+        const discipline = parseDiscipline(isc.categoria);
+        return discipline.some(d => d.nome === disc);
+      });
+      
+      if (atletiDisc.length === 0) continue;
+      
+      // Nuova pagina per ogni disciplina
+      doc.addPage();
+      
+      doc.fontSize(22).font('Helvetica-Bold').text(disc.toUpperCase(), { align: 'center' });
+      doc.fontSize(12).font('Helvetica').text(`${atletiDisc.length} iscritti`, { align: 'center' });
+      doc.moveDown(1);
+      
+      // Raggruppa per categoria e genere
+      for (const cat of categorie) {
+        for (const gen of generi) {
+          const atleti = atletiDisc.filter(isc => {
+            const note = parseNote(isc.note);
+            const discipline = parseDiscipline(isc.categoria);
+            const hasDisc = discipline.some(d => d.nome === disc && d.categoria === cat);
+            return hasDisc && note.genere === gen.code;
+          });
+          
+          if (atleti.length === 0) continue;
+          
+          // Titolo categoria/genere
+          doc.fontSize(14).font('Helvetica-Bold').text(`${cat} - ${gen.name} (${atleti.length})`, { underline: true });
+          doc.moveDown(0.5);
+          
+          // Header mini-tabella
+          y = doc.y;
+          const miniColWidths = [140, 120, 50, 180];
+          const miniHeaders = ['Cognome', 'Nome', 'Naz', 'WS ID'];
+          
+          doc.fontSize(10).font('Helvetica-Bold');
+          x = startX;
+          miniHeaders.forEach((h, i) => {
+            doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
+            x += miniColWidths[i];
+          });
+          y += 14;
+          doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
+          y += 6;
+          
+          doc.font('Helvetica').fontSize(10);
+          
+          atleti.forEach((isc) => {
+            if (y > 520) {
+              doc.addPage();
+              doc.fontSize(14).font('Helvetica-Bold').text(`${disc.toUpperCase()} - ${cat} - ${gen.name} (cont.)`, { align: 'center' });
+              doc.moveDown(0.5);
+              y = doc.y;
+              doc.fontSize(10).font('Helvetica-Bold');
+              x = startX;
+              miniHeaders.forEach((h, i) => {
+                doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
+                x += miniColWidths[i];
+              });
+              y += 14;
+              doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
+              y += 6;
+              doc.font('Helvetica').fontSize(10);
+            }
+            
+            const note = parseNote(isc.note);
+            const naz = toISO3(isc.nazionalita || note.nazionalita);
+            
+            x = startX;
+            const rowData = [isc.cognome || '', isc.nome || '', naz, note.wsId || ''];
+            rowData.forEach((cell, i) => {
+              doc.text(cell, x, y, { width: miniColWidths[i], align: 'left' });
+              x += miniColWidths[i];
+            });
+            y += 14;
+          });
+          
+          doc.moveDown(1);
+          y = doc.y;
+        }
+      }
+    }
     
     doc.end();
     
