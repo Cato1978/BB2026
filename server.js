@@ -1474,7 +1474,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     }
     
     // Crea PDF - layout verticale (portrait)
-    const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 40 });
+    const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 40, bufferPages: true });
     
     // Registra font con supporto caratteri speciali (polacco, etc.)
     const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
@@ -1526,9 +1526,6 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
       if (y > 780) {
-        // Footer piccolo
-        doc.fontSize(8).font('NotoSans').text('Elenco Completo Iscritti', 40, 810, { align: 'center', width: 515 });
-        
         doc.addPage();
         y = 40;
         // Ripeti header
@@ -1633,12 +1630,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           
           atleti.forEach((isc) => {
             if (y > 780) {
-              // Footer con info gara in fondo alla pagina corrente
-              doc.fontSize(8).font('NotoSans').text(`${disc} - ${cat} - ${gen.name}`, 40, 810, { align: 'center', width: 515 });
-              
               doc.addPage();
               y = 40;
-              // Solo header tabella, niente titolo grande
+              // Solo header tabella
               doc.fontSize(10).font('NotoSans-Bold');
               x = startX;
               miniHeaders.forEach((h, i) => {
@@ -1670,13 +1664,21 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             y += 14;
           });
           
-          // Footer con info gara alla fine di ogni sezione genere
-          doc.fontSize(8).font('NotoSans').text(`${disc} - ${cat} - ${gen.name}`, 40, 810, { align: 'center', width: 515 });
-          
           doc.moveDown(1);
           y = doc.y;
         }
       }
+    }
+    
+    // Aggiungi numeri di pagina a tutte le pagine
+    const totalPages = doc.bufferedPageRange().count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).font('NotoSans').text(
+        `${i + 1} di ${totalPages}`,
+        40, 810,
+        { align: 'center', width: 515 }
+      );
     }
     
     // Log bandiere mancanti
