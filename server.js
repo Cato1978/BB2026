@@ -1525,7 +1525,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
-      if (y > 800) {
+      if (y > 760) {
         doc.addPage();
         y = 40;
         // Ripeti header
@@ -1638,7 +1638,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           doc.font('NotoSans').fontSize(8);
           
           atleti.forEach((isc) => {
-            if (y > 800) {
+            if (y > 760) {
               doc.addPage();
               y = 40;
               // Solo header tabella
@@ -1695,7 +1695,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       
       doc.fontSize(7).font('NotoSans').text(
         `${label} - ${i + 1} di ${totalPages}`,
-        40, 820,
+        40, 800,
         { align: 'center', width: 515 }
       );
     }
