@@ -1526,6 +1526,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
       if (y > 780) {
+        // Footer piccolo
+        doc.fontSize(8).font('NotoSans').text('Elenco Completo Iscritti', 40, 810, { align: 'center', width: 515 });
+        
         doc.addPage();
         y = 40;
         // Ripeti header
@@ -1630,10 +1633,12 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           
           atleti.forEach((isc) => {
             if (y > 780) {
+              // Footer con info gara in fondo alla pagina corrente
+              doc.fontSize(8).font('NotoSans').text(`${disc} - ${cat} - ${gen.name}`, 40, 810, { align: 'center', width: 515 });
+              
               doc.addPage();
-              doc.fontSize(14).font('NotoSans-Bold').text(`${disc.toUpperCase()} - ${cat} - ${gen.name} (cont.)`, { align: 'center' });
-              doc.moveDown(0.5);
-              y = doc.y;
+              y = 40;
+              // Solo header tabella, niente titolo grande
               doc.fontSize(10).font('NotoSans-Bold');
               x = startX;
               miniHeaders.forEach((h, i) => {
@@ -1664,6 +1669,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             
             y += 14;
           });
+          
+          // Footer con info gara alla fine di ogni sezione genere
+          doc.fontSize(8).font('NotoSans').text(`${disc} - ${cat} - ${gen.name}`, 40, 810, { align: 'center', width: 515 });
           
           doc.moveDown(1);
           y = doc.y;
