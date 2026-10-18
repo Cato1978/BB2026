@@ -1569,16 +1569,22 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       // Discipline
       doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 40), x, y, { width: colWidths[4], align: 'left' });
       x += colWidths[4];
-      // WS ID
+      // WS ID - più grande
+      doc.fontSize(11);
       doc.text(note.wsId || '', x, y, { width: colWidths[5], align: 'left' });
+      doc.fontSize(9);
       
       y += 15;
     });
     
+    // Traccia info pagina per footer
+    const pageInfo = [];
+    pageInfo.push({ start: 0, label: 'Elenco Completo Iscritti' });
+    
     // ========== PAGINE PER DISCIPLINA + CATEGORIA ==========
     const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump', 'Pair Slalom'];
     const categorie = ['U15', 'U19', 'SENIOR', 'UNICA'];
-    const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
+    const generi = [{ code: 'M', name: 'Men' }, { code: 'F', name: 'Women' }];
     
     for (const disc of discipline) {
       for (const cat of categorie) {
@@ -1592,6 +1598,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         
         // Nuova pagina per ogni disciplina + categoria
         doc.addPage();
+        const currentPageStart = doc.bufferedPageRange().count - 1;
+        const sectionLabel = `${disc} - ${cat}`;
+        pageInfo.push({ start: currentPageStart, label: sectionLabel });
         
         doc.fontSize(22).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
         doc.fontSize(16).font('NotoSans').text(cat, { align: 'center' });
@@ -1607,8 +1616,8 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           
           if (atleti.length === 0) continue;
           
-          // Titolo genere
-          doc.fontSize(14).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, { underline: true });
+          // Titolo genere - allineato a sinistra
+          doc.fontSize(14).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, { underline: true, align: 'left' });
           doc.moveDown(0.5);
           
           // Header mini-tabella - adattato per portrait
@@ -1670,12 +1679,22 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       }
     }
     
-    // Aggiungi numeri di pagina a tutte le pagine
+    // Aggiungi numeri di pagina e footer a tutte le pagine
     const totalPages = doc.bufferedPageRange().count;
     for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
+      
+      // Trova il label per questa pagina
+      let label = 'Elenco Completo Iscritti';
+      for (let j = pageInfo.length - 1; j >= 0; j--) {
+        if (i >= pageInfo[j].start) {
+          label = pageInfo[j].label;
+          break;
+        }
+      }
+      
       doc.fontSize(8).font('NotoSans').text(
-        `${i + 1} di ${totalPages}`,
+        `${label} - ${i + 1} di ${totalPages}`,
         40, 810,
         { align: 'center', width: 515 }
       );
