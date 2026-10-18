@@ -1498,7 +1498,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Header tabella - più spazio a Discipline
     const startX = 40;
     let y = doc.y;
-    const colWidths = [110, 90, 45, 35, 200, 130];
+    const colWidths = [100, 80, 40, 30, 280, 100];
     const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
     
     doc.fontSize(11).font('Helvetica-Bold');
@@ -1567,41 +1567,40 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       y += 15;
     });
     
-    // ========== PAGINE PER DISCIPLINA ==========
+    // ========== PAGINE PER DISCIPLINA + CATEGORIA ==========
     const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump', 'Pair Slalom'];
     const categorie = ['U15', 'U19', 'SENIOR', 'UNICA'];
     const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
     
     for (const disc of discipline) {
-      // Filtra atleti per questa disciplina
-      const atletiDisc = iscritti.filter(isc => {
-        const discipline = parseDiscipline(isc.categoria);
-        return discipline.some(d => d.nome === disc);
-      });
-      
-      if (atletiDisc.length === 0) continue;
-      
-      // Nuova pagina per ogni disciplina
-      doc.addPage();
-      
-      doc.fontSize(22).font('Helvetica-Bold').text(disc.toUpperCase(), { align: 'center' });
-      doc.fontSize(12).font('Helvetica').text(`${atletiDisc.length} iscritti`, { align: 'center' });
-      doc.moveDown(1);
-      
-      // Raggruppa per categoria e genere
       for (const cat of categorie) {
+        // Filtra atleti per questa disciplina e categoria
+        const atletiCat = iscritti.filter(isc => {
+          const discipline = parseDiscipline(isc.categoria);
+          return discipline.some(d => d.nome === disc && d.categoria === cat);
+        });
+        
+        if (atletiCat.length === 0) continue;
+        
+        // Nuova pagina per ogni disciplina + categoria
+        doc.addPage();
+        
+        doc.fontSize(22).font('Helvetica-Bold').text(disc.toUpperCase(), { align: 'center' });
+        doc.fontSize(16).font('Helvetica').text(cat, { align: 'center' });
+        doc.fontSize(12).text(`${atletiCat.length} iscritti`, { align: 'center' });
+        doc.moveDown(1);
+        
+        // Dividi per genere
         for (const gen of generi) {
-          const atleti = atletiDisc.filter(isc => {
+          const atleti = atletiCat.filter(isc => {
             const note = parseNote(isc.note);
-            const discipline = parseDiscipline(isc.categoria);
-            const hasDisc = discipline.some(d => d.nome === disc && d.categoria === cat);
-            return hasDisc && note.genere === gen.code;
+            return note.genere === gen.code;
           });
           
           if (atleti.length === 0) continue;
           
-          // Titolo categoria/genere
-          doc.fontSize(14).font('Helvetica-Bold').text(`${cat} - ${gen.name} (${atleti.length})`, { underline: true });
+          // Titolo genere
+          doc.fontSize(14).font('Helvetica-Bold').text(`${gen.name} (${atleti.length})`, { underline: true });
           doc.moveDown(0.5);
           
           // Header mini-tabella
