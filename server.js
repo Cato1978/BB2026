@@ -1970,8 +1970,13 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       // Genere
       doc.text(note.genere || '', x, y, { width: colWidths[3], align: 'left' });
       x += colWidths[3];
-      // Discipline
-      doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 35), x, y, { width: colWidths[4], align: 'left' });
+      // Discipline - abbrevia nomi (rimuovi "Slalom")
+      const discAbbrev = (isc.categoria || '')
+        .replace(/Speed Slalom/g, 'Speed')
+        .replace(/Classic Slalom/g, 'Classic')
+        .replace(/Pair Slalom/g, 'Pair')
+        .replace(/\s*\([^)]+\)/g, '');
+      doc.text(discAbbrev.substring(0, 40), x, y, { width: colWidths[4], align: 'left' });
       x += colWidths[4];
       // WS ID (o FISR se vuoto)
       doc.fontSize(8);
