@@ -1572,11 +1572,11 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
     doc.moveDown(0.8);
     
-    // Header tabella - adattato per layout verticale (portrait)
+    // Header tabella - Naz come prima colonna
     const startX = 40;
     let y = doc.y;
-    const colWidths = [85, 65, 35, 22, 160, 120];
-    const headers = ['Cognome', 'Nome', 'Naz', 'Gen', 'Discipline', 'WS ID'];
+    const colWidths = [35, 85, 65, 22, 160, 120];
+    const headers = ['Naz', 'Cognome', 'Nome', 'Gen', 'Discipline', 'WS ID'];
     
     doc.fontSize(8).font('NotoSans-Bold');
     let x = startX;
@@ -1623,14 +1623,14 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       }
       
       x = startX;
-      // Cognome
-      doc.text(isc.cognome || '', x, y, { width: colWidths[0], align: 'left' });
+      // Nazionalità con bandiera (PRIMA COLONNA)
+      drawFlag(doc, nazCode, x, y, colWidths[0]);
       x += colWidths[0];
-      // Nome
-      doc.text(isc.nome || '', x, y, { width: colWidths[1], align: 'left' });
+      // Cognome
+      doc.text(isc.cognome || '', x, y, { width: colWidths[1], align: 'left' });
       x += colWidths[1];
-      // Nazionalità con bandiera
-      drawFlag(doc, nazCode, x, y, colWidths[2]);
+      // Nome
+      doc.text(isc.nome || '', x, y, { width: colWidths[2], align: 'left' });
       x += colWidths[2];
       // Genere
       doc.text(note.genere || '', x, y, { width: colWidths[3], align: 'left' });
@@ -1651,7 +1651,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     pageInfo.push({ start: 0, label: 'Elenco Completo Iscritti' });
     
     // ========== PAGINE PER DISCIPLINA + CATEGORIA ==========
-    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump', 'Pair Slalom'];
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump'];
     const categorie = ['U15', 'U19', 'SENIOR', 'UNICA'];
     const generi = [{ code: 'M', name: 'Men' }, { code: 'F', name: 'Women' }];
     
@@ -1689,10 +1689,10 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           doc.fontSize(11).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, startX, doc.y, { underline: true });
           doc.moveDown(0.3);
           
-          // Header mini-tabella - adattato per portrait
+          // Header mini-tabella - Naz come prima colonna
           y = doc.y;
-          const miniColWidths = [110, 90, 40, 170];
-          const miniHeaders = ['Cognome', 'Nome', 'Naz', 'WS ID'];
+          const miniColWidths = [40, 110, 90, 170];
+          const miniHeaders = ['Naz', 'Cognome', 'Nome', 'WS ID'];
           
           doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
@@ -1727,14 +1727,14 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             const nazCode = isc.nazionalita || note.nazionalita;
             
             x = startX;
-            // Cognome
-            doc.text(isc.cognome || '', x, y, { width: miniColWidths[0], align: 'left' });
+            // Nazionalità con bandiera (PRIMA COLONNA)
+            drawFlag(doc, nazCode, x, y, miniColWidths[0]);
             x += miniColWidths[0];
-            // Nome
-            doc.text(isc.nome || '', x, y, { width: miniColWidths[1], align: 'left' });
+            // Cognome
+            doc.text(isc.cognome || '', x, y, { width: miniColWidths[1], align: 'left' });
             x += miniColWidths[1];
-            // Nazionalità con bandiera
-            drawFlag(doc, nazCode, x, y, miniColWidths[2]);
+            // Nome
+            doc.text(isc.nome || '', x, y, { width: miniColWidths[2], align: 'left' });
             x += miniColWidths[2];
             // WS ID (o FISR se vuoto)
             doc.text(note.wsId || note.fisr || '', x, y, { width: miniColWidths[3], align: 'left' });
@@ -1745,6 +1745,128 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           doc.moveDown(0.8);
           y = doc.y;
         }
+      }
+    }
+    
+    // ========== PAIR SLALOM - COPPIE ==========
+    const pairAtleti = iscritti.filter(isc => isc.categoria && isc.categoria.includes('Pair Slalom'));
+    
+    if (pairAtleti.length > 0) {
+      // Funzione per cercare il compagno nelle note
+      function cercaCompagno(note, atletiList, me) {
+        if (!note) return null;
+        const noteLower = note.toLowerCase();
+        for (const altro of atletiList) {
+          if (altro.id === me.id) continue;
+          const nomeCognome = `${altro.nome} ${altro.cognome}`.toLowerCase();
+          const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+          if (noteLower.includes(nomeCognome) || noteLower.includes(cognomeNome)) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Costruisci coppie
+      const coppieMap = new Map();
+      const usati = new Set();
+      
+      for (const atleta of pairAtleti) {
+        if (usati.has(atleta.id)) continue;
+        
+        const compagno = cercaCompagno(atleta.note, pairAtleti, atleta);
+        if (compagno && !usati.has(compagno.id)) {
+          // Coppia trovata
+          const key = [atleta.id, compagno.id].sort().join('-');
+          if (!coppieMap.has(key)) {
+            coppieMap.set(key, { atleta1: atleta, atleta2: compagno });
+            usati.add(atleta.id);
+            usati.add(compagno.id);
+          }
+        } else {
+          // Atleta senza compagno trovato
+          coppieMap.set(`solo-${atleta.id}`, { atleta1: atleta, atleta2: null });
+          usati.add(atleta.id);
+        }
+      }
+      
+      const coppie = Array.from(coppieMap.values());
+      
+      // Nuova pagina per Pair Slalom
+      doc.addPage();
+      const pairPageStart = doc.bufferedPageRange().count - 1;
+      pageInfo.push({ start: pairPageStart, label: 'Pair Slalom' });
+      
+      doc.fontSize(18).font('NotoSans-Bold').text('PAIR SLALOM', { align: 'center' });
+      doc.fontSize(14).font('NotoSans').text('UNICA', { align: 'center' });
+      doc.fontSize(10).text(`${coppie.length} coppie`, { align: 'center' });
+      doc.moveDown(0.8);
+      
+      // Header per coppie
+      y = doc.y;
+      const pairColWidths = [35, 100, 35, 100, 150];
+      const pairHeaders = ['Naz', 'Atleta 1', 'Naz', 'Atleta 2', 'WS ID'];
+      
+      doc.fontSize(8).font('NotoSans-Bold');
+      x = startX;
+      pairHeaders.forEach((h, i) => {
+        doc.text(h, x, y, { width: pairColWidths[i], align: 'left' });
+        x += pairColWidths[i];
+      });
+      y += 12;
+      doc.moveTo(startX, y).lineTo(startX + pairColWidths.reduce((a, b) => a + b, 0), y).stroke();
+      y += 4;
+      
+      doc.font('NotoSans').fontSize(8);
+      
+      for (const coppia of coppie) {
+        if (y > 760) {
+          doc.addPage();
+          y = 40;
+          doc.fontSize(8).font('NotoSans-Bold');
+          x = startX;
+          pairHeaders.forEach((h, i) => {
+            doc.text(h, x, y, { width: pairColWidths[i], align: 'left' });
+            x += pairColWidths[i];
+          });
+          y += 12;
+          doc.moveTo(startX, y).lineTo(startX + pairColWidths.reduce((a, b) => a + b, 0), y).stroke();
+          y += 4;
+          doc.font('NotoSans').fontSize(8);
+        }
+        
+        const note1 = parseNote(coppia.atleta1.note);
+        const naz1 = coppia.atleta1.nazionalita || note1.nazionalita;
+        
+        x = startX;
+        // Naz 1
+        drawFlag(doc, naz1, x, y, pairColWidths[0]);
+        x += pairColWidths[0];
+        // Atleta 1
+        doc.text(`${coppia.atleta1.cognome} ${coppia.atleta1.nome}`, x, y, { width: pairColWidths[1], align: 'left' });
+        x += pairColWidths[1];
+        
+        if (coppia.atleta2) {
+          const note2 = parseNote(coppia.atleta2.note);
+          const naz2 = coppia.atleta2.nazionalita || note2.nazionalita;
+          // Naz 2
+          drawFlag(doc, naz2, x, y, pairColWidths[2]);
+          x += pairColWidths[2];
+          // Atleta 2
+          doc.text(`${coppia.atleta2.cognome} ${coppia.atleta2.nome}`, x, y, { width: pairColWidths[3], align: 'left' });
+          x += pairColWidths[3];
+          // WS ID (del primo atleta)
+          doc.text(note1.wsId || note1.fisr || '', x, y, { width: pairColWidths[4], align: 'left' });
+        } else {
+          // Naz 2 vuota
+          x += pairColWidths[2];
+          // Atleta 2
+          doc.text('(compagno non trovato)', x, y, { width: pairColWidths[3], align: 'left' });
+          x += pairColWidths[3];
+          doc.text(note1.wsId || note1.fisr || '', x, y, { width: pairColWidths[4], align: 'left' });
+        }
+        
+        y += 11;
       }
     }
     
