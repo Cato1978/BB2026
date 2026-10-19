@@ -806,9 +806,10 @@ app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
 // Riepilogo felpe (iscrizioni + merch)
 app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
   try {
-    const taglie = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
-    const felpe = {};
-    taglie.forEach(t => felpe[t] = 0);
+    const felpe = {
+      'XS Uomo': 0, 'S Uomo': 0, 'M Uomo': 0, 'L Uomo': 0, 'XL Uomo': 0, 'XXL Uomo': 0, '3XL Uomo': 0,
+      'XS Donna': 0, 'S Donna': 0, 'M Donna': 0, 'L Donna': 0, 'XL Donna': 0, 'XXL Donna': 0, '3XL Donna': 0
+    };
     
     // 1. Conta felpe dalle iscrizioni (campo note contiene "Felpa: XXX")
     const iscritti = await dbAll("SELECT note FROM iscritti WHERE note LIKE '%Felpa:%'");
@@ -818,7 +819,16 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
       const note = row.note || '';
       const match = note.match(/Felpa:\s*([^|]+)/);
       if (match) {
-        let taglia = match[1].trim().toUpperCase();
+        let taglia = match[1].trim();
+        // Normalizza taglia (es: "M" -> "M Uomo" o "M Donna" in base al genere)
+        const genereMatch = note.match(/Genere:\s*([MF])/);
+        const genere = genereMatch ? genereMatch[1] : '';
+        
+        // Se la taglia non ha già Uomo/Donna, aggiungilo
+        if (!taglia.includes('Uomo') && !taglia.includes('Donna')) {
+          taglia = taglia + (genere === 'F' ? ' Donna' : ' Uomo');
+        }
+        
         if (felpeIscrizioni[taglia] !== undefined) {
           felpeIscrizioni[taglia]++;
         }
@@ -830,7 +840,7 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
     try {
       const merch = await dbAll("SELECT prodotto, taglia, quantita FROM merch_orders WHERE prodotto LIKE '%Felpa%' AND stato != 'annullato'");
       for (const row of merch) {
-        let taglia = (row.taglia || '').toUpperCase();
+        let taglia = row.taglia || '';
         const qty = row.quantita || 1;
         if (felpeMerch[taglia] !== undefined) {
           felpeMerch[taglia] += qty;
@@ -842,7 +852,7 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
     
     // 3. Calcola totali
     const totali = {};
-    for (const taglia of taglie) {
+    for (const taglia of Object.keys(felpe)) {
       totali[taglia] = {
         iscrizioni: felpeIscrizioni[taglia],
         merch: felpeMerch[taglia],
