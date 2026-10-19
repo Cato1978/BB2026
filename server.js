@@ -814,12 +814,20 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
     const lista = [];
     
     // 1. Maglie dalle iscrizioni
-    const iscritti = await dbAll("SELECT id, cognome, nome, note, created_at FROM iscritti WHERE note LIKE '%Maglia:%' ORDER BY created_at DESC");
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, stato, pagamento, created_at FROM iscritti WHERE note LIKE '%Maglia:%' ORDER BY created_at DESC");
     
     for (const row of iscritti) {
       const note = row.note || '';
       const match = note.match(/Maglia:\s*([^|]+)/);
       let taglia = match ? match[1].trim() : '';
+      
+      // Determina stato pagamento
+      let statoPagamento = 'Sospeso';
+      if (row.pagamento === 1 || row.stato === 'confermata') {
+        statoPagamento = 'Pagato';
+      } else if (row.stato === 'verifica') {
+        statoPagamento = 'In verifica';
+      }
       
       lista.push({
         id: row.id,
@@ -827,14 +835,15 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
         nome: row.nome,
         taglia: taglia,
         data: row.created_at,
-        fonte: 'iscrizione'
+        fonte: 'iscrizione',
+        statoPagamento: statoPagamento
       });
     }
     
     // 2. Maglie dal merch
     try {
       const merch = await dbAll(`
-        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
+        SELECT mo.id, mo.nome, mo.cognome, mo.stato, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
         FROM merch_ordini mo
         JOIN merch_items mi ON mi.ordine_id = mo.id
         WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
@@ -842,6 +851,14 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
       `);
       
       for (const row of merch) {
+        // Determina stato pagamento merch
+        let statoPagamento = 'Sospeso';
+        if (row.stato === 'confermata' || row.stato === 'confermato') {
+          statoPagamento = 'Pagato';
+        } else if (row.stato === 'verifica') {
+          statoPagamento = 'In verifica';
+        }
+        
         for (let i = 0; i < (row.quantita || 1); i++) {
           lista.push({
             id: 'M' + row.id,
@@ -850,7 +867,8 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
             taglia: row.taglia || '',
             data: row.created_at,
             fonte: 'merch',
-            item_id: row.item_id
+            item_id: row.item_id,
+            statoPagamento: statoPagamento
           });
         }
       }
@@ -998,12 +1016,20 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
     const lista = [];
     
     // 1. Felpe dalle iscrizioni
-    const iscritti = await dbAll("SELECT id, cognome, nome, note, created_at FROM iscritti WHERE note LIKE '%Felpa:%' ORDER BY created_at DESC");
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, stato, pagamento, created_at FROM iscritti WHERE note LIKE '%Felpa:%' ORDER BY created_at DESC");
     
     for (const row of iscritti) {
       const note = row.note || '';
       const match = note.match(/Felpa:\s*([^|]+)/);
       let taglia = match ? match[1].trim() : '';
+      
+      // Determina stato pagamento
+      let statoPagamento = 'Sospeso';
+      if (row.pagamento === 1 || row.stato === 'confermata') {
+        statoPagamento = 'Pagato';
+      } else if (row.stato === 'verifica') {
+        statoPagamento = 'In verifica';
+      }
       
       lista.push({
         id: row.id,
@@ -1011,14 +1037,15 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
         nome: row.nome,
         taglia: taglia,
         data: row.created_at,
-        fonte: 'iscrizione'
+        fonte: 'iscrizione',
+        statoPagamento: statoPagamento
       });
     }
     
     // 2. Felpe dal merch
     try {
       const merch = await dbAll(`
-        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
+        SELECT mo.id, mo.nome, mo.cognome, mo.stato, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
         FROM merch_ordini mo
         JOIN merch_items mi ON mi.ordine_id = mo.id
         WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
@@ -1026,6 +1053,14 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
       `);
       
       for (const row of merch) {
+        // Determina stato pagamento merch
+        let statoPagamento = 'Sospeso';
+        if (row.stato === 'confermata' || row.stato === 'confermato') {
+          statoPagamento = 'Pagato';
+        } else if (row.stato === 'verifica') {
+          statoPagamento = 'In verifica';
+        }
+        
         for (let i = 0; i < (row.quantita || 1); i++) {
           lista.push({
             id: 'M' + row.id,
@@ -1034,7 +1069,8 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
             taglia: row.taglia || '',
             data: row.created_at,
             fonte: 'merch',
-            item_id: row.item_id
+            item_id: row.item_id,
+            statoPagamento: statoPagamento
           });
         }
       }

@@ -121,6 +121,7 @@
           <th>Cognome</th>
           <th>Nome</th>
           <th>Taglia</th>
+          <th>Pagamento</th>
           <th>Data</th>
           <th>Fonte</th>
           <th>Azioni</th>
@@ -187,23 +188,35 @@
       const tbody = document.getElementById('lista');
       
       if (felpe.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessuna felpa ordinata</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888">Nessuna felpa ordinata</td></tr>';
         return;
       }
       
-      tbody.innerHTML = felpe.map(f => `
+      tbody.innerHTML = felpe.map(f => {
+        let pagamentoIcon = '⏳ Sospeso';
+        let pagamentoColor = '#888';
+        if (f.statoPagamento === 'Pagato') {
+          pagamentoIcon = '✅ Pagato';
+          pagamentoColor = '#4CAF50';
+        } else if (f.statoPagamento === 'In verifica') {
+          pagamentoIcon = '🔍 In verifica';
+          pagamentoColor = '#F7AF40';
+        }
+        
+        return `
         <tr data-id="${f.id}" data-fonte="${f.fonte}" data-item-id="${f.item_id || ''}">
           <td>${f.fonte === 'iscrizione' ? 'BB11-' + String(f.id).padStart(4, '0') : 'MERCH-' + f.id}</td>
           <td>${f.cognome}</td>
           <td>${f.nome}</td>
           <td class="taglia-cell">${f.taglia || '-'}</td>
+          <td style="color:${pagamentoColor}">${pagamentoIcon}</td>
           <td>${f.data ? new Date(f.data).toLocaleDateString('it-IT') : '-'}</td>
           <td>${f.fonte === 'iscrizione' ? '📋 Iscrizione' : '🛒 Merch'}</td>
           <td>
             <button class="btn" onclick="editRow('${f.id}', '${f.fonte}', '${f.item_id || ''}')">✏️ Edit</button>
           </td>
         </tr>
-      `).join('');
+      `}).join('');
     }
     
     function editRow(id, fonte, itemId) {

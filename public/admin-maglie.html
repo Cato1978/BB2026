@@ -121,6 +121,7 @@
           <th>Cognome</th>
           <th>Nome</th>
           <th>Taglia</th>
+          <th>Pagamento</th>
           <th>Data</th>
           <th>Fonte</th>
           <th>Azioni</th>
@@ -187,23 +188,35 @@
       const tbody = document.getElementById('lista');
       
       if (maglie.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessuna maglia ordinata</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888">Nessuna maglia ordinata</td></tr>';
         return;
       }
       
-      tbody.innerHTML = maglie.map(m => `
+      tbody.innerHTML = maglie.map(m => {
+        let pagamentoIcon = '⏳ Sospeso';
+        let pagamentoColor = '#888';
+        if (m.statoPagamento === 'Pagato') {
+          pagamentoIcon = '✅ Pagato';
+          pagamentoColor = '#4CAF50';
+        } else if (m.statoPagamento === 'In verifica') {
+          pagamentoIcon = '🔍 In verifica';
+          pagamentoColor = '#F7AF40';
+        }
+        
+        return `
         <tr data-id="${m.id}" data-fonte="${m.fonte}" data-item-id="${m.item_id || ''}">
           <td>${m.fonte === 'iscrizione' ? 'BB11-' + String(m.id).padStart(4, '0') : 'MERCH-' + m.id}</td>
           <td>${m.cognome}</td>
           <td>${m.nome}</td>
           <td class="taglia-cell">${m.taglia || '-'}</td>
+          <td style="color:${pagamentoColor}">${pagamentoIcon}</td>
           <td>${m.data ? new Date(m.data).toLocaleDateString('it-IT') : '-'}</td>
           <td>${m.fonte === 'iscrizione' ? '📋 Iscrizione' : '🛒 Merch'}</td>
           <td>
             <button class="btn" onclick="editRow('${m.id}', '${m.fonte}', '${m.item_id || ''}')">✏️ Edit</button>
           </td>
         </tr>
-      `).join('');
+      `}).join('');
     }
     
     function editRow(id, fonte, itemId) {
