@@ -769,7 +769,12 @@ app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
     // 2. Conta maglie dal merch (se esiste la tabella)
     const maglieMerch = { ...maglie };
     try {
-      const merch = await dbAll("SELECT prodotto, taglia, quantita FROM merch_orders WHERE (prodotto LIKE '%Maglia%' OR prodotto LIKE '%T-Shirt%') AND stato != 'annullato'");
+      const merch = await dbAll(`
+        SELECT mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
+      `);
       for (const row of merch) {
         let taglia = row.taglia || '';
         const qty = row.quantita || 1;
@@ -828,27 +833,28 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
     
     // 2. Maglie dal merch
     try {
-      const merch = await dbAll("SELECT id, nome, cognome, email, items, created_at FROM merch_orders WHERE (items LIKE '%Maglia%' OR items LIKE '%T-Shirt%') AND stato != 'annullato' ORDER BY created_at DESC");
+      const merch = await dbAll(`
+        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.articolo, mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
+        ORDER BY mo.created_at DESC
+      `);
       
       for (const row of merch) {
-        const items = JSON.parse(row.items || '[]');
-        for (const item of items) {
-          if (item.articolo === 'Maglia' || item.articolo === 'T-Shirt') {
-            for (let i = 0; i < (item.quantita || 1); i++) {
-              lista.push({
-                id: 'M' + row.id,
-                cognome: row.cognome || '',
-                nome: row.nome || '',
-                taglia: item.taglia || '',
-                data: row.created_at,
-                fonte: 'merch'
-              });
-            }
-          }
+        for (let i = 0; i < (row.quantita || 1); i++) {
+          lista.push({
+            id: 'M' + row.id,
+            cognome: row.cognome || '',
+            nome: row.nome || '',
+            taglia: row.taglia || '',
+            data: row.created_at,
+            fonte: 'merch'
+          });
         }
       }
     } catch (e) {
-      // Tabella merch non esiste
+      console.error('Errore lettura merch maglie:', e);
     }
     
     // Ordina per data decrescente
@@ -931,7 +937,12 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
     // 2. Conta felpe dal merch (se esiste la tabella)
     const felpeMerch = { ...felpe };
     try {
-      const merch = await dbAll("SELECT prodotto, taglia, quantita FROM merch_orders WHERE prodotto LIKE '%Felpa%' AND stato != 'annullato'");
+      const merch = await dbAll(`
+        SELECT mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
+      `);
       for (const row of merch) {
         let taglia = row.taglia || '';
         const qty = row.quantita || 1;
@@ -990,27 +1001,28 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
     
     // 2. Felpe dal merch
     try {
-      const merch = await dbAll("SELECT id, nome, cognome, email, items, created_at FROM merch_orders WHERE items LIKE '%Felpa%' AND stato != 'annullato' ORDER BY created_at DESC");
+      const merch = await dbAll(`
+        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.articolo, mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
+        ORDER BY mo.created_at DESC
+      `);
       
       for (const row of merch) {
-        const items = JSON.parse(row.items || '[]');
-        for (const item of items) {
-          if (item.articolo === 'Felpa') {
-            for (let i = 0; i < (item.quantita || 1); i++) {
-              lista.push({
-                id: 'M' + row.id,
-                cognome: row.cognome || '',
-                nome: row.nome || '',
-                taglia: item.taglia || '',
-                data: row.created_at,
-                fonte: 'merch'
-              });
-            }
-          }
+        for (let i = 0; i < (row.quantita || 1); i++) {
+          lista.push({
+            id: 'M' + row.id,
+            cognome: row.cognome || '',
+            nome: row.nome || '',
+            taglia: row.taglia || '',
+            data: row.created_at,
+            fonte: 'merch'
+          });
         }
       }
     } catch (e) {
-      // Tabella merch non esiste
+      console.error('Errore lettura merch felpe:', e);
     }
     
     // Ordina per data decrescente
