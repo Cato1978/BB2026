@@ -734,6 +734,75 @@ app.get('/api/prove/riepilogo', async (req, res) => {
   }
 });
 
+// Riepilogo maglie (iscrizioni + merch)
+app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    const maglie = {
+      'XS Uomo': 0, 'S Uomo': 0, 'M Uomo': 0, 'L Uomo': 0, 'XL Uomo': 0, 'XXL Uomo': 0, '3XL Uomo': 0,
+      'XS Donna': 0, 'S Donna': 0, 'M Donna': 0, 'L Donna': 0, 'XL Donna': 0, 'XXL Donna': 0
+    };
+    
+    // 1. Conta maglie dalle iscrizioni (campo note contiene "Maglia: XXX")
+    const iscritti = await dbAll("SELECT note FROM iscritti WHERE note LIKE '%Maglia:%'");
+    const maglieIscrizioni = { ...maglie };
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Maglia:\s*([^|]+)/);
+      if (match) {
+        let taglia = match[1].trim();
+        // Normalizza taglia (es: "M" -> "M Uomo" o "M Donna" in base al genere)
+        const genereMatch = note.match(/Genere:\s*([MF])/);
+        const genere = genereMatch ? genereMatch[1] : '';
+        
+        // Se la taglia non ha già Uomo/Donna, aggiungilo
+        if (!taglia.includes('Uomo') && !taglia.includes('Donna')) {
+          taglia = taglia + (genere === 'F' ? ' Donna' : ' Uomo');
+        }
+        
+        if (maglieIscrizioni[taglia] !== undefined) {
+          maglieIscrizioni[taglia]++;
+        }
+      }
+    }
+    
+    // 2. Conta maglie dal merch (se esiste la tabella)
+    const maglieMerch = { ...maglie };
+    try {
+      const merch = await dbAll("SELECT prodotto, taglia, quantita FROM merch_orders WHERE (prodotto LIKE '%Maglia%' OR prodotto LIKE '%T-Shirt%') AND stato != 'annullato'");
+      for (const row of merch) {
+        let taglia = row.taglia || '';
+        const qty = row.quantita || 1;
+        if (maglieMerch[taglia] !== undefined) {
+          maglieMerch[taglia] += qty;
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste, ignora
+    }
+    
+    // 3. Calcola totali
+    const totali = {};
+    for (const taglia of Object.keys(maglie)) {
+      totali[taglia] = {
+        iscrizioni: maglieIscrizioni[taglia],
+        merch: maglieMerch[taglia],
+        totale: maglieIscrizioni[taglia] + maglieMerch[taglia]
+      };
+    }
+    
+    res.json({
+      perTaglia: totali,
+      totaleIscrizioni: Object.values(maglieIscrizioni).reduce((a, b) => a + b, 0),
+      totaleMerch: Object.values(maglieMerch).reduce((a, b) => a + b, 0),
+      totaleGenerale: Object.values(totali).reduce((a, b) => a + b.totale, 0)
+    });
+  } catch (err) {
+    console.error('Errore riepilogo maglie:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
