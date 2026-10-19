@@ -1569,9 +1569,9 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       // Discipline
       doc.text((isc.categoria || '').replace(/\s*\([^)]+\)/g, '').substring(0, 35), x, y, { width: colWidths[4], align: 'left' });
       x += colWidths[4];
-      // WS ID
+      // WS ID (o FISR se vuoto)
       doc.fontSize(8);
-      doc.text(note.wsId || '', x, y, { width: colWidths[5], align: 'left' });
+      doc.text(note.wsId || note.fisr || '', x, y, { width: colWidths[5], align: 'left' });
       doc.fontSize(7);
       
       y += 11;
@@ -1667,8 +1667,8 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             // Nazionalità con bandiera
             drawFlag(doc, nazCode, x, y, miniColWidths[2]);
             x += miniColWidths[2];
-            // WS ID
-            doc.text(note.wsId || '', x, y, { width: miniColWidths[3], align: 'left' });
+            // WS ID (o FISR se vuoto)
+            doc.text(note.wsId || note.fisr || '', x, y, { width: miniColWidths[3], align: 'left' });
             
             y += 11;
           });
