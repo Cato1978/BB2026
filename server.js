@@ -803,6 +803,65 @@ app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
   }
 });
 
+// Riepilogo felpe (iscrizioni + merch)
+app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    const taglie = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+    const felpe = {};
+    taglie.forEach(t => felpe[t] = 0);
+    
+    // 1. Conta felpe dalle iscrizioni (campo note contiene "Felpa: XXX")
+    const iscritti = await dbAll("SELECT note FROM iscritti WHERE note LIKE '%Felpa:%'");
+    const felpeIscrizioni = { ...felpe };
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Felpa:\s*([^|]+)/);
+      if (match) {
+        let taglia = match[1].trim().toUpperCase();
+        if (felpeIscrizioni[taglia] !== undefined) {
+          felpeIscrizioni[taglia]++;
+        }
+      }
+    }
+    
+    // 2. Conta felpe dal merch (se esiste la tabella)
+    const felpeMerch = { ...felpe };
+    try {
+      const merch = await dbAll("SELECT prodotto, taglia, quantita FROM merch_orders WHERE prodotto LIKE '%Felpa%' AND stato != 'annullato'");
+      for (const row of merch) {
+        let taglia = (row.taglia || '').toUpperCase();
+        const qty = row.quantita || 1;
+        if (felpeMerch[taglia] !== undefined) {
+          felpeMerch[taglia] += qty;
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste, ignora
+    }
+    
+    // 3. Calcola totali
+    const totali = {};
+    for (const taglia of taglie) {
+      totali[taglia] = {
+        iscrizioni: felpeIscrizioni[taglia],
+        merch: felpeMerch[taglia],
+        totale: felpeIscrizioni[taglia] + felpeMerch[taglia]
+      };
+    }
+    
+    res.json({
+      perTaglia: totali,
+      totaleIscrizioni: Object.values(felpeIscrizioni).reduce((a, b) => a + b, 0),
+      totaleMerch: Object.values(felpeMerch).reduce((a, b) => a + b, 0),
+      totaleGenerale: Object.values(totali).reduce((a, b) => a + b.totale, 0)
+    });
+  } catch (err) {
+    console.error('Errore riepilogo felpe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
