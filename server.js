@@ -1576,7 +1576,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     const startX = 40;
     let y = doc.y;
     const colWidths = [35, 85, 65, 22, 160, 120];
-    const headers = ['Naz', 'Cognome', 'Nome', 'Gen', 'Discipline', 'WS ID'];
+    const headers = ['Naz', 'Cognome', 'Nome', 'Gen', 'Discipline', 'WS ID / FISR'];
     
     doc.fontSize(8).font('NotoSans-Bold');
     let x = startX;
@@ -1692,7 +1692,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           // Header mini-tabella - Naz come prima colonna
           y = doc.y;
           const miniColWidths = [40, 110, 90, 170];
-          const miniHeaders = ['Naz', 'Cognome', 'Nome', 'WS ID'];
+          const miniHeaders = ['Naz', 'Cognome', 'Nome', 'WS ID / FISR'];
           
           doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
@@ -1820,7 +1820,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       // Header per coppie
       y = doc.y;
       const pairColWidths = [35, 100, 35, 100, 150];
-      const pairHeaders = ['Naz', 'Atleta 1', 'Naz', 'Atleta 2', 'WS ID'];
+      const pairHeaders = ['Naz', 'Atleta 1', 'Naz', 'Atleta 2', 'WS ID / FISR'];
       
       doc.fontSize(8).font('NotoSans-Bold');
       x = startX;
