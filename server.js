@@ -834,7 +834,7 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
     // 2. Maglie dal merch
     try {
       const merch = await dbAll(`
-        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.articolo, mi.taglia, mi.quantita
+        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
         FROM merch_ordini mo
         JOIN merch_items mi ON mi.ordine_id = mo.id
         WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
@@ -849,7 +849,8 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
             nome: row.nome || '',
             taglia: row.taglia || '',
             data: row.created_at,
-            fonte: 'merch'
+            fonte: 'merch',
+            item_id: row.item_id
           });
         }
       }
@@ -867,7 +868,7 @@ app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
   }
 });
 
-// Modifica taglia maglia
+// Modifica taglia maglia (iscrizione)
 app.put('/api/maglie/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -898,6 +899,21 @@ app.put('/api/maglie/:id', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Errore modifica maglia:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia maglia (merch)
+app.put('/api/maglie/merch/:itemId', requireAdmin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { taglia } = req.body;
+    
+    await dbRun("UPDATE merch_items SET taglia = ? WHERE id = ?", [taglia, itemId]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica maglia merch:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1002,7 +1018,7 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
     // 2. Felpe dal merch
     try {
       const merch = await dbAll(`
-        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.articolo, mi.taglia, mi.quantita
+        SELECT mo.id, mo.nome, mo.cognome, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
         FROM merch_ordini mo
         JOIN merch_items mi ON mi.ordine_id = mo.id
         WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
@@ -1017,7 +1033,8 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
             nome: row.nome || '',
             taglia: row.taglia || '',
             data: row.created_at,
-            fonte: 'merch'
+            fonte: 'merch',
+            item_id: row.item_id
           });
         }
       }
@@ -1035,7 +1052,7 @@ app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
   }
 });
 
-// Modifica taglia felpa
+// Modifica taglia felpa (iscrizione)
 app.put('/api/felpe/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1066,6 +1083,21 @@ app.put('/api/felpe/:id', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Errore modifica felpa:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia felpa (merch)
+app.put('/api/felpe/merch/:itemId', requireAdmin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { taglia } = req.body;
+    
+    await dbRun("UPDATE merch_items SET taglia = ? WHERE id = ?", [taglia, itemId]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica felpa merch:', err);
     res.status(500).json({ error: err.message });
   }
 });

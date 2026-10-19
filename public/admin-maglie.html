@@ -192,7 +192,7 @@
       }
       
       tbody.innerHTML = maglie.map(m => `
-        <tr data-id="${m.id}" data-fonte="${m.fonte}">
+        <tr data-id="${m.id}" data-fonte="${m.fonte}" data-item-id="${m.item_id || ''}">
           <td>${m.fonte === 'iscrizione' ? 'BB11-' + String(m.id).padStart(4, '0') : 'MERCH-' + m.id}</td>
           <td>${m.cognome}</td>
           <td>${m.nome}</td>
@@ -200,35 +200,42 @@
           <td>${m.data ? new Date(m.data).toLocaleDateString('it-IT') : '-'}</td>
           <td>${m.fonte === 'iscrizione' ? '📋 Iscrizione' : '🛒 Merch'}</td>
           <td>
-            ${m.fonte === 'iscrizione' ? `<button class="btn" onclick="editRow('${m.id}')">✏️ Edit</button>` : '-'}
+            <button class="btn" onclick="editRow('${m.id}', '${m.fonte}', '${m.item_id || ''}')">✏️ Edit</button>
           </td>
         </tr>
       `).join('');
     }
     
-    function editRow(id) {
-      const row = document.querySelector(`tr[data-id="${id}"]`);
-      const m = maglie.find(x => x.id == id);
+    function editRow(id, fonte, itemId) {
+      const row = document.querySelector(`tr[data-id="${id}"][data-fonte="${fonte}"]`);
+      const m = maglie.find(x => x.id == id && x.fonte === fonte);
       const cell = row.querySelector('.taglia-cell');
       
       cell.innerHTML = `
-        <select id="sel-${id}">
+        <select id="sel-${id}-${fonte}">
           <option value="">-- Rimuovi --</option>
           ${taglie.map(t => `<option value="${t}" ${m.taglia === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
       `;
       
       row.querySelector('td:last-child').innerHTML = `
-        <button class="btn" onclick="saveRow('${id}')">💾 Salva</button>
+        <button class="btn" onclick="saveRow('${id}', '${fonte}', '${itemId}')">💾 Salva</button>
         <button class="btn btn-danger" onclick="carica()">✖</button>
       `;
     }
     
-    async function saveRow(id) {
-      const taglia = document.getElementById(`sel-${id}`).value;
+    async function saveRow(id, fonte, itemId) {
+      const taglia = document.getElementById(`sel-${id}-${fonte}`).value;
+      
+      let url;
+      if (fonte === 'merch') {
+        url = `/api/maglie/merch/${itemId}`;
+      } else {
+        url = `/api/maglie/${id}`;
+      }
       
       try {
-        const res = await fetch(`/api/maglie/${id}`, {
+        const res = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ taglia })
