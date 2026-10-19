@@ -1752,15 +1752,32 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     const pairAtleti = iscritti.filter(isc => isc.categoria && isc.categoria.includes('Pair Slalom'));
     
     if (pairAtleti.length > 0) {
-      // Funzione per cercare il compagno nelle note
-      function cercaCompagno(note, atletiList, me) {
+      // Funzione per cercare il compagno nelle note (chi ho indicato io)
+      function cercaCompagnoIndicato(note, nome, cognome) {
         if (!note) return null;
         const noteLower = note.toLowerCase();
-        for (const altro of atletiList) {
-          if (altro.id === me.id) continue;
-          const nomeCognome = `${altro.nome} ${altro.cognome}`.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
           const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
-          if (noteLower.includes(nomeCognome) || noteLower.includes(cognomeNome)) {
+          if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+              noteLower.includes(altro.cognome.toLowerCase())) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Funzione per cercare chi mi ha indicato come compagno
+      function cercaChiMiHaIndicato(nome, cognome) {
+        const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+        const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+        const mioCognome = cognome.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const altroNote = (altro.note || '').toLowerCase();
+          if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+              altroNote.includes(mioCognome)) {
             return altro;
           }
         }
@@ -1768,29 +1785,27 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       }
       
       // Costruisci coppie
-      const coppieMap = new Map();
       const usati = new Set();
+      const coppie = [];
       
-      for (const atleta of pairAtleti) {
-        if (usati.has(atleta.id)) continue;
+      for (const isc of pairAtleti) {
+        if (usati.has(isc.id)) continue;
         
-        const compagno = cercaCompagno(atleta.note, pairAtleti, atleta);
+        // Cerca il compagno: prima chi ho indicato, poi chi mi ha indicato
+        let compagno = cercaCompagnoIndicato(isc.note, isc.nome, isc.cognome);
+        if (!compagno || usati.has(compagno.id)) {
+          compagno = cercaChiMiHaIndicato(isc.nome, isc.cognome);
+        }
+        
+        usati.add(isc.id);
+        
         if (compagno && !usati.has(compagno.id)) {
-          // Coppia trovata
-          const key = [atleta.id, compagno.id].sort().join('-');
-          if (!coppieMap.has(key)) {
-            coppieMap.set(key, { atleta1: atleta, atleta2: compagno });
-            usati.add(atleta.id);
-            usati.add(compagno.id);
-          }
+          usati.add(compagno.id);
+          coppie.push({ atleta1: isc, atleta2: compagno });
         } else {
-          // Atleta senza compagno trovato
-          coppieMap.set(`solo-${atleta.id}`, { atleta1: atleta, atleta2: null });
-          usati.add(atleta.id);
+          coppie.push({ atleta1: isc, atleta2: null });
         }
       }
-      
-      const coppie = Array.from(coppieMap.values());
       
       // Nuova pagina per Pair Slalom
       doc.addPage();
