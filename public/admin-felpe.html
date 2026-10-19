@@ -122,6 +122,7 @@
           <th>Nome</th>
           <th>Taglia</th>
           <th>Data</th>
+          <th>Fonte</th>
           <th>Azioni</th>
         </tr>
       </thead>
@@ -186,19 +187,20 @@
       const tbody = document.getElementById('lista');
       
       if (felpe.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">Nessuna felpa ordinata</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessuna felpa ordinata</td></tr>';
         return;
       }
       
       tbody.innerHTML = felpe.map(f => `
-        <tr data-id="${f.id}">
-          <td>BB11-${String(f.id).padStart(4, '0')}</td>
+        <tr data-id="${f.id}" data-fonte="${f.fonte}">
+          <td>${f.fonte === 'iscrizione' ? 'BB11-' + String(f.id).padStart(4, '0') : 'MERCH-' + f.id}</td>
           <td>${f.cognome}</td>
           <td>${f.nome}</td>
           <td class="taglia-cell">${f.taglia || '-'}</td>
           <td>${f.data ? new Date(f.data).toLocaleDateString('it-IT') : '-'}</td>
+          <td>${f.fonte === 'iscrizione' ? '📋 Iscrizione' : '🛒 Merch'}</td>
           <td>
-            <button class="btn" onclick="editRow(${f.id})">✏️ Edit</button>
+            ${f.fonte === 'iscrizione' ? `<button class="btn" onclick="editRow('${f.id}')">✏️ Edit</button>` : '-'}
           </td>
         </tr>
       `).join('');
@@ -206,7 +208,7 @@
     
     function editRow(id) {
       const row = document.querySelector(`tr[data-id="${id}"]`);
-      const f = felpe.find(x => x.id === id);
+      const f = felpe.find(x => x.id == id);
       const cell = row.querySelector('.taglia-cell');
       
       cell.innerHTML = `

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Maglie - Busto Battle XI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: #0a0a0a; 
+      color: #f0f0f0; 
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { color: #F7AF40; margin-bottom: 1rem; }
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      background: #1a1a1a;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box .label { color: #888; font-size: 0.85rem; }
+    .stat-box .value { color: #F7AF40; font-size: 1.8rem; font-weight: bold; }
+    .back-link {
+      display: inline-block;
+      color: #F7AF40;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 0.8rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #333;
+    }
+    th { background: #222; color: #F7AF40; }
+    tr:hover { background: #252525; }
+    .btn {
+      background: #F7AF40;
+      color: #000;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn:hover { background: #e09a30; }
+    .btn-danger { background: #c53030; color: #fff; }
+    .btn-danger:hover { background: #a02020; }
+    select {
+      background: #222;
+      color: #f0f0f0;
+      border: 1px solid #444;
+      padding: 0.4rem;
+      border-radius: 4px;
+    }
+    .editing select { background: #333; }
+    .msg {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .msg.success { background: #1a4d1a; display: block; }
+    .msg.error { background: #4d1a1a; display: block; }
+    .riepilogo {
+      margin-top: 2rem;
+      background: #1a1a1a;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .riepilogo h3 { color: #F7AF40; margin-bottom: 1rem; }
+    .riepilogo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.5rem;
+    }
+    .riepilogo-item {
+      background: #222;
+      padding: 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .riepilogo-item .taglia { color: #888; font-size: 0.8rem; }
+    .riepilogo-item .count { color: #F7AF40; font-size: 1.2rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="admin.html" class="back-link">← Torna all'Admin</a>
+    <h1>👕 Gestione Maglie</h1>
+    
+    <div id="msg" class="msg"></div>
+    
+    <div class="stats">
+      <div class="stat-box">
+        <div class="label">Totale Maglie</div>
+        <div class="value" id="totale">-</div>
+      </div>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Cognome</th>
+          <th>Nome</th>
+          <th>Taglia</th>
+          <th>Data</th>
+          <th>Fonte</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody id="lista"></tbody>
+    </table>
+    
+    <div class="riepilogo">
+      <h3>Riepilogo per Taglia</h3>
+      <div class="riepilogo-grid" id="riepilogo"></div>
+    </div>
+  </div>
+
+  <script>
+    const taglie = [
+      'XS Uomo', 'S Uomo', 'M Uomo', 'L Uomo', 'XL Uomo', 'XXL Uomo', '3XL Uomo',
+      'XS Donna', 'S Donna', 'M Donna', 'L Donna', 'XL Donna', 'XXL Donna'
+    ];
+    
+    let maglie = [];
+    
+    async function carica() {
+      try {
+        const res = await fetch('/api/maglie/lista');
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Errore caricamento');
+        }
+        maglie = await res.json();
+        render();
+        caricaRiepilogo();
+      } catch (err) {
+        showMsg(err.message, true);
+      }
+    }
+    
+    async function caricaRiepilogo() {
+      try {
+        const res = await fetch('/api/maglie/riepilogo');
+        const data = await res.json();
+        
+        document.getElementById('totale').textContent = data.totaleGenerale;
+        
+        let html = '';
+        for (const [taglia, info] of Object.entries(data.perTaglia)) {
+          if (info.totale > 0) {
+            html += `<div class="riepilogo-item">
+              <div class="taglia">${taglia}</div>
+              <div class="count">${info.totale}</div>
+            </div>`;
+          }
+        }
+        document.getElementById('riepilogo').innerHTML = html || '<p style="color:#888">Nessuna maglia ordinata</p>';
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    function render() {
+      const tbody = document.getElementById('lista');
+      
+      if (maglie.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nessuna maglia ordinata</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = maglie.map(m => `
+        <tr data-id="${m.id}" data-fonte="${m.fonte}">
+          <td>${m.fonte === 'iscrizione' ? 'BB11-' + String(m.id).padStart(4, '0') : 'MERCH-' + m.id}</td>
+          <td>${m.cognome}</td>
+          <td>${m.nome}</td>
+          <td class="taglia-cell">${m.taglia || '-'}</td>
+          <td>${m.data ? new Date(m.data).toLocaleDateString('it-IT') : '-'}</td>
+          <td>${m.fonte === 'iscrizione' ? '📋 Iscrizione' : '🛒 Merch'}</td>
+          <td>
+            ${m.fonte === 'iscrizione' ? `<button class="btn" onclick="editRow('${m.id}')">✏️ Edit</button>` : '-'}
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function editRow(id) {
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      const m = maglie.find(x => x.id == id);
+      const cell = row.querySelector('.taglia-cell');
+      
+      cell.innerHTML = `
+        <select id="sel-${id}">
+          <option value="">-- Rimuovi --</option>
+          ${taglie.map(t => `<option value="${t}" ${m.taglia === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      `;
+      
+      row.querySelector('td:last-child').innerHTML = `
+        <button class="btn" onclick="saveRow('${id}')">💾 Salva</button>
+        <button class="btn btn-danger" onclick="carica()">✖</button>
+      `;
+    }
+    
+    async function saveRow(id) {
+      const taglia = document.getElementById(`sel-${id}`).value;
+      
+      try {
+        const res = await fetch(`/api/maglie/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taglia })
+        });
+        
+        if (!res.ok) throw new Error('Errore salvataggio');
+        
+        showMsg('Salvato!', false);
+        carica();
+      } catch (err) {
+        showMsg(err.message, true);
+      }
+    }
+    
+    function showMsg(text, isError) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg ' + (isError ? 'error' : 'success');
+      setTimeout(() => el.className = 'msg', 3000);
+    }
+    
+    carica();
+  </script>
+</body>
+</html>

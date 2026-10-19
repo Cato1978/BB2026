@@ -803,6 +803,99 @@ app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
   }
 });
 
+// Lista maglie con dettaglio persone (iscrizioni + merch)
+app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
+  try {
+    const lista = [];
+    
+    // 1. Maglie dalle iscrizioni
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, created_at FROM iscritti WHERE note LIKE '%Maglia:%' ORDER BY created_at DESC");
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Maglia:\s*([^|]+)/);
+      let taglia = match ? match[1].trim() : '';
+      
+      lista.push({
+        id: row.id,
+        cognome: row.cognome,
+        nome: row.nome,
+        taglia: taglia,
+        data: row.created_at,
+        fonte: 'iscrizione'
+      });
+    }
+    
+    // 2. Maglie dal merch
+    try {
+      const merch = await dbAll("SELECT id, nome, cognome, email, items, created_at FROM merch_orders WHERE (items LIKE '%Maglia%' OR items LIKE '%T-Shirt%') AND stato != 'annullato' ORDER BY created_at DESC");
+      
+      for (const row of merch) {
+        const items = JSON.parse(row.items || '[]');
+        for (const item of items) {
+          if (item.articolo === 'Maglia' || item.articolo === 'T-Shirt') {
+            for (let i = 0; i < (item.quantita || 1); i++) {
+              lista.push({
+                id: 'M' + row.id,
+                cognome: row.cognome || '',
+                nome: row.nome || '',
+                taglia: item.taglia || '',
+                data: row.created_at,
+                fonte: 'merch'
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste
+    }
+    
+    // Ordina per data decrescente
+    lista.sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    res.json(lista);
+  } catch (err) {
+    console.error('Errore lista maglie:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia maglia
+app.put('/api/maglie/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taglia } = req.body;
+    
+    // Leggi le note attuali
+    const [iscritto] = await dbAll("SELECT note FROM iscritti WHERE id = ?", [id]);
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+    
+    let note = iscritto.note || '';
+    
+    if (taglia) {
+      // Aggiorna o aggiungi la maglia
+      if (note.includes('Maglia:')) {
+        note = note.replace(/Maglia:\s*[^|]+/, 'Maglia: ' + taglia);
+      } else {
+        note = note + (note ? ' | ' : '') + 'Maglia: ' + taglia;
+      }
+    } else {
+      // Rimuovi la maglia
+      note = note.replace(/\s*\|\s*Maglia:\s*[^|]+/, '').replace(/Maglia:\s*[^|]+\s*\|\s*/, '').replace(/Maglia:\s*[^|]+/, '').trim();
+    }
+    
+    await dbRun("UPDATE iscritti SET note = ? WHERE id = ?", [note, id]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica maglia:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Riepilogo felpe (iscrizioni + merch)
 app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
   try {
@@ -872,24 +965,56 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
   }
 });
 
-// Lista felpe con dettaglio persone
+// Lista felpe con dettaglio persone (iscrizioni + merch)
 app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
   try {
+    const lista = [];
+    
+    // 1. Felpe dalle iscrizioni
     const iscritti = await dbAll("SELECT id, cognome, nome, note, created_at FROM iscritti WHERE note LIKE '%Felpa:%' ORDER BY created_at DESC");
     
-    const lista = iscritti.map(row => {
+    for (const row of iscritti) {
       const note = row.note || '';
       const match = note.match(/Felpa:\s*([^|]+)/);
       let taglia = match ? match[1].trim() : '';
       
-      return {
+      lista.push({
         id: row.id,
         cognome: row.cognome,
         nome: row.nome,
         taglia: taglia,
-        data: row.created_at
-      };
-    });
+        data: row.created_at,
+        fonte: 'iscrizione'
+      });
+    }
+    
+    // 2. Felpe dal merch
+    try {
+      const merch = await dbAll("SELECT id, nome, cognome, email, items, created_at FROM merch_orders WHERE items LIKE '%Felpa%' AND stato != 'annullato' ORDER BY created_at DESC");
+      
+      for (const row of merch) {
+        const items = JSON.parse(row.items || '[]');
+        for (const item of items) {
+          if (item.articolo === 'Felpa') {
+            for (let i = 0; i < (item.quantita || 1); i++) {
+              lista.push({
+                id: 'M' + row.id,
+                cognome: row.cognome || '',
+                nome: row.nome || '',
+                taglia: item.taglia || '',
+                data: row.created_at,
+                fonte: 'merch'
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste
+    }
+    
+    // Ordina per data decrescente
+    lista.sort((a, b) => new Date(b.data) - new Date(a.data));
     
     res.json(lista);
   } catch (err) {
