@@ -872,6 +872,67 @@ app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
   }
 });
 
+// Lista felpe con dettaglio persone
+app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, created_at FROM iscritti WHERE note LIKE '%Felpa:%' ORDER BY created_at DESC");
+    
+    const lista = iscritti.map(row => {
+      const note = row.note || '';
+      const match = note.match(/Felpa:\s*([^|]+)/);
+      let taglia = match ? match[1].trim() : '';
+      
+      return {
+        id: row.id,
+        cognome: row.cognome,
+        nome: row.nome,
+        taglia: taglia,
+        data: row.created_at
+      };
+    });
+    
+    res.json(lista);
+  } catch (err) {
+    console.error('Errore lista felpe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia felpa
+app.put('/api/felpe/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taglia } = req.body;
+    
+    // Leggi le note attuali
+    const [iscritto] = await dbAll("SELECT note FROM iscritti WHERE id = ?", [id]);
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+    
+    let note = iscritto.note || '';
+    
+    if (taglia) {
+      // Aggiorna o aggiungi la felpa
+      if (note.includes('Felpa:')) {
+        note = note.replace(/Felpa:\s*[^|]+/, 'Felpa: ' + taglia);
+      } else {
+        note = note + (note ? ' | ' : '') + 'Felpa: ' + taglia;
+      }
+    } else {
+      // Rimuovi la felpa
+      note = note.replace(/\s*\|\s*Felpa:\s*[^|]+/, '').replace(/Felpa:\s*[^|]+\s*\|\s*/, '').replace(/Felpa:\s*[^|]+/, '').trim();
+    }
+    
+    await dbRun("UPDATE iscritti SET note = ? WHERE id = ?", [note, id]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica felpa:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
