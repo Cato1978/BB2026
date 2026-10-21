@@ -1570,34 +1570,75 @@
       const first = sessioni[0];
       const giornoAttuale = first.giorno || '';
       
-      // Chiedi il giorno
-      const nuovoGiorno = prompt(
-        `Modifica giorno per ${first.cognome} ${first.nome}\n\nSlot prenotati: ${sessioni.map(s => s.ora).join(', ')}\n\nInserisci il giorno (formato YYYY-MM-DD):\n- 2026-11-12 = Giovedì 12/11\n- 2026-11-13 = Venerdì 13/11\n- 2026-11-14 = Sabato 14/11`,
-        giornoAttuale
-      );
+      // Mostra modal per modificare
+      const slotAttuali = sessioni.map(s => s.ora).join(', ');
       
-      if (!nuovoGiorno) return;
+      // Crea HTML per modal
+      let modalHtml = `
+        <div id="modal-modifica-prova" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999">
+          <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+            <h3 style="color:#F7AF40;margin:0 0 1rem">Modifica prenotazione ${codice}</h3>
+            <p style="color:#888;margin-bottom:1rem">${first.cognome} ${first.nome}</p>
+            
+            <div style="margin-bottom:1rem">
+              <label style="color:#888;display:block;margin-bottom:0.3rem">Giorno:</label>
+              <select id="mod-prova-giorno" style="width:100%;padding:0.5rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px">
+                <option value="2026-11-12" ${giornoAttuale === '2026-11-12' ? 'selected' : ''}>Giovedì 12/11</option>
+                <option value="2026-11-13" ${giornoAttuale === '2026-11-13' ? 'selected' : ''}>Venerdì 13/11</option>
+                <option value="2026-11-14" ${giornoAttuale === '2026-11-14' ? 'selected' : ''}>Sabato 14/11</option>
+              </select>
+            </div>
+            
+            <div style="margin-bottom:1rem">
+              <label style="color:#888;display:block;margin-bottom:0.3rem">Slot attuali: <strong>${slotAttuali}</strong></label>
+              <p style="color:#666;font-size:0.85rem">Seleziona i nuovi slot (puoi aggiungerne o rimuoverne):</p>
+              <div id="mod-prova-slots" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem">
+              </div>
+            </div>
+            
+            <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+              <button onclick="document.getElementById('modal-modifica-prova').remove()" style="padding:0.5rem 1rem;background:#333;border:none;color:#fff;cursor:pointer;border-radius:4px">Annulla</button>
+              <button onclick="salvaModificaProva('${codice}')" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">Salva</button>
+            </div>
+          </div>
+        </div>
+      `;
       
-      // Chiedi le discipline per ogni slot
-      const slots = [];
-      for (const s of sessioni) {
-        const noteAttuali = s.note || '';
-        const specAttuale = noteAttuali.split(': ')[1]?.split(',')[0] || '';
-        const nuovaSpec = prompt(
-          `Disciplina per slot ${s.ora}:\n(Classic Slalom, Speed Slalom, Slides, Free Jump)`,
-          specAttuale
-        );
-        if (nuovaSpec) {
-          slots.push({ ora: s.ora, note: `${s.ora}: ${nuovaSpec}` });
-        }
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // Popola gli slot disponibili
+      const slotsDiv = document.getElementById('mod-prova-slots');
+      const oreDisponibili = ['19:30-20:00', '20:00-20:30', '20:30-21:00', '21:00-21:30', '21:30-22:00', '22:00-22:30', '22:30-23:00'];
+      const slotSelezionati = sessioni.map(s => s.ora);
+      
+      oreDisponibili.forEach(ora => {
+        const isSelected = slotSelezionati.includes(ora);
+        slotsDiv.innerHTML += `
+          <label style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.5rem;background:${isSelected ? '#F7AF40' : '#333'};border-radius:4px;cursor:pointer;color:${isSelected ? '#000' : '#fff'}">
+            <input type="checkbox" value="${ora}" ${isSelected ? 'checked' : ''} onchange="this.parentElement.style.background=this.checked?'#F7AF40':'#333';this.parentElement.style.color=this.checked?'#000':'#fff'">
+            ${ora}
+          </label>
+        `;
+      });
+    }
+    
+    async function salvaModificaProva(codice) {
+      const giorno = document.getElementById('mod-prova-giorno').value;
+      const checkboxes = document.querySelectorAll('#mod-prova-slots input:checked');
+      const nuoviSlots = Array.from(checkboxes).map(cb => ({ ora: cb.value, note: cb.value }));
+      
+      if (nuoviSlots.length === 0) {
+        alert('Seleziona almeno uno slot');
+        return;
       }
       
-      // Aggiorna
       const res = await fetch(`/api/prove/prenotazioni/${codice}/aggiorna`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ giorno: nuovoGiorno, slots })
+        body: JSON.stringify({ giorno, slots: nuoviSlots })
       });
+      
+      document.getElementById('modal-modifica-prova').remove();
       
       if (res.ok) {
         alert('✅ Prenotazione aggiornata!');

@@ -5034,23 +5034,51 @@ app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, re
     const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
     if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
     
-    // Aggiorna giorno per tutti gli slot
-    if (giorno) {
-      await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
-    }
+    const first = rows[0];
+    const giornoFinale = giorno || first.giorno;
     
     // Aggiorna note_admin per tutti gli slot della prenotazione
     if (note_admin !== undefined) {
       await dbRun('UPDATE prove_prenotazioni SET note_admin=? WHERE codice=?', [note_admin || null, codice]);
     }
     
-    // Aggiorna note per ogni slot specifico
+    // Se ci sono nuovi slots, dobbiamo ricreare la prenotazione
     if (slots && slots.length > 0) {
+      const slotAttuali = rows.map(r => r.ora);
+      const slotNuovi = slots.map(s => s.ora);
+      
+      // Slot da rimuovere
+      const daRimuovere = slotAttuali.filter(ora => !slotNuovi.includes(ora));
+      // Slot da aggiungere
+      const daAggiungere = slotNuovi.filter(ora => !slotAttuali.includes(ora));
+      
+      // Rimuovi slot non più presenti
+      for (const ora of daRimuovere) {
+        await dbRun('DELETE FROM prove_prenotazioni WHERE codice=? AND ora=?', [codice, ora]);
+      }
+      
+      // Aggiungi nuovi slot
+      for (const ora of daAggiungere) {
+        const noteSlot = slots.find(s => s.ora === ora)?.note || ora;
+        await dbRun(`INSERT INTO prove_prenotazioni (codice, nome, cognome, email, telefono, giorno, ora, note, stato, note_admin) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [codice, first.nome, first.cognome, first.email, first.telefono, giornoFinale, ora, noteSlot, first.stato || 'sospesa', first.note_admin]);
+      }
+      
+      // Aggiorna giorno per tutti gli slot rimanenti
+      if (giorno) {
+        await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
+      }
+      
+      // Aggiorna note per ogni slot specifico
       for (const s of slots) {
         if (s.ora && s.note) {
           await dbRun('UPDATE prove_prenotazioni SET note=? WHERE codice=? AND ora=?', [s.note, codice, s.ora]);
         }
       }
+    } else if (giorno) {
+      // Solo aggiornamento giorno
+      await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
     }
     
     console.log('Prenotazione aggiornata:', { codice, giorno, note_admin, slots });
