@@ -11,6 +11,13 @@ const Stripe = require('stripe');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 
+// Memory optimization: force garbage collection periodically
+if (global.gc) {
+  setInterval(() => {
+    global.gc();
+  }, 60000); // Every minute
+}
+
 // Stripe config - imposta la chiave segreta nelle variabili d'ambiente
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
 
@@ -5841,6 +5848,145 @@ async function sendContactEmail({ nome, email, oggetto, messaggio }) {
     console.error('Errore invio email contatto:', err);
   }
 }
+
+// ============ STATISTICHE PERMANENZA ============
+// Calcola la permanenza media degli atleti in base alle discipline
+// Programma gara:
+// - Giovedì 12: Qualifiche Classic (NON CONTA)
+// - Venerdì 13: Classic Slalom, Pair Slalom, Free Jump
+// - Sabato 14: Battle, Slides
+// - Domenica 15: Speed Slalom
+// Regola: arrivo giorno prima, partenza giorno dopo
+app.get('/api/statistiche/permanenza', async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT id, nome, cognome, categoria, stato FROM iscritti');
+    
+    // Mappa discipline -> giorno gara
+    const disciplinaGiorno = {
+      'classic slalom': 'venerdi',   // Venerdì 13
+      'classic': 'venerdi',
+      'pair slalom': 'venerdi',      // Venerdì 13
+      'pair': 'venerdi',
+      'free jump': 'venerdi',        // Venerdì 13
+      'freejump': 'venerdi',
+      'battle': 'sabato',            // Sabato 14
+      'slides': 'sabato',            // Sabato 14
+      'speed slalom': 'domenica',    // Domenica 15
+      'speed': 'domenica'
+    };
+    
+    // Calcolo notti in base ai giorni di gara
+    // Arrivo = giorno prima del primo giorno gara
+    // Partenza = giorno dopo l'ultimo giorno gara
+    function calcolaNotti(giorniGara) {
+      if (giorniGara.size === 0) return 0;
+      
+      const ordineGiorni = { 'venerdi': 1, 'sabato': 2, 'domenica': 3 };
+      const giorni = Array.from(giorniGara).sort((a, b) => ordineGiorni[a] - ordineGiorni[b]);
+      
+      const primo = giorni[0];
+      const ultimo = giorni[giorni.length - 1];
+      
+      // Arrivo = giorno prima del primo
+      // Partenza = giorno dopo dell'ultimo
+      // Giovedì=0, Venerdì=1, Sabato=2, Domenica=3, Lunedì=4
+      const arrivoIdx = ordineGiorni[primo]; // Ven=1 -> arrivo Gio (idx 0), notte giovedì
+      const partenzaIdx = ordineGiorni[ultimo] + 1; // Dom=3 -> partenza Lun (idx 4)
+      
+      return partenzaIdx - arrivoIdx + 1; // notti = dal giorno di arrivo al giorno prima della partenza
+    }
+    
+    const risultati = [];
+    const distribuzione = { 2: 0, 3: 0, 4: 0 }; // notti -> numero atleti
+    const perCombinazione = {}; // combinazione giorni -> {count, notti}
+    
+    for (const iscritto of iscritti) {
+      const cat = (iscritto.categoria || '').toLowerCase();
+      const giorniGara = new Set();
+      
+      // Estrai discipline dalle categorie
+      for (const [disc, giorno] of Object.entries(disciplinaGiorno)) {
+        if (cat.includes(disc)) {
+          giorniGara.add(giorno);
+        }
+      }
+      
+      const notti = calcolaNotti(giorniGara);
+      
+      if (notti > 0) {
+        const giorniArr = Array.from(giorniGara).sort((a, b) => {
+          const ord = { 'venerdi': 1, 'sabato': 2, 'domenica': 3 };
+          return ord[a] - ord[b];
+        });
+        const comboKey = giorniArr.join('+') || 'nessuna';
+        
+        risultati.push({
+          id: iscritto.id,
+          nome: iscritto.nome,
+          cognome: iscritto.cognome,
+          discipline: iscritto.categoria,
+          giorniGara: giorniArr,
+          notti,
+          stato: iscritto.stato
+        });
+        
+        distribuzione[notti] = (distribuzione[notti] || 0) + 1;
+        
+        if (!perCombinazione[comboKey]) {
+          perCombinazione[comboKey] = { count: 0, notti, giorni: giorniArr };
+        }
+        perCombinazione[comboKey].count++;
+      }
+    }
+    
+    // Calcola media
+    const totaleNotti = risultati.reduce((sum, r) => sum + r.notti, 0);
+    const media = risultati.length > 0 ? (totaleNotti / risultati.length).toFixed(2) : 0;
+    
+    // Solo confermati
+    const confermati = risultati.filter(r => r.stato === 'confermata');
+    const totaleNottiConfermati = confermati.reduce((sum, r) => sum + r.notti, 0);
+    const mediaConfermati = confermati.length > 0 ? (totaleNottiConfermati / confermati.length).toFixed(2) : 0;
+    
+    // Distribuzione confermati
+    const distribuzioneConfermati = { 2: 0, 3: 0, 4: 0 };
+    confermati.forEach(r => {
+      distribuzioneConfermati[r.notti] = (distribuzioneConfermati[r.notti] || 0) + 1;
+    });
+    
+    res.json({
+      totaleIscritti: risultati.length,
+      totaleConfermati: confermati.length,
+      mediaNotti: parseFloat(media),
+      mediaNottiConfermati: parseFloat(mediaConfermati),
+      distribuzione: {
+        '2_notti': distribuzione[2] || 0,
+        '3_notti': distribuzione[3] || 0,
+        '4_notti': distribuzione[4] || 0
+      },
+      distribuzioneConfermati: {
+        '2_notti': distribuzioneConfermati[2] || 0,
+        '3_notti': distribuzioneConfermati[3] || 0,
+        '4_notti': distribuzioneConfermati[4] || 0
+      },
+      perCombinazione: Object.entries(perCombinazione).map(([key, val]) => ({
+        combinazione: key,
+        giorni: val.giorni,
+        notti: val.notti,
+        atleti: val.count
+      })).sort((a, b) => b.atleti - a.atleti),
+      legenda: {
+        '2_notti': 'Solo 1 giorno gara (es. solo Speed = Sab->Lun)',
+        '3_notti': '2 giorni consecutivi (es. Classic+Battle = Gio->Dom)',
+        '4_notti': 'Tutti i giorni o Ven+Dom (Gio->Lun)'
+      },
+      dettaglio: risultati.sort((a, b) => b.notti - a.notti)
+    });
+  } catch (err) {
+    console.error('Errore statistiche permanenza:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 initDb().then(() => {
   const PORT = process.env.PORT || 3000;
