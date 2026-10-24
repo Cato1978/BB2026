@@ -430,7 +430,36 @@
         </div>
         <div class="form-row">
           <input type="date" name="data_nascita">
-          <input type="text" name="categoria" placeholder="Categoria">
+          <select name="cat_eta" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Categoria Età --</option>
+            <option value="U15">U15</option>
+            <option value="U19">U19</option>
+            <option value="SENIOR">SENIOR</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex-direction:column;align-items:flex-start">
+          <p style="margin:0 0 0.5rem;color:#F7AF40;font-size:0.9rem">🏆 Discipline:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem">
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_speed"> ⚡ Speed Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_classic"> 🎯 Classic Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_battle"> ⚔️ Battle
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_slides"> 🛷 Slides
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_pair"> 👫 Pair Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_freejump"> 🦘 Free Jump
+            </label>
+          </div>
+          <input type="hidden" name="categoria">
         </div>
         <div class="form-row">
           <input type="text" name="societa" placeholder="Società">
@@ -868,7 +897,6 @@
       form.nome.value = i.nome;
       form.cognome.value = i.cognome;
       form.data_nascita.value = i.data_nascita || '';
-      form.categoria.value = i.categoria || '';
       form.societa.value = i.societa || '';
       form.nazionalita.value = i.nazionalita || '';
       form.email.value = i.email || '';
@@ -878,6 +906,22 @@
       form.pagamento.checked = !!i.pagamento;
       form.note.value = i.note || '';
       form.note_admin.value = i.note_admin || '';
+      
+      // Parsa discipline dal campo categoria
+      const cat = (i.categoria || '').toLowerCase();
+      form.disc_speed.checked = cat.includes('speed');
+      form.disc_classic.checked = cat.includes('classic');
+      form.disc_battle.checked = cat.includes('battle');
+      form.disc_slides.checked = cat.includes('slides');
+      form.disc_pair.checked = cat.includes('pair');
+      form.disc_freejump.checked = cat.includes('free jump') || cat.includes('freejump');
+      
+      // Estrai categoria età (U15, U19, SENIOR)
+      let catEta = '';
+      if (cat.includes('u15')) catEta = 'U15';
+      else if (cat.includes('u19')) catEta = 'U19';
+      else if (cat.includes('senior')) catEta = 'SENIOR';
+      form.cat_eta.value = catEta;
       
       // Estrai maglia e felpa dalle note
       const note = i.note || '';
@@ -897,6 +941,17 @@
       e.preventDefault();
       const form = e.target;
       const id = form.id_field;
+      
+      // Ricostruisci categoria dalle checkbox
+      const catEta = form.cat_eta.value || 'SENIOR';
+      const discipline = [];
+      if (form.disc_speed.checked) discipline.push(`Speed Slalom (${catEta})`);
+      if (form.disc_classic.checked) discipline.push(`Classic Slalom (${catEta})`);
+      if (form.disc_battle.checked) discipline.push(`Battle (${catEta})`);
+      if (form.disc_slides.checked) discipline.push(`Slides (${catEta})`);
+      if (form.disc_pair.checked) discipline.push(`Pair Slalom (UNICA)`);
+      if (form.disc_freejump.checked) discipline.push(`Free Jump (${catEta})`);
+      const categoriaFinale = discipline.join(', ');
       
       // Aggiorna note con nuovi valori di maglia e felpa
       let noteOriginali = form.note.value || '';
@@ -919,7 +974,7 @@
         nome: form.nome.value,
         cognome: form.cognome.value,
         data_nascita: form.data_nascita.value,
-        categoria: form.categoria.value,
+        categoria: categoriaFinale,
         societa: form.societa.value,
         nazionalita: form.nazionalita.value,
         email: form.email.value,
