@@ -5570,26 +5570,34 @@ app.post('/api/push/send', requireAdmin, async (req, res) => {
     
     console.log(`Invio notifica a ${subs.length} utenti: "${title}"`);
     const payload = JSON.stringify({ title, body, url: '/risultati.html' });
+    
     let sent = 0;
-    for (const sub of subs) {
+    let failed = 0;
+    const results = await Promise.allSettled(subs.map(async sub => {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+      };
       try {
-        const pushSub = {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
-        };
-        webpush.sendNotification(pushSub, payload).catch(async err => {
-          console.error('Push error for endpoint:', sub.endpoint.substring(0, 50), err.statusCode || err.message);
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            // Subscription scaduta, rimuovi
-            await dbRun('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
-          }
-        });
-        sent++;
-      } catch (pushErr) {
-        console.error('Push preparation error:', pushErr);
+        await webpush.sendNotification(pushSub, payload);
+        return { success: true };
+      } catch (err) {
+        console.error('Push error:', sub.endpoint.substring(0, 50), err.statusCode || err.message);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await dbRun('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
+          console.log('Subscription rimossa (scaduta):', sub.endpoint.substring(0, 50));
+        }
+        return { success: false, error: err.statusCode || err.message };
       }
-    }
-    res.json({ ok: true, sent });
+    }));
+    
+    results.forEach(r => {
+      if (r.status === 'fulfilled' && r.value.success) sent++;
+      else failed++;
+    });
+    
+    console.log(`Push completato: ${sent} ok, ${failed} fallite`);
+    res.json({ ok: true, sent, failed });
   } catch (err) {
     console.error('Push send error:', err);
     res.status(500).json({ error: 'Errore invio notifiche: ' + err.message });
