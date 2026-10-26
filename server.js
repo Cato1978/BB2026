@@ -119,6 +119,12 @@ async function initDb() {
       keys_auth TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS notifiche (
+      id SERIAL PRIMARY KEY,
+      titolo TEXT NOT NULL,
+      messaggio TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
     await pgPool.query(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -347,6 +353,12 @@ async function initDb() {
     endpoint TEXT UNIQUE NOT NULL,
     keys_p256dh TEXT,
     keys_auth TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS notifiche (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titolo TEXT NOT NULL,
+    messaggio TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
   db.run(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
@@ -5527,6 +5539,16 @@ app.get('/api/push/count', requireAdmin, async (req, res) => {
   }
 });
 
+// Endpoint per leggere tutte le notifiche (pubblico)
+app.get('/api/notifiche', async (req, res) => {
+  try {
+    const notifiche = await dbAll('SELECT * FROM notifiche ORDER BY created_at DESC LIMIT 50');
+    res.json(notifiche);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/push/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
@@ -5556,6 +5578,9 @@ app.post('/api/push/send', requireAdmin, async (req, res) => {
     const { title, body } = req.body;
     if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
     
+    // Salva la notifica nel database
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [title, body]);
+    
     let subs;
     try {
       subs = await dbAll('SELECT * FROM push_subscriptions');
@@ -5569,7 +5594,7 @@ app.post('/api/push/send', requireAdmin, async (req, res) => {
     }
     
     console.log(`Invio notifica a ${subs.length} utenti: "${title}"`);
-    const payload = JSON.stringify({ title, body, url: '/risultati.html' });
+    const payload = JSON.stringify({ title, body, url: '/notifiche.html' });
     
     let sent = 0;
     let failed = 0;

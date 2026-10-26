@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifiche - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .notifica-item {
+      background: #1a1a1a;
+      border-left: 4px solid #F7AF40;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .notifica-item h3 {
+      color: #F7AF40;
+      margin: 0 0 0.5rem 0;
+      font-size: 1.1rem;
+    }
+    .notifica-item p {
+      color: #f0f0f0;
+      margin: 0 0 0.5rem 0;
+    }
+    .notifica-item .data {
+      color: #888;
+      font-size: 0.85rem;
+    }
+    .no-notifiche {
+      text-align: center;
+      color: #888;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2>🔔 Notifiche</h2>
+      <p style="color:#888;margin-bottom:1.5rem" data-t="notificheDesc">Tutte le comunicazioni e aggiornamenti sulla gara.</p>
+      
+      <div id="lista-notifiche">
+        <p class="no-notifiche">Caricamento...</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattlexi/" target="_blank">📸 Instagram</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="app.js"></script>
+  <script>
+    async function caricaNotifiche() {
+      try {
+        const res = await fetch('/api/notifiche');
+        const notifiche = await res.json();
+        const container = document.getElementById('lista-notifiche');
+        
+        if (!notifiche || notifiche.length === 0) {
+          container.innerHTML = '<p class="no-notifiche">Nessuna notifica al momento.</p>';
+          return;
+        }
+        
+        container.innerHTML = notifiche.map(n => {
+          const data = new Date(n.created_at);
+          const dataStr = data.toLocaleDateString('it-IT', { 
+            day: '2-digit', month: 'long', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit' 
+          });
+          return `
+            <div class="notifica-item">
+              <h3>📢 ${n.titolo}</h3>
+              <p>${n.messaggio}</p>
+              <span class="data">📅 ${dataStr}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('lista-notifiche').innerHTML = 
+          '<p class="no-notifiche">Errore nel caricamento delle notifiche.</p>';
+      }
+    }
+    
+    caricaNotifiche();
+  </script>
+</body>
+</html>
