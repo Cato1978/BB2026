@@ -5510,6 +5510,23 @@ app.get('/api/push/vapidPublicKey', (req, res) => {
   res.json({ key: VAPID_PUBLIC });
 });
 
+// Endpoint per contare le subscription (debug)
+app.get('/api/push/count', requireAdmin, async (req, res) => {
+  try {
+    const subs = await dbAll('SELECT COUNT(*) as count FROM push_subscriptions');
+    const allSubs = await dbAll('SELECT endpoint, created_at FROM push_subscriptions ORDER BY created_at DESC LIMIT 10');
+    res.json({ 
+      count: subs[0].count,
+      recentSubscriptions: allSubs.map(s => ({
+        endpoint: s.endpoint.substring(0, 60) + '...',
+        created_at: s.created_at
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/push/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
