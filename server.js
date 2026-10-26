@@ -5549,6 +5549,19 @@ app.get('/api/notifiche', async (req, res) => {
   }
 });
 
+// TEMPORANEO: seed notifica iniziale (rimuovere dopo uso)
+app.get('/api/notifiche/seed-init', async (req, res) => {
+  try {
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [
+      'Classic Slalom - Music',
+      "Hi Skater! Don't forget to send your Classic music to bustobattle@gmail.com as soon as possible! Thank you! Chiara - BustoBattleTeam"
+    ]);
+    res.json({ ok: true, message: 'Notifica inserita' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint per inserire notifica senza invio push (admin)
 app.post('/api/notifiche', requireAdmin, async (req, res) => {
   try {
