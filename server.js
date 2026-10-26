@@ -5549,6 +5549,18 @@ app.get('/api/notifiche', async (req, res) => {
   }
 });
 
+// Endpoint per inserire notifica senza invio push (admin)
+app.post('/api/notifiche', requireAdmin, async (req, res) => {
+  try {
+    const { titolo, messaggio } = req.body;
+    if (!titolo || !messaggio) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [titolo, messaggio]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/push/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body;
