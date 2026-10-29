@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuovo Iscritto - Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .form-container { max-width: 600px; margin: 2rem auto; padding: 2rem; background: #1a1a1a; border-radius: 8px; }
+    .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .form-row input, .form-row select { flex: 1; min-width: 200px; padding: 0.6rem; background: #111; color: #f0f0f0; border: 1px solid #333; border-radius: 4px; }
+    .form-row textarea { width: 100%; padding: 0.6rem; background: #111; color: #f0f0f0; border: 1px solid #333; border-radius: 4px; }
+    h2 { color: #22c55e; text-align: center; }
+    .disc-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 1rem 0; }
+    .disc-grid label { display: flex; align-items: center; gap: 0.4rem; color: #ddd; cursor: pointer; }
+    button[type="submit"] { width: 100%; padding: 1rem; background: #22c55e; color: #000; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
+    button[type="submit"]:hover { background: #16a34a; }
+    .back-link { display: block; text-align: center; margin-top: 1rem; color: #F7AF40; }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>➕ Nuovo Iscritto</h2>
+    <form id="form-nuovo">
+      <div class="form-row">
+        <input type="text" name="nome" placeholder="Nome *" required>
+        <input type="text" name="cognome" placeholder="Cognome *" required>
+      </div>
+      <div class="form-row">
+        <input type="date" name="data_nascita" placeholder="Data nascita">
+        <select name="cat_eta">
+          <option value="">-- Categoria Età --</option>
+          <option value="U15">U15</option>
+          <option value="U19">U19</option>
+          <option value="SENIOR" selected>SENIOR</option>
+        </select>
+      </div>
+      
+      <p style="color:#22c55e;margin:1rem 0 0.5rem">🏆 Discipline:</p>
+      <div class="disc-grid">
+        <label><input type="checkbox" name="disc_speed"> ⚡ Speed Slalom</label>
+        <label><input type="checkbox" name="disc_classic"> 🎯 Classic Slalom</label>
+        <label><input type="checkbox" name="disc_battle"> ⚔️ Battle</label>
+        <label><input type="checkbox" name="disc_slides"> 🛷 Slides</label>
+        <label><input type="checkbox" name="disc_pair"> 👫 Pair Slalom</label>
+        <label><input type="checkbox" name="disc_freejump"> 🦘 Free Jump</label>
+      </div>
+      
+      <div class="form-row">
+        <input type="text" name="societa" placeholder="Società / Club">
+        <select name="nazionalita">
+          <option value="">-- Nazionalità --</option>
+          <option value="IT">Italia</option>
+          <option value="FR">Francia</option>
+          <option value="DE">Germania</option>
+          <option value="ES">Spagna</option>
+          <option value="PL">Polonia</option>
+          <option value="UA">Ucraina</option>
+          <option value="RU">Russia</option>
+          <option value="CH">Svizzera</option>
+          <option value="GB">Regno Unito</option>
+          <option value="RO">Romania</option>
+          <option value="BE">Belgio</option>
+          <option value="NL">Paesi Bassi</option>
+          <option value="OTHER">Altro</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <input type="email" name="email" placeholder="Email">
+        <input type="tel" name="telefono" placeholder="Telefono">
+      </div>
+      
+      <p style="color:#ddd;margin:1rem 0 0.5rem">Genere *</p>
+      <div class="form-row">
+        <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+          <input type="radio" name="genere" value="M" required> Maschile
+        </label>
+        <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+          <input type="radio" name="genere" value="F"> Femminile
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <input type="text" name="ws_id" placeholder="WS ID (es. 12345ITA...)">
+        <input type="text" name="fisr" placeholder="Tessera FISR/Skate Italia">
+      </div>
+      
+      <div class="form-row">
+        <select name="stato">
+          <option value="sospesa">⏳ Sospesa</option>
+          <option value="confermata" selected>✅ Confermata</option>
+        </select>
+      </div>
+      
+      <button type="submit">➕ Crea Iscritto</button>
+    </form>
+    <a href="admin.html" class="back-link">← Torna all'Admin</a>
+  </div>
+
+  <script>
+    // Verifica login
+    fetch('/api/session').then(r => r.json()).then(d => {
+      if (!d.loggedIn) window.location.href = '/login.html';
+    });
+
+    document.getElementById('form-nuovo').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      
+      const catEta = form.cat_eta.value || 'SENIOR';
+      const discipline = [];
+      if (form.disc_speed.checked) discipline.push(`Speed Slalom (${catEta})`);
+      if (form.disc_classic.checked) discipline.push(`Classic Slalom (${catEta})`);
+      if (form.disc_battle.checked) discipline.push(`Battle (${catEta})`);
+      if (form.disc_slides.checked) discipline.push(`Slides (${catEta})`);
+      if (form.disc_pair.checked) discipline.push(`Pair Slalom (UNICA)`);
+      if (form.disc_freejump.checked) discipline.push(`Free Jump (${catEta})`);
+      
+      if (discipline.length === 0) {
+        alert('Seleziona almeno una disciplina');
+        return;
+      }
+      
+      const genere = form.genere.value;
+      const wsId = form.ws_id.value.trim();
+      const fisr = form.fisr.value.trim();
+      let noteParts = [`Genere: ${genere}`];
+      if (wsId) noteParts.push(`WS ID: ${wsId}`);
+      if (fisr) noteParts.push(`FISR: ${fisr}`);
+      
+      const data = {
+        nome: form.nome.value,
+        cognome: form.cognome.value,
+        data_nascita: form.data_nascita.value,
+        categoria: discipline.join(', '),
+        societa: form.societa.value,
+        nazionalita: form.nazionalita.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        note: noteParts.join(' | '),
+        stato: form.stato.value
+      };
+      
+      try {
+        const res = await fetch('/api/iscritti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          const result = await res.json();
+          alert('✅ Iscritto creato con successo!\nCodice: ' + (result.codice || 'BB11-XXXX'));
+          form.reset();
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
