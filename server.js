@@ -1919,12 +1919,14 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     const hasFooter = fs.existsSync(footerPath);
     
     // Funzione per disegnare header e footer su una pagina
+    // Header: 1337x270 -> scalato a 595pt larghezza = ~120pt altezza
+    // Footer: 1331x237 -> scalato a 595pt larghezza = ~106pt altezza
     function drawPageHeaderFooter() {
       if (hasHeader) {
         doc.image(headerPath, 0, 0, { width: 595 }); // A4 width = 595pt
       }
       if (hasFooter) {
-        doc.image(footerPath, 0, 760, { width: 595 }); // In basso
+        doc.image(footerPath, 0, 735, { width: 595 }); // 842 - 107 = 735
       }
     }
     
@@ -1932,7 +1934,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Header/Footer
     drawPageHeaderFooter();
     
-    doc.y = hasHeader ? 95 : 40; // Inizia sotto l'header (aumentato)
+    doc.y = hasHeader ? 125 : 40; // Inizia sotto l'header (~120pt)
     doc.fontSize(16).font('NotoSans-Bold').text('Elenco Completo Iscritti', { align: 'center' });
     doc.moveDown(0.2);
     doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
@@ -1958,14 +1960,14 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Righe - font più piccolo
     doc.font('NotoSans').fontSize(7);
     
-    const maxY = hasFooter ? 750 : 780; // Lascia spazio per footer
+    const maxY = hasFooter ? 720 : 780; // Lascia spazio per footer
     
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
       if (y > maxY) {
         doc.addPage();
         drawPageHeaderFooter();
-        y = hasHeader ? 95 : 40;
+        y = hasHeader ? 125 : 40;
         // Ripeti header tabella
         doc.fontSize(8).font('NotoSans-Bold');
         x = startX;
@@ -2046,7 +2048,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         const sectionLabel = `${disc} - ${cat}`;
         pageInfo.push({ start: currentPageStart, label: sectionLabel });
         
-        doc.y = hasHeader ? 95 : 40;
+        doc.y = hasHeader ? 125 : 40;
         doc.fontSize(18).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
         doc.fontSize(14).font('NotoSans').text(cat, { align: 'center' });
         doc.fontSize(10).text(`${atletiCat.length} iscritti`, { align: 'center' });
@@ -2086,7 +2088,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             if (y > maxY) {
               doc.addPage();
               drawPageHeaderFooter();
-              y = hasHeader ? 95 : 40;
+              y = hasHeader ? 125 : 40;
               // Solo header tabella
               doc.fontSize(8).font('NotoSans-Bold');
               x = startX;
@@ -2190,7 +2192,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       const pairPageStart = doc.bufferedPageRange().count - 1;
       pageInfo.push({ start: pairPageStart, label: 'Pair Slalom' });
       
-      doc.y = hasHeader ? 95 : 40;
+      doc.y = hasHeader ? 125 : 40;
       doc.fontSize(18).font('NotoSans-Bold').text('PAIR SLALOM', { align: 'center' });
       doc.fontSize(14).font('NotoSans').text('UNICA', { align: 'center' });
       doc.fontSize(10).text(`${coppie.length} coppie`, { align: 'center' });
@@ -2217,7 +2219,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         if (y > maxY) {
           doc.addPage();
           drawPageHeaderFooter();
-          y = hasHeader ? 95 : 40;
+          y = hasHeader ? 125 : 40;
           doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
           pairHeaders.forEach((h, i) => {
