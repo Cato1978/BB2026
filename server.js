@@ -1932,7 +1932,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Header/Footer
     drawPageHeaderFooter();
     
-    doc.y = hasHeader ? 75 : 40; // Inizia sotto l'header
+    doc.y = hasHeader ? 95 : 40; // Inizia sotto l'header (aumentato)
     doc.fontSize(16).font('NotoSans-Bold').text('Elenco Completo Iscritti', { align: 'center' });
     doc.moveDown(0.2);
     doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
@@ -1965,7 +1965,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       if (y > maxY) {
         doc.addPage();
         drawPageHeaderFooter();
-        y = hasHeader ? 75 : 40;
+        y = hasHeader ? 95 : 40;
         // Ripeti header tabella
         doc.fontSize(8).font('NotoSans-Bold');
         x = startX;
@@ -2046,7 +2046,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         const sectionLabel = `${disc} - ${cat}`;
         pageInfo.push({ start: currentPageStart, label: sectionLabel });
         
-        doc.y = hasHeader ? 75 : 40;
+        doc.y = hasHeader ? 95 : 40;
         doc.fontSize(18).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
         doc.fontSize(14).font('NotoSans').text(cat, { align: 'center' });
         doc.fontSize(10).text(`${atletiCat.length} iscritti`, { align: 'center' });
@@ -2086,7 +2086,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
             if (y > maxY) {
               doc.addPage();
               drawPageHeaderFooter();
-              y = hasHeader ? 75 : 40;
+              y = hasHeader ? 95 : 40;
               // Solo header tabella
               doc.fontSize(8).font('NotoSans-Bold');
               x = startX;
@@ -2190,7 +2190,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       const pairPageStart = doc.bufferedPageRange().count - 1;
       pageInfo.push({ start: pairPageStart, label: 'Pair Slalom' });
       
-      doc.y = hasHeader ? 75 : 40;
+      doc.y = hasHeader ? 95 : 40;
       doc.fontSize(18).font('NotoSans-Bold').text('PAIR SLALOM', { align: 'center' });
       doc.fontSize(14).font('NotoSans').text('UNICA', { align: 'center' });
       doc.fontSize(10).text(`${coppie.length} coppie`, { align: 'center' });
@@ -2217,7 +2217,7 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         if (y > maxY) {
           doc.addPage();
           drawPageHeaderFooter();
-          y = hasHeader ? 75 : 40;
+          y = hasHeader ? 95 : 40;
           doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
           pairHeaders.forEach((h, i) => {
