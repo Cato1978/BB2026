@@ -46,8 +46,9 @@
       <span id="totale">Totale: 0</span>
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
-      <button onclick="exportExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Excel</button>
-      <button onclick="exportPDF()" style="background:#dc2626;border:none;padding:0.5rem 1rem;cursor:pointer;margin-left:0.5rem">📄 PDF</button>
+      <button onclick="apriModalNuovo()" style="margin-left:auto;background:#22c55e;border:none;padding:0.5rem 1rem;cursor:pointer">➕ Nuovo Iscritto</button>
+      <button onclick="exportExcel()" style="background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Excel</button>
+      <button onclick="exportPDF()" style="background:#dc2626;border:none;padding:0.5rem 1rem;cursor:pointer">📄 PDF</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -634,6 +635,98 @@
     </div>
   </div>
 
+  <!-- MODAL NUOVO ISCRITTO -->
+  <div id="modal-nuovo" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3 style="color:#22c55e">➕ Nuovo Iscritto</h3>
+      <form id="form-nuovo">
+        <div class="form-row">
+          <input type="text" name="nome" placeholder="Nome *" required>
+          <input type="text" name="cognome" placeholder="Cognome *" required>
+        </div>
+        <div class="form-row">
+          <input type="date" name="data_nascita">
+          <select name="cat_eta" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Categoria Età --</option>
+            <option value="U15">U15</option>
+            <option value="U19">U19</option>
+            <option value="SENIOR">SENIOR</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex-direction:column;align-items:flex-start">
+          <p style="margin:0 0 0.5rem;color:#22c55e;font-size:0.9rem">🏆 Discipline:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem">
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_speed"> ⚡ Speed Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_classic"> 🎯 Classic Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_battle"> ⚔️ Battle
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_slides"> 🛷 Slides
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_pair"> 👫 Pair Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_freejump"> 🦘 Free Jump
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <input type="text" name="societa" placeholder="Società / Club">
+          <select name="nazionalita" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nazionalità --</option>
+            <option value="IT">Italia</option>
+            <option value="FR">Francia</option>
+            <option value="DE">Germania</option>
+            <option value="ES">Spagna</option>
+            <option value="PL">Polonia</option>
+            <option value="UA">Ucraina</option>
+            <option value="RU">Russia</option>
+            <option value="CH">Svizzera</option>
+            <option value="GB">Regno Unito</option>
+            <option value="OTHER">Altro</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="email" name="email" placeholder="Email">
+          <input type="tel" name="telefono" placeholder="Telefono">
+        </div>
+        <div class="form-row">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem">Genere *</label>
+            <div style="display:flex;gap:1.5rem">
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="nuovo_genere" value="M" required> Maschile
+              </label>
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="nuovo_genere" value="F" required> Femminile
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <input type="text" name="ws_id" placeholder="WS ID (es. 12345ITA...)">
+          <input type="text" name="fisr" placeholder="Tessera FISR/Skate Italia">
+        </div>
+        <div class="form-row">
+          <select name="stato" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="sospesa">⏳ Sospesa</option>
+            <option value="confermata">✅ Confermata</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <button type="submit" style="background:#22c55e">➕ Crea Iscritto</button>
+          <button type="button" onclick="chiudiModalNuovo()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="modal-rigetto" class="modal" style="display:none">
     <div class="modal-content">
       <h3 style="color:#ef4444">❌ Rigetta Ricevuta</h3>
@@ -936,6 +1029,75 @@
     function chiudiModal() {
       document.getElementById('modal').style.display = 'none';
     }
+
+    // ========== NUOVO ISCRITTO ==========
+    function apriModalNuovo() {
+      document.getElementById('form-nuovo').reset();
+      document.getElementById('modal-nuovo').style.display = 'flex';
+    }
+
+    function chiudiModalNuovo() {
+      document.getElementById('modal-nuovo').style.display = 'none';
+    }
+
+    document.getElementById('form-nuovo').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      
+      // Costruisci categoria dalle checkbox
+      const catEta = form.cat_eta.value || 'SENIOR';
+      const discipline = [];
+      if (form.nuovo_disc_speed.checked) discipline.push(`Speed Slalom (${catEta})`);
+      if (form.nuovo_disc_classic.checked) discipline.push(`Classic Slalom (${catEta})`);
+      if (form.nuovo_disc_battle.checked) discipline.push(`Battle (${catEta})`);
+      if (form.nuovo_disc_slides.checked) discipline.push(`Slides (${catEta})`);
+      if (form.nuovo_disc_pair.checked) discipline.push(`Pair Slalom (UNICA)`);
+      if (form.nuovo_disc_freejump.checked) discipline.push(`Free Jump (${catEta})`);
+      
+      if (discipline.length === 0) {
+        alert('Seleziona almeno una disciplina');
+        return;
+      }
+      
+      // Costruisci note
+      const genere = form.nuovo_genere.value;
+      const wsId = form.ws_id.value.trim();
+      const fisr = form.fisr.value.trim();
+      let noteParts = [`Genere: ${genere}`];
+      if (wsId) noteParts.push(`WS ID: ${wsId}`);
+      if (fisr) noteParts.push(`FISR: ${fisr}`);
+      
+      const data = {
+        nome: form.nome.value,
+        cognome: form.cognome.value,
+        data_nascita: form.data_nascita.value,
+        categoria: discipline.join(', '),
+        societa: form.societa.value,
+        nazionalita: form.nazionalita.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        note: noteParts.join(' | '),
+        stato: form.stato.value
+      };
+      
+      try {
+        const res = await fetch('/api/iscritti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          alert('✅ Iscritto creato con successo!');
+          chiudiModalNuovo();
+          carica();
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
+    });
 
     document.getElementById('form-edit').addEventListener('submit', async e => {
       e.preventDefault();

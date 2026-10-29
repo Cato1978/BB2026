@@ -2444,7 +2444,7 @@ app.get('/api/add-test-user', async (req, res) => {
 
 app.post('/api/iscritti', async (req, res) => {
   try {
-    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove, paymentMethod } = req.body;
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove, paymentMethod, stato, nazionalita } = req.body;
     
     // Validazione età minima (nati dal 2016 o prima)
     if (data_nascita) {
@@ -2486,9 +2486,9 @@ app.post('/api/iscritti', async (req, res) => {
       }
     }
     
-    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, metodo_pagamento)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null, paymentMethod || 'bonifico']);
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, metodo_pagamento, stato, nazionalita)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null, paymentMethod || 'bonifico', stato || 'sospesa', nazionalita || null]);
     
     const codice = 'BB11-' + String(id).padStart(4, '0');
     console.log('Nuovo iscritto:', { id, codice, nome, cognome, paymentMethod });
