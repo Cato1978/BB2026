@@ -1912,19 +1912,31 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     
     doc.pipe(res);
     
-    // ========== PAGINA 1: TUTTI GLI ATLETI ==========
-    // Logo
-    const logoPath = path.join(__dirname, 'public', 'LogoBB.jpeg');
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 260, 20, { width: 60 });
+    // Path immagini intestazione
+    const headerPath = path.join(__dirname, 'public', 'Header.png');
+    const footerPath = path.join(__dirname, 'public', 'footer.png');
+    const hasHeader = fs.existsSync(headerPath);
+    const hasFooter = fs.existsSync(footerPath);
+    
+    // Funzione per disegnare header e footer su una pagina
+    function drawPageHeaderFooter() {
+      if (hasHeader) {
+        doc.image(headerPath, 0, 0, { width: 595 }); // A4 width = 595pt
+      }
+      if (hasFooter) {
+        doc.image(footerPath, 0, 760, { width: 595 }); // In basso
+      }
     }
     
-    doc.moveDown(2);
-    doc.fontSize(20).font('NotoSans-Bold').text('BUSTO BATTLE XI', { align: 'center' });
-    doc.fontSize(14).text('Elenco Completo Iscritti', { align: 'center' });
+    // ========== PAGINA 1: TUTTI GLI ATLETI ==========
+    // Header/Footer
+    drawPageHeaderFooter();
+    
+    doc.y = hasHeader ? 75 : 40; // Inizia sotto l'header
+    doc.fontSize(16).font('NotoSans-Bold').text('Elenco Completo Iscritti', { align: 'center' });
     doc.moveDown(0.2);
     doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
-    doc.moveDown(0.8);
+    doc.moveDown(0.5);
     
     // Header tabella - Naz come prima colonna
     const startX = 40;
@@ -1946,12 +1958,15 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
     // Righe - font più piccolo
     doc.font('NotoSans').fontSize(7);
     
+    const maxY = hasFooter ? 750 : 780; // Lascia spazio per footer
+    
     iscritti.forEach((isc, idx) => {
       // Nuova pagina se necessario
-      if (y > 760) {
+      if (y > maxY) {
         doc.addPage();
-        y = 40;
-        // Ripeti header
+        drawPageHeaderFooter();
+        y = hasHeader ? 75 : 40;
+        // Ripeti header tabella
         doc.fontSize(8).font('NotoSans-Bold');
         x = startX;
         headers.forEach((h, i) => {
@@ -2026,10 +2041,12 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
         
         // Nuova pagina per ogni disciplina + categoria
         doc.addPage();
+        drawPageHeaderFooter();
         const currentPageStart = doc.bufferedPageRange().count - 1;
         const sectionLabel = `${disc} - ${cat}`;
         pageInfo.push({ start: currentPageStart, label: sectionLabel });
         
+        doc.y = hasHeader ? 75 : 40;
         doc.fontSize(18).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
         doc.fontSize(14).font('NotoSans').text(cat, { align: 'center' });
         doc.fontSize(10).text(`${atletiCat.length} iscritti`, { align: 'center' });
@@ -2066,9 +2083,10 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
           doc.font('NotoSans').fontSize(8);
           
           atleti.forEach((isc) => {
-            if (y > 760) {
+            if (y > maxY) {
               doc.addPage();
-              y = 40;
+              drawPageHeaderFooter();
+              y = hasHeader ? 75 : 40;
               // Solo header tabella
               doc.fontSize(8).font('NotoSans-Bold');
               x = startX;
@@ -2168,9 +2186,11 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       
       // Nuova pagina per Pair Slalom
       doc.addPage();
+      drawPageHeaderFooter();
       const pairPageStart = doc.bufferedPageRange().count - 1;
       pageInfo.push({ start: pairPageStart, label: 'Pair Slalom' });
       
+      doc.y = hasHeader ? 75 : 40;
       doc.fontSize(18).font('NotoSans-Bold').text('PAIR SLALOM', { align: 'center' });
       doc.fontSize(14).font('NotoSans').text('UNICA', { align: 'center' });
       doc.fontSize(10).text(`${coppie.length} coppie`, { align: 'center' });
@@ -2194,9 +2214,10 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
       doc.font('NotoSans').fontSize(8);
       
       for (const coppia of coppie) {
-        if (y > 760) {
+        if (y > maxY) {
           doc.addPage();
-          y = 40;
+          drawPageHeaderFooter();
+          y = hasHeader ? 75 : 40;
           doc.fontSize(8).font('NotoSans-Bold');
           x = startX;
           pairHeaders.forEach((h, i) => {
