@@ -4795,19 +4795,29 @@ app.get('/api/prove/fix-byz', async (req, res) => {
     // 1. Cancella prenotazioni BYZ esistenti
     const deleted = await dbRun("DELETE FROM prove_prenotazioni WHERE cognome LIKE '%Byz%' OR cognome LIKE '%SKATING%' OR nome LIKE '%BYZ%'");
     
-    // 2. Crea slot Sabato 14 Nov 21:00-21:30 (20 posti)
+    // 2. Crea slot Sabato 14 Nov 21:00-21:30 e 21:30-22:00 (20 posti ciascuno)
     await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
       ['2026-11-14', '21:00', '21:30', 'PalaCastiglioni', 20, 5]);
+    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+      ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 20, 5]);
     
-    // 3. Crea 20 prenotazioni Byz Skating
+    // 3. Crea 20 prenotazioni Byz Skating per 21:00-21:30
     for (let i = 1; i <= 20; i++) {
-      const codice = 'PRV-BYZ-' + String(i).padStart(2, '0');
+      const codice = 'PRV-BYZ-A' + String(i).padStart(2, '0');
       await dbRun(`INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice, stato, note, giorno, origine) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ['Atleta ' + i, 'Byz Skating', 'Byzskatingroma1@gmail.com', null, '21:00-21:30', codice, 'confermata', 'Speed Slalom', '2026-11-14', 'admin']);
     }
     
-    res.json({ ok: true, message: 'Cancellate prenotazioni BYZ vecchie, creato slot 21:00-21:30 Sab 14, aggiunte 20 prenotazioni Byz Skating' });
+    // 4. Crea 20 prenotazioni Byz Skating per 21:30-22:00
+    for (let i = 1; i <= 20; i++) {
+      const codice = 'PRV-BYZ-B' + String(i).padStart(2, '0');
+      await dbRun(`INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice, stato, note, giorno, origine) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['Atleta ' + i, 'Byz Skating', 'Byzskatingroma1@gmail.com', null, '21:30-22:00', codice, 'confermata', 'Speed Slalom', '2026-11-14', 'admin']);
+    }
+    
+    res.json({ ok: true, message: 'Cancellate prenotazioni BYZ vecchie, creati 2 slot Sab 14 (21:00-21:30 e 21:30-22:00), aggiunte 40 prenotazioni Byz Skating' });
   } catch (err) {
     console.error('Fix BYZ error:', err);
     res.status(500).json({ error: err.message });
