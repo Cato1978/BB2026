@@ -5392,7 +5392,7 @@ app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, 
 });
 
 // --- EXPORT EXCEL PROVE PISTA ---
-app.get('/api/prove/export', requireAdmin, async (req, res) => {
+app.get('/api/prove/export', async (req, res) => {
   try {
     const prenotazioni = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY giorno, ora, cognome');
     const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
