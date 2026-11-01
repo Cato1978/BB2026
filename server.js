@@ -4789,23 +4789,27 @@ app.post('/api/prove/force-reset', async (req, res) => {
   }
 });
 
-// Endpoint temporaneo per aggiungere slot giovedì sera
-app.get('/api/prove/add-giovedi-sera', async (req, res) => {
+// Endpoint temporaneo per sistemare BYZ Skating
+app.get('/api/prove/fix-byz', async (req, res) => {
   try {
-    const nuoviSlots = [
-      ['2026-11-12', '17:00', '17:30', 'PalaCastiglioni', 20, 5],
-      ['2026-11-12', '17:30', '18:00', 'PalaCastiglioni', 20, 5],
-      ['2026-11-12', '18:00', '18:30', 'PalaCastiglioni', 20, 5],
-      ['2026-11-12', '18:30', '19:00', 'PalaCastiglioni', 20, 5],
-      ['2026-11-12', '19:00', '19:30', 'PalaCastiglioni', 20, 5],
-    ];
-    for (const [g, oi, of_, l, p, c] of nuoviSlots) {
-      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-        [g, oi, of_, l, p, c]);
+    // 1. Cancella prenotazioni BYZ esistenti
+    const deleted = await dbRun("DELETE FROM prove_prenotazioni WHERE cognome LIKE '%Byz%' OR cognome LIKE '%SKATING%' OR nome LIKE '%BYZ%'");
+    
+    // 2. Crea slot Sabato 14 Nov 21:00-21:30 (20 posti)
+    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+      ['2026-11-14', '21:00', '21:30', 'PalaCastiglioni', 20, 5]);
+    
+    // 3. Crea 20 prenotazioni Byz Skating
+    for (let i = 1; i <= 20; i++) {
+      const codice = 'PRV-BYZ-' + String(i).padStart(2, '0');
+      await dbRun(`INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, codice, stato, note, giorno, origine) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['Atleta ' + i, 'Byz Skating', 'Byzskatingroma1@gmail.com', null, '21:00-21:30', codice, 'confermata', 'Speed Slalom', '2026-11-14', 'admin']);
     }
-    res.json({ ok: true, message: 'Aggiunti 5 slot giovedì sera (17:00-19:30)', count: nuoviSlots.length });
+    
+    res.json({ ok: true, message: 'Cancellate prenotazioni BYZ vecchie, creato slot 21:00-21:30 Sab 14, aggiunte 20 prenotazioni Byz Skating' });
   } catch (err) {
-    console.error('Add giovedì sera error:', err);
+    console.error('Fix BYZ error:', err);
     res.status(500).json({ error: err.message });
   }
 });
