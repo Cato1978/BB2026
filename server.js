@@ -5395,7 +5395,13 @@ app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, 
 // --- EXPORT EXCEL PROVE PISTA ---
 app.get('/api/prove/export', async (req, res) => {
   try {
-    const prenotazioni = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY giorno, ora, cognome');
+    const prenotazioni = await dbAll(`SELECT id, nome, cognome, email, telefono, ora, 
+      COALESCE(codice, '') as codice, COALESCE(stato, 'sospesa') as stato, 
+      COALESCE(note, '') as note, COALESCE(origine, 'standalone') as origine,
+      COALESCE(iscrizione_codice, '') as iscrizione_codice, 
+      COALESCE(giorno, '') as giorno, COALESCE(note_admin, '') as note_admin,
+      COALESCE(ricevuta_bonifico, '') as ricevuta_bonifico, created_at
+      FROM prove_prenotazioni ORDER BY giorno, ora, cognome`);
     const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
     
     // Mappa slot per lookup giorno
