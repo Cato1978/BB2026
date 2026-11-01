@@ -134,23 +134,8 @@
 
   <div id="section-prove" style="display:none">
     <h3>Gestione Slot Prove Pista</h3>
-    <div style="margin-bottom:1.5rem;padding:1rem;background:#0a0a0a;border:2px solid #F7AF40;border-radius:6px">
-      <h4 style="color:#F7AF40;margin-bottom:0.8rem">➕ Aggiungi nuovo slot prove</h4>
-      <form id="form-add-prove-slot">
-        <div class="form-row">
-          <input type="date" name="giorno" required placeholder="Giorno">
-          <input type="time" name="ora_inizio" required placeholder="Ora inizio">
-          <input type="time" name="ora_fine" required placeholder="Ora fine">
-        </div>
-        <div class="form-row">
-          <input type="text" name="luogo" placeholder="Luogo (es: PalaCastiglioni)" required>
-          <input type="number" name="posti_max" placeholder="Posti max" value="20" min="1">
-          <input type="number" name="costo" placeholder="Costo €" value="10" min="0" step="0.5">
-        </div>
-        <button type="submit">➕ Aggiungi Slot</button>
-      </form>
-    </div>
-    <h4 style="color:#F7AF40;margin-bottom:0.5rem">Slot configurati:</h4>
+    <h4 style="color:#F7AF40;margin-bottom:0.5rem">📅 Slot configurati (modifica posti disponibili):</h4>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">Clicca sul numero di posti per modificarlo. Non puoi ridurre sotto le prenotazioni esistenti.</p>
     <div id="prove-slots-list" style="margin-bottom:1rem"></div>
     <hr style="border-color:#333;margin:1.5rem 0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1518,18 +1503,82 @@
         div.innerHTML = '<p style="color:#888">Nessuno slot configurato</p>';
         return;
       }
-      let html = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">';
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
       for (const s of proveSlots) {
-        const date = new Date(s.giorno).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
-        html += `<div style="padding:0.5rem;background:#111;border:1px solid #333;border-radius:4px;font-size:0.85rem">
-          <strong>${s.ora_inizio}-${s.ora_fine}</strong> (${date})<br>
-          <small style="color:#888">📍 ${s.luogo}</small><br>
-          <small style="color:#888">${s.posti_max} posti, €${s.costo}</small>
-          <button onclick="eliminaProveSlot(${s.id})" style="margin-left:0.5rem;padding:0.1rem 0.3rem;font-size:0.7rem" title="Elimina">🗑️</button>
-        </div>`;
+        if (!perGiorno[s.giorno]) perGiorno[s.giorno] = [];
+        perGiorno[s.giorno].push(s);
       }
-      html += '</div>';
+      
+      let html = '';
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      for (const giorno of giorniOrdinati) {
+        const date = new Date(giorno).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+        html += `<div style="margin-bottom:1.5rem">
+          <h5 style="color:#F7AF40;margin-bottom:0.8rem;border-bottom:1px solid #333;padding-bottom:0.3rem">📅 ${date}</h5>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.5rem">`;
+        
+        for (const s of perGiorno[giorno]) {
+          const prenotati = s.prenotati || 0;
+          const liberi = s.posti_max - prenotati;
+          const colorePosti = liberi <= 0 ? '#ef4444' : liberi <= 3 ? '#f59e0b' : '#22c55e';
+          
+          html += `<div style="padding:0.8rem;background:#111;border:1px solid #333;border-radius:6px">
+            <div style="font-weight:bold;color:#fff;margin-bottom:0.3rem">🕐 ${s.ora_inizio} - ${s.ora_fine}</div>
+            <div style="font-size:0.85rem;color:#888;margin-bottom:0.5rem">📍 ${s.luogo}</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+              <span style="color:#888;font-size:0.85rem">Posti max:</span>
+              <input type="number" 
+                     value="${s.posti_max}" 
+                     min="${prenotati}" 
+                     style="width:60px;padding:0.3rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px;text-align:center"
+                     onchange="aggiornaPostiSlot(${s.id}, this.value, ${prenotati})"
+                     title="Minimo ${prenotati} (prenotati)">
+            </div>
+            <div style="font-size:0.8rem">
+              <span style="color:#888">Prenotati:</span> <strong style="color:#F7AF40">${prenotati}</strong>
+              <span style="margin-left:0.5rem;color:#888">Liberi:</span> <strong style="color:${colorePosti}">${liberi}</strong>
+            </div>
+          </div>`;
+        }
+        html += '</div></div>';
+      }
+      
       div.innerHTML = html;
+    }
+    
+    async function aggiornaPostiSlot(id, nuoviPosti, prenotatiAttuali) {
+      nuoviPosti = parseInt(nuoviPosti);
+      if (nuoviPosti < prenotatiAttuali) {
+        alert(`Non puoi ridurre a ${nuoviPosti} posti!\nCi sono già ${prenotatiAttuali} prenotazioni.`);
+        caricaProve(); // Ricarica per ripristinare il valore
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/prove/slots/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posti_max: nuoviPosti })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
+          caricaProve();
+          return;
+        }
+        
+        // Aggiorna localmente senza ricaricare tutto
+        const slot = proveSlots.find(s => s.id === id);
+        if (slot) slot.posti_max = nuoviPosti;
+        
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+        caricaProve();
+      }
     }
 
     async function eliminaProveSlot(id) {
@@ -1537,30 +1586,6 @@
       await fetch('/api/prove/slots/' + id, { method: 'DELETE' });
       caricaProve();
     }
-
-    document.getElementById('form-add-prove-slot').addEventListener('submit', async e => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const res = await fetch('/api/prove/slots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          giorno: fd.get('giorno'),
-          ora_inizio: fd.get('ora_inizio'),
-          ora_fine: fd.get('ora_fine'),
-          luogo: fd.get('luogo'),
-          posti_max: parseInt(fd.get('posti_max')) || 20,
-          costo: parseFloat(fd.get('costo')) || 10
-        })
-      });
-      if (res.ok) {
-        e.target.reset();
-        caricaProve();
-      } else {
-        const err = await res.json();
-        alert('Errore: ' + err.error);
-      }
-    });
 
     // Formatta data per prove pista
     function formatGiorno(g) {

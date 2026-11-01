@@ -4673,6 +4673,15 @@ app.post('/api/merch/ordini/:codice/rigetta', requireAdmin, async (req, res) => 
 app.get('/api/prove/slots', async (req, res) => {
   try {
     const rows = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    // Aggiungi conteggio prenotazioni per ogni slot
+    for (const slot of rows) {
+      const ora = slot.ora_inizio + '-' + slot.ora_fine;
+      const countRes = await dbAll(
+        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
+        [ora, slot.giorno]
+      );
+      slot.prenotati = countRes[0]?.tot || 0;
+    }
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -4693,10 +4702,31 @@ app.post('/api/prove/slots', requireAdmin, async (req, res) => {
 
 app.put('/api/prove/slots/:id', requireAdmin, async (req, res) => {
   try {
-    const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
-    await dbRun('UPDATE prove_slots SET giorno=?, ora_inizio=?, ora_fine=?, luogo=?, posti_max=?, costo=? WHERE id=?',
-      [giorno, ora_inizio, ora_fine, luogo, posti_max, costo, +req.params.id]);
-    res.json({ ok: true });
+    const { posti_max } = req.body;
+    const slotId = +req.params.id;
+    
+    // Recupera lo slot attuale
+    const slotRows = await dbAll('SELECT * FROM prove_slots WHERE id=?', [slotId]);
+    if (!slotRows.length) return res.status(404).json({ error: 'Slot non trovato' });
+    const slot = slotRows[0];
+    
+    // Conta prenotazioni esistenti per questo slot
+    const ora = slot.ora_inizio + '-' + slot.ora_fine;
+    const countRes = await dbAll(
+      'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
+      [ora, slot.giorno]
+    );
+    const prenotati = countRes[0]?.tot || 0;
+    
+    // Non permettere di ridurre sotto le prenotazioni esistenti
+    if (posti_max < prenotati) {
+      return res.status(400).json({ 
+        error: `Non puoi ridurre a ${posti_max} posti, ci sono già ${prenotati} prenotazioni!` 
+      });
+    }
+    
+    await dbRun('UPDATE prove_slots SET posti_max=? WHERE id=?', [posti_max, slotId]);
+    res.json({ ok: true, prenotati });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
