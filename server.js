@@ -186,6 +186,7 @@ async function initDb() {
       created_at TIMESTAMP DEFAULT NOW()
     )`);
     // Migrazione: aggiungi colonne se non esistono
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN codice TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
