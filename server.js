@@ -5508,7 +5508,7 @@ app.get('/api/prove/export', async (req, res) => {
       { header: 'Orario', key: 'ora', width: 12 },
       { header: 'Cognome', key: 'cognome', width: 15 },
       { header: 'Nome', key: 'nome', width: 15 },
-      { header: 'Squadra', key: 'squadra', width: 20 },
+      { header: 'Stato', key: 'stato', width: 12 },
       { header: 'Pagamento', key: 'pagamento', width: 15 },
       { header: 'Origine', key: 'origine', width: 12 }
     ];
@@ -5541,19 +5541,12 @@ app.get('/api/prove/export', async (req, res) => {
       }
       
       for (const p of lista) {
-        // Cerca squadra dall'iscrizione collegata
-        let squadra = '';
-        if (p.iscrizione_codice) {
-          const iscr = await dbAll('SELECT societa FROM iscritti WHERE codice=?', [p.iscrizione_codice]);
-          if (iscr.length) squadra = iscr[0].societa || '';
-        }
-        
         sheetRiepilogo.addRow({
           giorno: giornoFormatted,
           ora: ora,
           cognome: p.cognome,
           nome: p.nome,
-          squadra: squadra,
+          stato: p.stato || 'sospesa',
           pagamento: getPagamento(p),
           origine: getOrigine(p)
         });
