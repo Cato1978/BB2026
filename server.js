@@ -4792,8 +4792,22 @@ app.post('/api/prove/force-reset', async (req, res) => {
 // Endpoint temporaneo per sistemare BYZ Skating
 app.get('/api/prove/fix-byz', async (req, res) => {
   try {
-    // 0. Fix Cosentino - metti in sospesa
+    // 0. Fix Cosentino - metti in sospesa e invia sollecito
     await dbRun("UPDATE prove_prenotazioni SET stato='sospesa' WHERE codice='PRV-MVY3RJ2R'");
+    
+    // Invia sollecito a Cosentino
+    const cosentino = await dbAll("SELECT * FROM prove_prenotazioni WHERE codice='PRV-MVY3RJ2R'");
+    if (cosentino.length && cosentino[0].email) {
+      const sessioni = cosentino.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      await sendProveEmail(cosentino[0].email, {
+        nome: cosentino[0].nome,
+        cognome: cosentino[0].cognome,
+        codice: 'PRV-MVY3RJ2R',
+        stato: 'sollecito',
+        sessioni,
+        totale: cosentino.length * 5
+      });
+    }
     
     // 0b. Cancella prenotazioni specifiche
     await dbRun("DELETE FROM prove_prenotazioni WHERE codice='PRV-BB11-0117'");
