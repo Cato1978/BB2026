@@ -5407,17 +5407,17 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
     // Funzione per determinare il pagamento
     const getPagamento = (p) => {
       if (p.note_admin && p.note_admin.toLowerCase().includes('pagare')) return 'Contanti';
+      if (p.note_admin && p.note_admin.toLowerCase().includes('contanti')) return 'Contanti';
+      if (p.note_admin && p.note_admin.toLowerCase().includes('carta')) return 'Carta';
       if (p.ricevuta_bonifico) return 'Bonifico';
-      if (p.origine === 'iscrizione') return 'Con iscrizione';
-      return 'Da definire';
+      if (p.origine === 'iscrizione') return 'Bonifico'; // le iscrizioni pagano con bonifico
+      return '';
     };
     
     // Funzione per formattare origine
     const getOrigine = (p) => {
       if (p.origine === 'iscrizione') return 'Iscrizione';
-      if (p.origine === 'standalone') return 'Standalone';
-      if (p.origine === 'admin') return 'Admin';
-      return p.origine || '-';
+      return 'Prova Pista';
     };
     
     const workbook = new ExcelJS.Workbook();
