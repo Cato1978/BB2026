@@ -5395,8 +5395,9 @@ app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, 
 // --- EXPORT EXCEL PROVE PISTA ---
 app.get('/api/prove/export', async (req, res) => {
   try {
-    const prenotazioni = await dbAll(`SELECT id, nome, cognome, email, telefono, ora, 
-      COALESCE(codice, '') as codice, COALESCE(stato, 'sospesa') as stato, 
+    const prenotazioni = await dbAll(`SELECT id, nome, cognome, 
+      COALESCE(email, '') as email, COALESCE(telefono, '') as telefono, ora, 
+      COALESCE(stato, 'sospesa') as stato, 
       COALESCE(note, '') as note, COALESCE(origine, 'standalone') as origine,
       COALESCE(iscrizione_codice, '') as iscrizione_codice, 
       COALESCE(giorno, '') as giorno, COALESCE(note_admin, '') as note_admin,
@@ -5467,7 +5468,7 @@ app.get('/api/prove/export', async (req, res) => {
       const giorno = p.giorno || ((slot && slot.giorno) ? slot.giorno : '');
       
       sheetAll.addRow({
-        codice: p.codice,
+        codice: 'PRV-' + p.id,
         cognome: p.cognome,
         nome: p.nome,
         email: p.email || '',
