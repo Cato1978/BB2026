@@ -5406,11 +5406,12 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
     
     // Funzione per determinare il pagamento
     const getPagamento = (p) => {
-      if (p.note_admin && p.note_admin.toLowerCase().includes('pagare')) return 'Contanti';
-      if (p.note_admin && p.note_admin.toLowerCase().includes('contanti')) return 'Contanti';
-      if (p.note_admin && p.note_admin.toLowerCase().includes('carta')) return 'Carta';
-      if (p.ricevuta_bonifico) return 'Bonifico';
-      if (p.origine === 'iscrizione') return 'Bonifico'; // le iscrizioni pagano con bonifico
+      // Contanti: se note_admin contiene "pagare" o "contanti"
+      if (p.note_admin && (p.note_admin.toLowerCase().includes('pagare') || p.note_admin.toLowerCase().includes('contanti'))) return 'Contanti';
+      // Carta: se confermata e NON ha ricevuta
+      if (p.stato === 'confermata' && !p.ricevuta_bonifico) return 'Carta';
+      // Bonifico: se ha ricevuta o verifica o sospesa
+      if (p.ricevuta_bonifico || p.stato === 'verifica' || p.stato === 'sospesa') return 'Bonifico';
       return '';
     };
     
