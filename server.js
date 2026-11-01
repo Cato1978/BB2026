@@ -197,18 +197,20 @@ async function initDb() {
     
     // Migration: fix prove esistenti - imposta stato e collega a iscrizioni
     // 1. Imposta stato = 'sospesa' dove è NULL
-    await pgPool.query("UPDATE prove_prenotazioni SET stato = 'sospesa' WHERE stato IS NULL");
+    try { await pgPool.query("UPDATE prove_prenotazioni SET stato = 'sospesa' WHERE stato IS NULL"); } catch(e) {}
     // 2. Popola iscrizione_codice per prove collegate a iscrizioni (codice inizia con PRV-BB11-)
-    await pgPool.query("UPDATE prove_prenotazioni SET iscrizione_codice = REPLACE(codice, 'PRV-', ''), origine = 'iscrizione' WHERE codice LIKE 'PRV-BB11-%' AND iscrizione_codice IS NULL");
+    try { await pgPool.query("UPDATE prove_prenotazioni SET iscrizione_codice = REPLACE(codice, 'PRV-', ''), origine = 'iscrizione' WHERE codice LIKE 'PRV-BB11-%' AND iscrizione_codice IS NULL"); } catch(e) {}
     // 3. Conferma prove collegate a iscrizioni confermate
-    await pgPool.query(`
-      UPDATE prove_prenotazioni pp
-      SET stato = 'confermata'
-      FROM iscritti i
-      WHERE pp.iscrizione_codice = 'BB11-' || LPAD(i.id::TEXT, 4, '0')
-      AND i.stato = 'confermata'
-      AND pp.stato != 'confermata'
-    `);
+    try {
+      await pgPool.query(`
+        UPDATE prove_prenotazioni pp
+        SET stato = 'confermata'
+        FROM iscritti i
+        WHERE pp.iscrizione_codice = 'BB11-' || LPAD(i.id::TEXT, 4, '0')
+        AND i.stato = 'confermata'
+        AND pp.stato != 'confermata'
+      `);
+    } catch(e) {}
     
     await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
       id SERIAL PRIMARY KEY,
@@ -1154,6 +1156,20 @@ app.put('/api/felpe/merch/:itemId', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Errore modifica felpa merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DEBUG COLONNE PROVE ---
+app.get('/api/debug/prove-columns', async (req, res) => {
+  try {
+    if (process.env.DATABASE_URL) {
+      const result = await pgPool.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'prove_prenotazioni'`);
+      res.json({ columns: result.rows });
+    } else {
+      res.json({ error: 'Solo PostgreSQL' });
+    }
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
