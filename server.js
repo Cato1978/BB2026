@@ -4793,13 +4793,20 @@ app.post('/api/prove/force-reset', async (req, res) => {
 app.get('/api/prove/fix-byz', async (req, res) => {
   try {
     // 1. Cancella prenotazioni BYZ esistenti
-    const deleted = await dbRun("DELETE FROM prove_prenotazioni WHERE cognome LIKE '%Byz%' OR cognome LIKE '%SKATING%' OR nome LIKE '%BYZ%'");
+    await dbRun("DELETE FROM prove_prenotazioni WHERE cognome LIKE '%Byz%' OR cognome LIKE '%SKATING%' OR nome LIKE '%BYZ%'");
     
-    // 2. Crea slot Sabato 14 Nov 21:00-21:30 e 21:30-22:00 (20 posti ciascuno)
-    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-      ['2026-11-14', '21:00', '21:30', 'PalaCastiglioni', 20, 5]);
-    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
-      ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 20, 5]);
+    // 2. Crea slot solo se non esistono già
+    const slot1 = await dbAll("SELECT id FROM prove_slots WHERE giorno='2026-11-14' AND ora_inizio='21:00'");
+    if (!slot1.length) {
+      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        ['2026-11-14', '21:00', '21:30', 'PalaCastiglioni', 20, 5]);
+    }
+    
+    const slot2 = await dbAll("SELECT id FROM prove_slots WHERE giorno='2026-11-14' AND ora_inizio='21:30'");
+    if (!slot2.length) {
+      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 20, 5]);
+    }
     
     // 3. Crea 20 prenotazioni Byz Skating per 21:00-21:30
     for (let i = 1; i <= 20; i++) {
@@ -4817,7 +4824,7 @@ app.get('/api/prove/fix-byz', async (req, res) => {
         ['Atleta ' + i, 'Byz Skating', 'Byzskatingroma1@gmail.com', null, '21:30-22:00', codice, 'confermata', 'Speed Slalom', '2026-11-14', 'admin']);
     }
     
-    res.json({ ok: true, message: 'Cancellate prenotazioni BYZ vecchie, creati 2 slot Sab 14 (21:00-21:30 e 21:30-22:00), aggiunte 40 prenotazioni Byz Skating' });
+    res.json({ ok: true, message: 'Cancellate prenotazioni BYZ vecchie, aggiunte 40 prenotazioni Byz Skating (slot creati solo se mancanti)' });
   } catch (err) {
     console.error('Fix BYZ error:', err);
     res.status(500).json({ error: err.message });
