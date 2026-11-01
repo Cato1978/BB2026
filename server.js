@@ -5394,7 +5394,7 @@ app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, 
 // --- EXPORT EXCEL PROVE PISTA ---
 app.get('/api/prove/export', requireAdmin, async (req, res) => {
   try {
-    const prenotazioni = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY codice, ora');
+    const prenotazioni = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY giorno, ora, cognome');
     const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
     
     // Mappa slot per lookup giorno
@@ -5404,12 +5404,28 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       slotMap[ora] = s;
     }
     
+    // Funzione per determinare il pagamento
+    const getPagamento = (p) => {
+      if (p.note_admin && p.note_admin.toLowerCase().includes('pagare')) return 'Contanti';
+      if (p.ricevuta_bonifico) return 'Bonifico';
+      if (p.origine === 'iscrizione') return 'Con iscrizione';
+      return 'Da definire';
+    };
+    
+    // Funzione per formattare origine
+    const getOrigine = (p) => {
+      if (p.origine === 'iscrizione') return 'Iscrizione';
+      if (p.origine === 'standalone') return 'Standalone';
+      if (p.origine === 'admin') return 'Admin';
+      return p.origine || '-';
+    };
+    
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Busto Battle XI';
     workbook.created = new Date();
     
-    // ========== FOGLIO 1: TUTTE LE PRENOTAZIONI ==========
-    const sheetAll = workbook.addWorksheet('Tutte le Prenotazioni');
+    // ========== FOGLIO 1: TUTTI I DATI ==========
+    const sheetAll = workbook.addWorksheet('Tutti i Dati');
     sheetAll.columns = [
       { header: 'Codice', key: 'codice', width: 20 },
       { header: 'Cognome', key: 'cognome', width: 15 },
@@ -5420,7 +5436,10 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       { header: 'Orario', key: 'ora', width: 12 },
       { header: 'Disciplina', key: 'specialita', width: 20 },
       { header: 'Stato', key: 'stato', width: 12 },
+      { header: 'Origine', key: 'origine', width: 12 },
+      { header: 'Pagamento', key: 'pagamento', width: 15 },
       { header: 'Note', key: 'note', width: 30 },
+      { header: 'Note Admin', key: 'note_admin', width: 20 },
       { header: 'Data Prenotazione', key: 'created_at', width: 18 }
     ];
     
@@ -5432,13 +5451,11 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
       // Estrai specialità dalle note
       let specialita = '';
       if (p.note && p.ora) {
-        // Escape caratteri speciali per la regex
         const oraEscaped = p.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const match = p.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
         if (match) specialita = match[1].trim();
       }
       
-      // Usa giorno dalla prenotazione se disponibile, altrimenti dallo slot
       const giorno = p.giorno || ((slot && slot.giorno) ? slot.giorno : '');
       
       sheetAll.addRow({
@@ -5451,103 +5468,71 @@ app.get('/api/prove/export', requireAdmin, async (req, res) => {
         ora: p.ora,
         specialita: specialita,
         stato: p.stato || 'sospesa',
+        origine: getOrigine(p),
+        pagamento: getPagamento(p),
         note: p.note || '',
+        note_admin: p.note_admin || '',
         created_at: p.created_at ? new Date(p.created_at).toLocaleDateString('it-IT') : ''
       });
     }
     
-    // ========== FOGLIO 2: RIEPILOGO PER PERSONA ==========
-    const sheetRiepilogo = workbook.addWorksheet('Riepilogo per Persona');
+    // ========== FOGLIO 2: RIEPILOGO PER GIORNO/ORARIO ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo per Giorno-Orario');
     sheetRiepilogo.columns = [
-      { header: 'Codice', key: 'codice', width: 20 },
+      { header: 'Giorno', key: 'giorno', width: 15 },
+      { header: 'Orario', key: 'ora', width: 12 },
       { header: 'Cognome', key: 'cognome', width: 15 },
       { header: 'Nome', key: 'nome', width: 15 },
-      { header: 'Email', key: 'email', width: 30 },
-      { header: 'Telefono', key: 'telefono', width: 15 },
-      { header: 'N° Sessioni', key: 'num_sessioni', width: 12 },
-      { header: 'Sessioni', key: 'sessioni', width: 50 },
-      { header: 'Totale €', key: 'totale', width: 10 },
-      { header: 'Stato', key: 'stato', width: 12 }
+      { header: 'Squadra', key: 'squadra', width: 20 },
+      { header: 'Pagamento', key: 'pagamento', width: 15 },
+      { header: 'Origine', key: 'origine', width: 12 }
     ];
     
     sheetRiepilogo.getRow(1).font = { bold: true };
-    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
     
-    // Raggruppa per codice
-    const grouped = {};
+    // Raggruppa per giorno e orario
+    const perGiornoOra = {};
     for (const p of prenotazioni) {
-      if (!grouped[p.codice]) grouped[p.codice] = [];
-      grouped[p.codice].push(p);
+      const giorno = p.giorno || 'Non specificato';
+      const key = `${giorno}|${p.ora}`;
+      if (!perGiornoOra[key]) perGiornoOra[key] = [];
+      perGiornoOra[key].push(p);
     }
     
-    for (const [codice, sessioni] of Object.entries(grouped)) {
-      const first = sessioni[0];
-      const sessioniList = sessioni.map(s => {
-        const slot = slotMap[s.ora];
-        // Usa giorno dalla prenotazione se disponibile
-        let giornoStr = '';
-        if (s.giorno) {
-          giornoStr = s.giorno.split('-').slice(1).reverse().join('/');
-        } else if (slot && slot.giorno) {
-          giornoStr = slot.giorno.split('-').slice(1).reverse().join('/');
-        }
-        let spec = '';
-        if (s.note && s.ora) {
-          const oraEscaped = s.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const match = s.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
-          if (match) spec = ` (${match[1].trim()})`;
-        }
-        return `${giornoStr} ${s.ora}${spec}`;
-      }).join(', ');
+    // Ordina per giorno e orario
+    const chiavi = Object.keys(perGiornoOra).sort();
+    
+    for (const key of chiavi) {
+      const [giorno, ora] = key.split('|');
+      const lista = perGiornoOra[key];
       
-      sheetRiepilogo.addRow({
-        codice: codice,
-        cognome: first.cognome,
-        nome: first.nome,
-        email: first.email || '',
-        telefono: first.telefono || '',
-        num_sessioni: sessioni.length,
-        sessioni: sessioniList,
-        totale: sessioni.length * 5,
-        stato: first.stato || 'sospesa'
-      });
-    }
-    
-    // ========== FOGLIO 3: PER GIORNO/ORA ==========
-    const sheetPerSlot = workbook.addWorksheet('Per Giorno e Orario');
-    sheetPerSlot.columns = [
-      { header: 'Giorno', key: 'giorno', width: 12 },
-      { header: 'Orario', key: 'ora', width: 12 },
-      { header: 'Luogo', key: 'luogo', width: 20 },
-      { header: 'N° Iscritti', key: 'num', width: 12 },
-      { header: 'Posti Max', key: 'posti_max', width: 12 },
-      { header: 'Partecipanti', key: 'partecipanti', width: 60 }
-    ];
-    
-    sheetPerSlot.getRow(1).font = { bold: true };
-    sheetPerSlot.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
-    
-    for (const slot of slots) {
-      const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
-      const iscritti = prenotazioni.filter(p => p.ora === ora);
-      const partecipanti = iscritti.map(p => {
-        let spec = '';
-        if (p.note && ora) {
-          const oraEscaped = ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const match = p.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
-          if (match) spec = ` (${match[1].trim()})`;
-        }
-        return `${p.cognome} ${p.nome}${spec}`;
-      }).join(', ');
+      // Formatta giorno
+      let giornoFormatted = giorno;
+      if (giorno && giorno.includes('-')) {
+        const d = new Date(giorno);
+        const giorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+        giornoFormatted = `${giorni[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+      }
       
-      sheetPerSlot.addRow({
-        giorno: slot.giorno,
-        ora: ora,
-        luogo: slot.luogo,
-        num: iscritti.length,
-        posti_max: slot.posti_max,
-        partecipanti: partecipanti
-      });
+      for (const p of lista) {
+        // Cerca squadra dall'iscrizione collegata
+        let squadra = '';
+        if (p.iscrizione_codice) {
+          const iscr = await dbAll('SELECT societa FROM iscritti WHERE codice=?', [p.iscrizione_codice]);
+          if (iscr.length) squadra = iscr[0].societa || '';
+        }
+        
+        sheetRiepilogo.addRow({
+          giorno: giornoFormatted,
+          ora: ora,
+          cognome: p.cognome,
+          nome: p.nome,
+          squadra: squadra,
+          pagamento: getPagamento(p),
+          origine: getOrigine(p)
+        });
+      }
     }
     
     // Genera file
