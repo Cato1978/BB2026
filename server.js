@@ -4792,7 +4792,10 @@ app.post('/api/prove/force-reset', async (req, res) => {
 // Endpoint temporaneo per sistemare BYZ Skating
 app.get('/api/prove/fix-byz', async (req, res) => {
   try {
-    // 0. Cancella prenotazioni specifiche
+    // 0. Fix Cosentino - metti in sospesa
+    await dbRun("UPDATE prove_prenotazioni SET stato='sospesa' WHERE codice='PRV-MVY3RJ2R'");
+    
+    // 0b. Cancella prenotazioni specifiche
     await dbRun("DELETE FROM prove_prenotazioni WHERE codice='PRV-BB11-0117'");
     
     // 1. Cancella prenotazioni BYZ esistenti
