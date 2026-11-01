@@ -3143,7 +3143,7 @@ async function sendProveEmail(to, data) {
   
   const sessioniList = sessioni ? sessioni.map(s => '<li>' + s + '</li>').join('') : '';
   const sessioniText = sessioni ? sessioni.join(', ') : '';
-  const linkRicevuta = 'https://bb2026.onrender.com/carica-ricevuta-prove.html?codice=' + codice;
+  const linkRicevuta = 'https://bustobattle.com/carica-ricevuta-prove.html?codice=' + codice;
   
   let subject, html;
   
