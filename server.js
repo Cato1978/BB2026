@@ -4789,6 +4789,27 @@ app.post('/api/prove/force-reset', async (req, res) => {
   }
 });
 
+// Endpoint temporaneo per aggiungere slot giovedì sera
+app.get('/api/prove/add-giovedi-sera', async (req, res) => {
+  try {
+    const nuoviSlots = [
+      ['2026-11-12', '17:00', '17:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '17:30', '18:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '18:00', '18:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '18:30', '19:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '19:00', '19:30', 'PalaCastiglioni', 20, 5],
+    ];
+    for (const [g, oi, of_, l, p, c] of nuoviSlots) {
+      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of_, l, p, c]);
+    }
+    res.json({ ok: true, message: 'Aggiunti 5 slot giovedì sera (17:00-19:30)', count: nuoviSlots.length });
+  } catch (err) {
+    console.error('Add giovedì sera error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/prove/config', async (req, res) => {
   try {
     const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
