@@ -1174,6 +1174,16 @@ app.get('/api/debug/prove-columns', async (req, res) => {
   }
 });
 
+// --- DEBUG COSENTINO ---
+app.get('/api/debug/cosentino', async (req, res) => {
+  try {
+    const rows = await dbAll("SELECT * FROM prove_prenotazioni WHERE cognome ILIKE '%cosentino%'");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- DEBUG PAIR SLALOM ---
 app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
   try {
