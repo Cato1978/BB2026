@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prove Pista per Giorno - Busto Battle XI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: #0a0a0a; 
+      color: #f0f0f0; 
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #F7AF40; margin-bottom: 1rem; }
+    .back-link {
+      display: inline-block;
+      color: #F7AF40;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.8rem 1.5rem;
+      background: #222;
+      border: 1px solid #333;
+      color: #888;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .tab-btn.active {
+      background: #F7AF40;
+      color: #000;
+      border-color: #F7AF40;
+    }
+    .tab-btn:hover:not(.active) {
+      background: #333;
+      color: #fff;
+    }
+    .giorno-section {
+      display: none;
+    }
+    .giorno-section.active {
+      display: block;
+    }
+    .ora-block {
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .ora-header {
+      background: #222;
+      padding: 0.8rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+    }
+    .ora-header h3 {
+      color: #F7AF40;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .ora-header .count {
+      background: #F7AF40;
+      color: #000;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+    .prenotazione {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .prenotazione:last-child {
+      border-bottom: none;
+    }
+    .prenotazione:hover {
+      background: #252525;
+    }
+    .prenotazione-info {
+      flex: 1;
+    }
+    .prenotazione-nome {
+      font-weight: bold;
+      color: #fff;
+    }
+    .prenotazione-codice {
+      color: #888;
+      font-size: 0.85rem;
+    }
+    .prenotazione-note {
+      color: #666;
+      font-size: 0.8rem;
+      margin-top: 0.2rem;
+    }
+    .stato-badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-left: 1rem;
+    }
+    .stato-sospesa { background: #f59e0b; color: #000; }
+    .stato-verifica { background: #3b82f6; color: #fff; }
+    .stato-confermata { background: #22c55e; color: #fff; }
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      background: #1a1a1a;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box .label { color: #888; font-size: 0.85rem; }
+    .stat-box .value { color: #F7AF40; font-size: 1.5rem; font-weight: bold; }
+    .empty {
+      color: #666;
+      padding: 1rem;
+      text-align: center;
+      font-style: italic;
+    }
+    @media print {
+      body { background: #fff; color: #000; }
+      .back-link, .tabs { display: none; }
+      .giorno-section { display: block !important; page-break-after: always; }
+      .ora-block { border: 1px solid #ccc; }
+      .ora-header { background: #f0f0f0; }
+      .prenotazione { border-bottom: 1px solid #eee; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="admin.html" class="back-link">← Torna all'Admin</a>
+    <h1>📅 Prove Pista per Giorno</h1>
+    
+    <div class="stats">
+      <div class="stat-box">
+        <div class="label">Totale Prenotazioni</div>
+        <div class="value" id="tot-pren">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Totale Slot</div>
+        <div class="value" id="tot-slot">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Incasso Previsto</div>
+        <div class="value" id="tot-euro">-</div>
+      </div>
+      <div class="stat-box">
+        <button onclick="window.print()" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">🖨️ Stampa</button>
+      </div>
+    </div>
+    
+    <div class="tabs" id="tabs"></div>
+    
+    <div id="content"></div>
+  </div>
+
+  <script>
+    let prenotazioni = [];
+    const giorni = {
+      '2026-11-12': 'Giovedì 12 Novembre',
+      '2026-11-13': 'Venerdì 13 Novembre',
+      '2026-11-14': 'Sabato 14 Novembre'
+    };
+    
+    async function carica() {
+      try {
+        const res = await fetch('/api/prove/prenotazioni');
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Errore caricamento');
+        }
+        prenotazioni = await res.json();
+        render();
+      } catch (err) {
+        document.getElementById('content').innerHTML = '<p style="color:#ef4444">Errore: ' + err.message + '</p>';
+      }
+    }
+    
+    function render() {
+      // Raggruppa per giorno e ora
+      const perGiorno = {};
+      const codiciVisti = new Set();
+      
+      prenotazioni.forEach(p => {
+        const giorno = p.giorno || 'Non specificato';
+        if (!perGiorno[giorno]) perGiorno[giorno] = {};
+        if (!perGiorno[giorno][p.ora]) perGiorno[giorno][p.ora] = [];
+        perGiorno[giorno][p.ora].push(p);
+        codiciVisti.add(p.codice);
+      });
+      
+      // Stats
+      document.getElementById('tot-pren').textContent = codiciVisti.size;
+      document.getElementById('tot-slot').textContent = prenotazioni.length;
+      document.getElementById('tot-euro').textContent = '€' + (prenotazioni.length * 5);
+      
+      // Tabs
+      const tabsDiv = document.getElementById('tabs');
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      tabsDiv.innerHTML = giorniOrdinati.map((g, i) => {
+        const label = giorni[g] || g;
+        const count = Object.values(perGiorno[g]).flat().length;
+        return `<button class="tab-btn ${i === 0 ? 'active' : ''}" onclick="showGiorno('${g}')">${label} (${count})</button>`;
+      }).join('');
+      
+      // Content
+      const contentDiv = document.getElementById('content');
+      let html = '';
+      
+      giorniOrdinati.forEach((giorno, idx) => {
+        const oreOrdinate = Object.keys(perGiorno[giorno]).sort();
+        
+        html += `<div class="giorno-section ${idx === 0 ? 'active' : ''}" id="giorno-${giorno.replace(/[^a-z0-9]/gi, '')}">`;
+        html += `<h2 style="color:#F7AF40;margin-bottom:1rem">${giorni[giorno] || giorno}</h2>`;
+        
+        oreOrdinate.forEach(ora => {
+          const pren = perGiorno[giorno][ora];
+          html += `
+            <div class="ora-block">
+              <div class="ora-header">
+                <h3>🕐 ${ora}</h3>
+                <span class="count">${pren.length} prenotazioni</span>
+              </div>
+          `;
+          
+          pren.forEach(p => {
+            let statoBadge = '';
+            const stato = p.stato || 'sospesa';
+            if (stato === 'sospesa') statoBadge = '<span class="stato-badge stato-sospesa">🕐 Sospesa</span>';
+            else if (stato === 'verifica') statoBadge = '<span class="stato-badge stato-verifica">🔍 Verifica</span>';
+            else if (stato === 'confermata') statoBadge = '<span class="stato-badge stato-confermata">✅ Confermata</span>';
+            
+            const disciplina = p.note ? (p.note.split(': ')[1]?.split(',')[0] || '') : '';
+            
+            html += `
+              <div class="prenotazione">
+                <div class="prenotazione-info">
+                  <span class="prenotazione-nome">${p.cognome} ${p.nome}</span>
+                  <span class="prenotazione-codice">${p.codice}</span>
+                  ${disciplina ? `<div class="prenotazione-note">${disciplina}</div>` : ''}
+                </div>
+                ${statoBadge}
+              </div>
+            `;
+          });
+          
+          html += '</div>';
+        });
+        
+        html += '</div>';
+      });
+      
+      contentDiv.innerHTML = html || '<p class="empty">Nessuna prenotazione trovata</p>';
+    }
+    
+    function showGiorno(giorno) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.giorno-section').forEach(sec => sec.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      const id = 'giorno-' + giorno.replace(/[^a-z0-9]/gi, '');
+      document.getElementById(id)?.classList.add('active');
+    }
+    
+    carica();
+  </script>
+</body>
+</html>

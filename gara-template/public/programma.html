@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programma - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .avviso-speciale {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      border: 2px solid #F7AF40;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    .avviso-speciale p {
+      margin: 0;
+      color: #F7AF40;
+      font-weight: 600;
+    }
+    .programma-giorno {
+      margin-bottom: 2rem;
+    }
+    .programma-giorno h3 {
+      color: #F7AF40;
+      border-bottom: 2px solid #F7AF40;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .programma-item {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.8rem;
+      background: #1a1a1a;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      align-items: center;
+    }
+    .programma-item .ora {
+      color: #F7AF40;
+      font-weight: 600;
+      min-width: 120px;
+    }
+    .programma-item .evento {
+      flex: 1;
+      font-weight: 500;
+    }
+    .programma-item .luogo {
+      color: #888;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="programmaTitle">📋 Programma Gara</h2>
+
+      <!-- Giovedì 12 Novembre -->
+      <div class="programma-giorno">
+        <h3 data-t="prog_gio12">📅 Giovedì 12 Novembre</h3>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_dalle17">dalle 17:00</span>
+          <span class="evento" data-t="prog_prequalifiche">Qualifiche Classic Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+      </div>
+
+      <!-- Venerdì 13 Novembre -->
+      <div class="programma-giorno">
+        <h3 data-t="prog_ven13">📅 Venerdì 13 Novembre</h3>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_mattina">Mattina</span>
+          <span class="evento">Classic Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_pomeriggio">Pomeriggio</span>
+          <span class="evento">Pair Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_aseguire">A seguire</span>
+          <span class="evento">Free Jump</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+      </div>
+
+      <!-- Sabato 14 Novembre -->
+      <div class="programma-giorno">
+        <h3 data-t="prog_sab14">📅 Sabato 14 Novembre</h3>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_mattina">Mattina</span>
+          <span class="evento">Battle</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_aseguire">A seguire</span>
+          <span class="evento" data-t="prog_cerimonia_battle">🏆 Cerimonia Premiazioni Classic Slalom, Battle & Pair Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_pomeriggio">Pomeriggio</span>
+          <span class="evento">Slides</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_aseguire">A seguire</span>
+          <span class="evento" data-t="prog_cerimonia_slides">🏆 Cerimonia Premiazioni Slides</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        
+      </div>
+
+      <!-- Domenica 15 Novembre -->
+      <div class="programma-giorno">
+        <h3 data-t="prog_dom15">📅 Domenica 15 Novembre</h3>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_allday">All day</span>
+          <span class="evento">Speed Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+        <div class="programma-item">
+          <span class="ora" data-t="prog_aseguire">A seguire</span>
+          <span class="evento" data-t="prog_cerimonia_speed">🏆 Cerimonia Premiazioni Speed Slalom</span>
+          <span class="luogo">📍 PalaCastiglioni</span>
+        </div>
+      </div>
+
+      <p style="margin-top:1.5rem;color:#888;font-size:0.85rem" data-t="programmaNote">* Il programma potrebbe subire variazioni. Seguiteci per aggiornamenti in tempo reale.</p>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattlexi/" target="_blank">📸 Instagram</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

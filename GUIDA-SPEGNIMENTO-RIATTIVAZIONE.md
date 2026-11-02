@@ -440,3 +440,33 @@ Se hai problemi:
 3. Chiedi a ChatGPT/Claude con il messaggio di errore
 
 Ultima modifica: Novembre 2026
+
+
+---
+
+## 🎁 VERSIONE TEMPLATE (ESPORTABILE)
+
+Nella cartella `gara-template/` c'è una versione "white-label" del sito, pronta per essere usata per altre gare.
+
+### Cosa contiene
+
+- **config.json**: File di configurazione centrale con tutti i parametri personalizzabili
+- **config-loader.js**: Script che carica la configurazione nel frontend
+- **translations-template.js**: Traduzioni parametriche IT/EN
+- **index-template.html**: Esempio di pagina che usa il config
+- **README.md**: Guida dettagliata alla personalizzazione
+
+### Come usarla per un'altra gara
+
+1. Copia la cartella `gara-template/` in un nuovo progetto
+2. Modifica `config.json` con i dati della nuova gara
+3. Sostituisci logo e immagini in `public/`
+4. Crea un nuovo repo GitHub
+5. Deploy su Render come descritto nella guida principale
+
+### Valore commerciale stimato
+
+- **Vendita "as-is"**: €500-1.000
+- **Con personalizzazione**: €1.500-2.500
+- **Come servizio gestito**: €300-500/anno
+

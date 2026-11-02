@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1>🏆 BUSTO BATTLE XI</h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <section class="info">
+      <h2 data-t="faqTitle">❓ Domande Frequenti</h2>
+      <div class="faq-list" id="faq-list"></div>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script>
+    const faqs = {
+      it: [
+        { q: "Quanto costa l'iscrizione?", a: "€40 per ogni disciplina selezionata." },
+        { q: "Come posso pagare?", a: "Tramite bonifico bancario. Dopo l'iscrizione riceverai IBAN e causale da utilizzare." },
+        { q: "Posso cancellare la mia iscrizione?", a: "Sì, contattaci via email almeno 2 settimane prima dell'evento per un rimborso completo." },
+        { q: "Come arrivo al Palazzetto?", a: "Il PalaCastiglioni è a soli 200m dalla Stazione FN Busto Arsizio. Facilmente raggiungibile a piedi." },
+        { q: "Posso iscrivermi a più discipline?", a: "Sì, puoi selezionare tutte le discipline che vuoi durante l'iscrizione." },
+        { q: "Dove si svolge l'evento?", a: "Al PalaCastiglioni di Busto Arsizio (VA), Italia." },
+        { q: "C'è un limite di età?", a: "No, l'evento è aperto a tutte le età e livelli." },
+        { q: "Posso modificare la mia iscrizione?", a: "Sì, contattaci via email con il tuo codice iscrizione." }
+      ],
+      en: [
+        { q: "How much does registration cost?", a: "€40 per selected discipline." },
+        { q: "How can I pay?", a: "Via bank transfer. After registration you'll receive IBAN and payment reference." },
+        { q: "Can I cancel my registration?", a: "Yes, contact us by email at least 2 weeks before the event for a full refund." },
+        { q: "How do I get to the venue?", a: "PalaCastiglioni is just 200m from Busto Arsizio FN Station. Easily reachable on foot." },
+        { q: "Can I register for multiple disciplines?", a: "Yes, you can select all the disciplines you want during registration." },
+        { q: "Where is the event?", a: "At the PalaCastiglioni in Busto Arsizio (VA), Italy." },
+        { q: "Is there an age limit?", a: "No, the event is open to all ages and levels." },
+        { q: "Can I modify my registration?", a: "Yes, contact us by email with your registration code." }
+      ]
+    };
+
+    function renderFaq() {
+      const lang = getLang();
+      const list = faqs[lang] || faqs.it;
+      document.getElementById('faq-list').innerHTML = list.map(f =>
+        `<div class="faq-item"><h3>${f.q}</h3><p>${f.a}</p></div>`
+      ).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', renderFaq);
+    const origSetLang = setLang;
+    setLang = function(l) { origSetLang(l); renderFaq(); };
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
+

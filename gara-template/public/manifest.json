@@ -1,0 +1,24 @@
+{
+  "name": "Busto Battle XI",
+  "short_name": "BustoBattle",
+  "description": "Gara Internazionale di Pattinaggio Freestyle - 13/14/15 Novembre 2025",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#F7AF40",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/LogoBB.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LogoBB.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

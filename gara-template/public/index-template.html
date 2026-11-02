@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-config="event.fullName">Gara Template</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  
+  <!-- Config Loader - DEVE essere caricato prima di tutto -->
+  <script src="/config-loader.js"></script>
+  <script src="/translations-template.js"></script>
+  
+  <style>
+    /* CSS Variables - vengono sovrascritte dal config */
+    :root {
+      --primary-color: #F7AF40;
+      --secondary-color: #22C55E;
+      --accent-color: #6366F1;
+      --bg-dark: #111;
+      --text-light: #f0f0f0;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      min-height: 100vh;
+    }
+    
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-bottom: 2px solid var(--primary-color);
+      background: #000;
+    }
+    .logo-title {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .logo-title img {
+      height: 60px;
+      width: auto;
+    }
+    .logo-title h1 {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+    }
+    
+    /* Lang Switcher */
+    .lang-switcher {
+      margin-left: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .lang-btn {
+      background: transparent;
+      border: 1px solid var(--primary-color);
+      color: var(--text-light);
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .lang-btn.active {
+      background: var(--primary-color);
+      color: #000;
+    }
+    
+    /* Navigation */
+    nav {
+      margin-left: auto;
+      display: flex;
+      gap: 1.5rem;
+    }
+    nav a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    nav a:hover {
+      color: var(--primary-color);
+    }
+    
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #111 0%, #222 100%);
+    }
+    .hero h1 {
+      font-size: 3rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+    .hero .tagline {
+      font-size: 1.3rem;
+      color: #aaa;
+      margin-bottom: 2rem;
+    }
+    .hero .dates {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .hero .location {
+      font-size: 1.2rem;
+      color: #888;
+    }
+    
+    /* Countdown */
+    .countdown {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+    .countdown-item {
+      text-align: center;
+    }
+    .countdown-item .number {
+      font-size: 3rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    .countdown-item .label {
+      font-size: 0.9rem;
+      color: #888;
+    }
+    
+    /* CTA Buttons */
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .btn {
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+    .btn-primary {
+      background: var(--primary-color);
+      color: #000;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--primary-color);
+      color: var(--primary-color);
+    }
+    
+    /* Disciplines Section */
+    .disciplines {
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+    .disciplines h2 {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+      color: var(--primary-color);
+    }
+    .disciplines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .discipline-card {
+      background: #222;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .discipline-card .name {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .discipline-card .stars {
+      color: var(--primary-color);
+      margin-top: 0.5rem;
+    }
+    
+    /* Footer */
+    footer {
+      background: #000;
+      padding: 2rem;
+      text-align: center;
+      border-top: 2px solid var(--primary-color);
+    }
+    footer .social {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    footer .social a {
+      color: var(--text-light);
+      font-size: 1.5rem;
+    }
+    footer .copyright {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      nav {
+        margin-left: 0;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .hero h1 {
+        font-size: 2rem;
+      }
+      .countdown {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-title">
+      <img src="/logo.png" alt="Logo" data-config="branding.logo">
+      <h1 data-config="event.fullName">Nome Gara</h1>
+    </div>
+    
+    <div class="lang-switcher">
+      <button class="lang-btn active" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    
+    <nav>
+      <a href="/" data-t="nav_home">Home</a>
+      <a href="/iscrizioni.html" data-t="nav_registration">Iscrizioni</a>
+      <a href="/programma.html" data-t="nav_program">Programma</a>
+      <a href="/hotel.html" data-t="nav_hotel">Hotel</a>
+      <a href="/travel.html" data-t="nav_travel">Come Arrivare</a>
+      <a href="/prova-pista.html" data-t="nav_track_practice" data-feature="track_practice">Prove Pista</a>
+      <a href="/maglia.html" data-t="nav_merch" data-feature="merchandise">Merchandising</a>
+      <a href="/contact.html" data-t="nav_contact">Contatti</a>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h1 data-t="hero_title">Nome Gara</h1>
+    <p class="tagline" data-t="hero_subtitle">Gara Internazionale di Pattinaggio Freestyle</p>
+    
+    <!-- Countdown -->
+    <div class="countdown" id="countdown">
+      <div class="countdown-item">
+        <div class="number" id="days">--</div>
+        <div class="label" data-t="countdown_days">Giorni</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="hours">--</div>
+        <div class="label" data-t="countdown_hours">Ore</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="minutes">--</div>
+        <div class="label" data-t="countdown_minutes">Minuti</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="seconds">--</div>
+        <div class="label" data-t="countdown_seconds">Secondi</div>
+      </div>
+    </div>
+    
+    <p class="dates" data-t="hero_dates">12-15 Novembre 2027</p>
+    <p class="location" data-t="hero_location">Città, Italia</p>
+    
+    <div class="cta-buttons">
+      <a href="/iscrizioni.html" class="btn btn-primary" data-t="cta_register">Iscriviti Ora</a>
+      <a href="/programma.html" class="btn btn-secondary" data-t="cta_program">Vedi Programma</a>
+    </div>
+  </section>
+
+  <!-- DISCIPLINES -->
+  <section class="disciplines">
+    <h2>Discipline</h2>
+    <div class="disciplines-grid" id="disciplines-container">
+      <!-- Popolato da JavaScript -->
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="social" id="social-links">
+      <!-- Popolato da JavaScript -->
+    </div>
+    <p class="copyright">
+      © <span id="year">2027</span> <span data-config="event.fullName">Nome Gara</span>
+    </p>
+  </footer>
+
+  <script>
+    // Countdown
+    function updateCountdown() {
+      if (!window.GARA_CONFIG) return;
+      
+      const eventDate = new Date(window.GARA_CONFIG.event.dates.start + 'T09:00:00');
+      const now = new Date();
+      const diff = eventDate - now;
+      
+      if (diff <= 0) {
+        document.getElementById('countdown').innerHTML = '<h2 style="color: var(--secondary-color)">La gara è iniziata!</h2>';
+        return;
+      }
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      document.getElementById('days').textContent = days;
+      document.getElementById('hours').textContent = hours;
+      document.getElementById('minutes').textContent = minutes;
+      document.getElementById('seconds').textContent = seconds;
+    }
+    
+    // Popola discipline
+    function populateDisciplines() {
+      if (!window.GARA_CONFIG) return;
+      
+      const container = document.getElementById('disciplines-container');
+      container.innerHTML = window.GARA_CONFIG.disciplines
+        .filter(d => d.enabled)
+        .map(d => `
+          <div class="discipline-card">
+            <div class="name">${d.name}</div>
+            <div class="stars">${'⭐'.repeat(d.stars)}</div>
+          </div>
+        `).join('');
+    }
+    
+    // Popola social links
+    function populateSocial() {
+      if (!window.GARA_CONFIG || !window.GARA_CONFIG.social) return;
+      
+      const container = document.getElementById('social-links');
+      const social = window.GARA_CONFIG.social;
+      let html = '';
+      
+      if (social.facebook) html += `<a href="${social.facebook}" target="_blank">📘 Facebook</a>`;
+      if (social.instagram) html += `<a href="${social.instagram}" target="_blank">📷 Instagram</a>`;
+      if (social.youtube) html += `<a href="${social.youtube}" target="_blank">📺 YouTube</a>`;
+      
+      container.innerHTML = html;
+    }
+    
+    // Inizializza quando il config è caricato
+    document.addEventListener('configLoaded', () => {
+      updateCountdown();
+      setInterval(updateCountdown, 1000);
+      populateDisciplines();
+      populateSocial();
+      document.getElementById('year').textContent = window.GARA_CONFIG.event.year;
+    });
+  </script>
+
+</body>
+</html>

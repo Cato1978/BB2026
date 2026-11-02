@@ -1,0 +1,6212 @@
+const express = require('express');
+const initSqlJs = require('sql.js');
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
+const multer = require('multer');
+const webpush = require('web-push');
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
+const Stripe = require('stripe');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+
+// ============================================
+// CARICA CONFIGURAZIONE
+// ============================================
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+let CONFIG = {};
+try {
+  CONFIG = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  console.log(`Configurazione caricata: ${CONFIG.event.fullName}`);
+} catch (err) {
+  console.error('ERRORE: config.json non trovato o non valido!', err.message);
+  process.exit(1);
+}
+
+// Esporta config per le API
+const getConfig = () => CONFIG;
+
+// Memory optimization: force garbage collection periodically
+if (global.gc) {
+  setInterval(() => {
+    global.gc();
+  }, 60000); // Every minute
+}
+
+// Stripe config - imposta la chiave segreta nelle variabili d'ambiente
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
+
+const app = express();
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'gara-secret-2027',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Upload config
+const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'))
+  }),
+  fileFilter: (req, file, cb) => cb(null, file.mimetype === 'application/pdf')
+});
+
+// Web Push config - genera le tue chiavi con: npx web-push generate-vapid-keys
+const VAPID_PUBLIC = process.env.VAPID_PUBLIC || 'BKmSLTMCb78Qm9ZmSYCnGRdym7iFWTzzSdjR93FHROgewYYbPiLup6n_3wdf3vYklg0tEvxzp7ANfqg7dNQr988';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'C2DhpRwo6SLXftJGmRmY-lcESP0ndk04V3Z8CKC_cuE';
+const CONTACT_EMAIL = CONFIG.branding?.contact_email || 'info@example.com';
+webpush.setVapidDetails(`mailto:${CONTACT_EMAIL}`, VAPID_PUBLIC, VAPID_PRIVATE);
+
+// ============================================
+// API PUBBLICA PER CONFIGURAZIONE
+// ============================================
+app.get('/api/config', (req, res) => {
+  // Restituisce config pubblico (senza dati sensibili)
+  res.json({
+    event: CONFIG.event,
+    branding: {
+      primary_color: CONFIG.branding.primary_color,
+      secondary_color: CONFIG.branding.secondary_color,
+      accent_color: CONFIG.branding.accent_color,
+      logo: CONFIG.branding.logo
+    },
+    disciplines: CONFIG.disciplines.filter(d => d.enabled),
+    categories: CONFIG.categories,
+    pricing: CONFIG.pricing,
+    schedule: CONFIG.schedule,
+    hotels: CONFIG.hotels,
+    features: CONFIG.features,
+    social: CONFIG.social,
+    payment: {
+      bank_transfer: CONFIG.payment.bank_transfer.enabled ? {
+        enabled: true,
+        iban: CONFIG.payment.bank_transfer.iban,
+        beneficiary: CONFIG.payment.bank_transfer.beneficiary,
+        reference_prefix: CONFIG.payment.bank_transfer.reference_prefix
+      } : { enabled: false },
+      stripe: { enabled: CONFIG.payment.stripe.enabled },
+      cash_on_site: { enabled: CONFIG.payment.cash_on_site.enabled }
+    }
+  });
+});
+
+// Database - PostgreSQL se DATABASE_URL è presente, altrimenti SQLite
+const usePostgres = !!process.env.DATABASE_URL;
+let db, pgPool;
+
+if (usePostgres) {
+  const { Pool } = require('pg');
+  pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  console.log('Usando PostgreSQL');
+} else {
+  console.log('Usando SQLite');
+}
+
+const DB_DIR = process.env.RENDER ? '/tmp' : path.join(__dirname, 'db');
+const DB_PATH = path.join(DB_DIR, 'gara.db');
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+
+async function initDb() {
+  if (usePostgres) {
+    // PostgreSQL - crea tabelle
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS iscritti (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      data_nascita TEXT,
+      categoria TEXT,
+      societa TEXT,
+      email TEXT,
+      telefono TEXT,
+      navetta INTEGER DEFAULT 0,
+      navetta_dettagli TEXT,
+      pagamento INTEGER DEFAULT 0,
+      stato TEXT DEFAULT 'sospesa',
+      ricevuta_bonifico TEXT,
+      ricevuta_base64 TEXT,
+      note TEXT,
+      note_admin TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    // Migrazione: aggiungi colonna note_admin se non esiste
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN metodo_pagamento TEXT'); } catch(e) {}
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      giorno TEXT NOT NULL,
+      ora TEXT NOT NULL,
+      direzione TEXT NOT NULL,
+      num_persone INTEGER NOT NULL DEFAULT 1,
+      codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS risultati (
+      id SERIAL PRIMARY KEY,
+      titolo TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      categoria TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      endpoint TEXT UNIQUE NOT NULL,
+      keys_p256dh TEXT,
+      keys_auth TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS notifiche (
+      id SERIAL PRIMARY KEY,
+      titolo TEXT NOT NULL,
+      messaggio TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      giorno TEXT NOT NULL,
+      num_persone INTEGER NOT NULL DEFAULT 1,
+      note TEXT,
+      codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_ordini (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      codice TEXT,
+      note TEXT,
+      stato TEXT DEFAULT 'sospesa',
+      origine TEXT DEFAULT 'standalone',
+      iscrizione_codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    // Migrazione: aggiungi colonne se non esistono
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE merch_ordini ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_items (
+      id SERIAL PRIMARY KEY,
+      ordine_id INTEGER NOT NULL,
+      articolo TEXT NOT NULL,
+      taglia TEXT,
+      quantita INTEGER NOT NULL DEFAULT 1,
+      prezzo_unitario REAL NOT NULL
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS merch_stampati (
+      id SERIAL PRIMARY KEY,
+      data_ordine TEXT NOT NULL,
+      articolo TEXT NOT NULL,
+      quantita INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cognome TEXT NOT NULL,
+      email TEXT,
+      telefono TEXT,
+      ora TEXT NOT NULL,
+      codice TEXT,
+      stato TEXT DEFAULT 'sospesa',
+      note TEXT,
+      origine TEXT DEFAULT 'standalone',
+      iscrizione_codice TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    // Migrazione: aggiungi colonne se non esistono
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN codice TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE prove_prenotazioni ADD COLUMN note_admin TEXT'); } catch(e) {}
+    
+    // Migration: fix prove esistenti - imposta stato e collega a iscrizioni
+    // 1. Imposta stato = 'sospesa' dove è NULL
+    try { await pgPool.query("UPDATE prove_prenotazioni SET stato = 'sospesa' WHERE stato IS NULL"); } catch(e) {}
+    // 2. Popola iscrizione_codice per prove collegate a iscrizioni (codice inizia con PRV-BB11-)
+    try { await pgPool.query("UPDATE prove_prenotazioni SET iscrizione_codice = REPLACE(codice, 'PRV-', ''), origine = 'iscrizione' WHERE codice LIKE 'PRV-BB11-%' AND iscrizione_codice IS NULL"); } catch(e) {}
+    // 3. Conferma prove collegate a iscrizioni confermate
+    try {
+      await pgPool.query(`
+        UPDATE prove_prenotazioni pp
+        SET stato = 'confermata'
+        FROM iscritti i
+        WHERE pp.iscrizione_codice = 'BB11-' || LPAD(i.id::TEXT, 4, '0')
+        AND i.stato = 'confermata'
+        AND pp.stato != 'confermata'
+      `);
+    } catch(e) {}
+    
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_slots (
+      id SERIAL PRIMARY KEY,
+      giorno TEXT NOT NULL,
+      ora TEXT NOT NULL,
+      partenza TEXT NOT NULL,
+      arrivo TEXT NOT NULL,
+      posti_max INTEGER DEFAULT 8,
+      costo REAL DEFAULT 2
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS prove_slots (
+      id SERIAL PRIMARY KEY,
+      giorno TEXT NOT NULL,
+      ora_inizio TEXT NOT NULL,
+      ora_fine TEXT NOT NULL,
+      luogo TEXT NOT NULL,
+      posti_max INTEGER DEFAULT 20,
+      costo REAL DEFAULT 10
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'admin',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS page_settings (
+      page TEXT PRIMARY KEY,
+      enabled INTEGER DEFAULT 1,
+      visible INTEGER DEFAULT 1
+    )`);
+    
+    // Seed pagine default
+    const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
+    for (const p of pages) {
+      await pgPool.query('INSERT INTO page_settings (page, enabled, visible) VALUES ($1, 1, 1) ON CONFLICT (page) DO NOTHING', [p]);
+    }
+    
+    // Seed navetta slots
+    const navettaRes = await pgPool.query('SELECT COUNT(*) as c FROM navetta_slots');
+    if (parseInt(navettaRes.rows[0].c) === 0) {
+      const giorni = ['2026-11-13', '2026-11-14'];
+      const ore = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+      for (const g of giorni) {
+        for (const o of ore) {
+          await pgPool.query('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES ($1,$2,$3,$4,$5,$6)',
+            [g, o, 'Stazione FS Busto Arsizio', 'PalaCastiglioni', 8, 2]);
+        }
+      }
+    }
+    
+    // Seed prove slots
+    const proveRes = await pgPool.query('SELECT COUNT(*) as c FROM prove_slots');
+    if (parseInt(proveRes.rows[0].c) === 0) {
+      const proveSlots = [
+        // Giovedì 12 Novembre (pre-qualifiche) - 20 posti ogni mezz'ora dalle 14 alle 17
+        ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+        ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
+        // Venerdì 13 Novembre
+        ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
+        ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
+        ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+        ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+        // Sabato 14 Novembre
+        ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
+        ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+        ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+      ];
+      for (const [g, oi, of_, l, p, c] of proveSlots) {
+        await pgPool.query('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES ($1,$2,$3,$4,$5,$6)',
+          [g, oi, of_, l, p, c]);
+      }
+    }
+    
+    // Seed admin user
+    const admins = await pgPool.query('SELECT * FROM users WHERE username=$1', ['admin']);
+    if (admins.rows.length === 0) {
+      const hash = bcrypt.hashSync('admin123', 10);
+      await pgPool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hash, 'admin']);
+    }
+    
+    console.log('PostgreSQL inizializzato');
+    return;
+  }
+  
+  // SQLite fallback
+  const SQL = await initSqlJs();
+  if (fs.existsSync(DB_PATH)) {
+    const buffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(buffer);
+  } else {
+    db = new SQL.Database();
+  }
+  db.run(`CREATE TABLE IF NOT EXISTS iscritti (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    data_nascita TEXT,
+    categoria TEXT,
+    societa TEXT,
+    email TEXT,
+    telefono TEXT,
+    navetta INTEGER DEFAULT 0,
+    navetta_dettagli TEXT,
+    pagamento INTEGER DEFAULT 0,
+    stato TEXT DEFAULT 'sospesa',
+    ricevuta_bonifico TEXT,
+    note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  // Migrazione: aggiungi colonne se non esistono (per DB esistenti)
+  try { db.run('ALTER TABLE iscritti ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
+  db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    giorno TEXT NOT NULL,
+    ora TEXT NOT NULL,
+    direzione TEXT NOT NULL,
+    num_persone INTEGER NOT NULL DEFAULT 1,
+    codice TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS risultati (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titolo TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    categoria TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint TEXT UNIQUE NOT NULL,
+    keys_p256dh TEXT,
+    keys_auth TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS notifiche (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titolo TEXT NOT NULL,
+    messaggio TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS cena_prenotazioni (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    giorno TEXT NOT NULL,
+    num_persone INTEGER NOT NULL DEFAULT 1,
+    note TEXT,
+    codice TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS merch_ordini (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    codice TEXT,
+    note TEXT,
+    stato TEXT DEFAULT 'sospesa',
+    origine TEXT DEFAULT 'standalone',
+    iscrizione_codice TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  // Migrazione: aggiungi colonne se non esistono
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN note_admin TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE merch_ordini ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+  db.run(`CREATE TABLE IF NOT EXISTS merch_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ordine_id INTEGER NOT NULL,
+    articolo TEXT NOT NULL,
+    taglia TEXT,
+    quantita INTEGER NOT NULL DEFAULT 1,
+    prezzo_unitario REAL NOT NULL,
+    FOREIGN KEY (ordine_id) REFERENCES merch_ordini(id)
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS merch_stampati (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_ordine TEXT NOT NULL,
+    articolo TEXT NOT NULL,
+    quantita INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS prove_prenotazioni (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cognome TEXT NOT NULL,
+    email TEXT,
+    telefono TEXT,
+    ora TEXT NOT NULL,
+    codice TEXT,
+    stato TEXT DEFAULT 'sospesa',
+    note TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  // Migrazione: aggiungi colonne se non esistono
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN stato TEXT DEFAULT \'sospesa\''); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN ricevuta_bonifico TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN giorno TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN origine TEXT DEFAULT \'standalone\''); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN iscrizione_codice TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE prove_prenotazioni ADD COLUMN note_admin TEXT'); } catch(e) {}
+  db.run(`CREATE TABLE IF NOT EXISTS navetta_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    giorno TEXT NOT NULL,
+    ora TEXT NOT NULL,
+    partenza TEXT NOT NULL,
+    arrivo TEXT NOT NULL,
+    posti_max INTEGER DEFAULT 8,
+    costo REAL DEFAULT 2
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS prove_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    giorno TEXT NOT NULL,
+    ora_inizio TEXT NOT NULL,
+    ora_fine TEXT NOT NULL,
+    luogo TEXT NOT NULL,
+    posti_max INTEGER DEFAULT 20,
+    costo REAL DEFAULT 10
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT DEFAULT 'admin',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS page_settings (
+    page TEXT PRIMARY KEY,
+    enabled INTEGER DEFAULT 1,
+    visible INTEGER DEFAULT 1
+  )`);
+  // Assicura che la colonna visible esista (per DB esistenti)
+  try { db.run('ALTER TABLE page_settings ADD COLUMN visible INTEGER DEFAULT 1'); } catch(e) {}
+  // Seed pagine default
+  const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
+  for (const p of pages) {
+    db.run('INSERT OR IGNORE INTO page_settings (page, enabled, visible) VALUES (?, 1, 1)', [p]);
+  }
+  // Seed navetta slots default
+  const navettaCount = all('SELECT COUNT(*) as c FROM navetta_slots')[0].c;
+  if (navettaCount === 0) {
+    const giorni = ['2026-11-13', '2026-11-14'];
+    const ore = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+    for (const g of giorni) {
+      for (const o of ore) {
+        db.run('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+          [g, o, 'Stazione FS Busto Arsizio', 'PalaCastiglioni', 8, 2]);
+      }
+    }
+  }
+  // Seed prove slots default
+  const proveCount = all('SELECT COUNT(*) as c FROM prove_slots')[0].c;
+  if (proveCount === 0) {
+    const proveSlots = [
+      // Giovedì 12 Novembre (pre-qualifiche) - 20 posti ogni mezz'ora dalle 14 alle 17
+      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
+      // Venerdì 13 Novembre
+      ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+      // Sabato 14 Novembre
+      ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+    ];
+    for (const [g, oi, of, l, p, c] of proveSlots) {
+      db.run('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of, l, p, c]);
+    }
+  }
+  const admins = all('SELECT * FROM users WHERE username=?', ['admin']);
+  if (!admins.length) {
+    const hash = bcrypt.hashSync('admin123', 10);
+    db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hash, 'admin']);
+  }
+  // Seed utenti demo se tabella iscritti è vuota
+  const count = all('SELECT COUNT(*) as c FROM iscritti');
+  if (count[0].c === 0) {
+    seedDemoAthletes();
+  }
+  save();
+}
+
+function seedDemoAthletes() {
+  const nomiM = ['Marco', 'Luca', 'Alessandro', 'Andrea', 'Matteo', 'Lorenzo', 'Davide', 'Federico', 'Simone', 'Riccardo', 'Pierre', 'Jean', 'Hans', 'Klaus', 'Erik', 'Sven', 'James', 'Michael', 'Thomas', 'Carlos', 'Pablo', 'Miguel', 'João', 'Pedro', 'Anton', 'Dmitri', 'Yuki', 'Kenji', 'Chen', 'Wei'];
+  const nomiF = ['Giulia', 'Francesca', 'Sara', 'Chiara', 'Valentina', 'Elisa', 'Martina', 'Alessia', 'Giorgia', 'Elena', 'Marie', 'Sophie', 'Anna', 'Emma', 'Lisa', 'Nina', 'Sarah', 'Emily', 'Laura', 'Maria', 'Carmen', 'Ana', 'Lucia', 'Marta', 'Olga', 'Natasha', 'Yuki', 'Sakura', 'Mei', 'Lin'];
+  const cognomi = ['Rossi', 'Bianchi', 'Ferrari', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno', 'Gallo', 'Conti', 'De Luca', 'Mancini', 'Costa', 'Giordano', 'Rizzo', 'Lombardi', 'Moretti', 'Barbieri', 'Fontana', 'Dupont', 'Martin', 'Bernard', 'Müller', 'Schmidt', 'Weber', 'Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Martinez', 'Rodriguez', 'Lopez', 'Silva', 'Santos', 'Oliveira', 'Petrov', 'Ivanov', 'Tanaka', 'Yamamoto', 'Wang', 'Li', 'Zhang', 'Kim', 'Park'];
+  const societa = ['ASD Pattinatori Milano', 'Skating Club Torino', 'Roma Roller', 'Firenze Skate', 'Bologna Freestyle', 'Napoli Skating', 'Genova Rollers', 'Verona Inline', 'Padova Skate Club', 'Trieste Freestyle', 'Lyon Freestyle', 'Paris Roller', 'Marseille Skate', 'Berlin Inline', 'Munich Rollers', 'Vienna Skating', 'London Rollers', 'Manchester Skate', 'Madrid Skating', 'Barcelona Roller', 'Lisbon Skate', 'Amsterdam Inline', 'Brussels Freestyle', 'Zurich Rollers', 'Prague Skating', 'Warsaw Inline', 'Budapest Rollers', 'Moscow Skate', 'Tokyo Inline', 'Seoul Rollers'];
+  const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Pair Slalom', 'Free Jump'];
+  const taglie = ['XS', 'S', 'M', 'L', 'XL'];
+  
+  // Funzione per generare data nascita in base alla categoria desiderata
+  function randomDate(categoria) {
+    let yearMin, yearMax;
+    if (categoria === 'U15') { yearMin = 2012; yearMax = 2016; }
+    else if (categoria === 'U19') { yearMin = 2008; yearMax = 2011; }
+    else { yearMin = 1985; yearMax = 2007; } // SENIOR
+    const year = yearMin + Math.floor(Math.random() * (yearMax - yearMin + 1));
+    const month = String(1 + Math.floor(Math.random() * 12)).padStart(2, '0');
+    const day = String(1 + Math.floor(Math.random() * 28)).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function randomPhone(country) {
+    const prefixes = { IT: '33', FR: '06', DE: '017', ES: '06', UK: '07', US: '55' };
+    const prefix = prefixes[country] || '33';
+    return prefix + Math.floor(10000000 + Math.random() * 90000000);
+  }
+
+  function randomWsId() {
+    return 'WS' + Math.floor(100000 + Math.random() * 900000);
+  }
+
+  function randomFisrCard() {
+    return 'FISR' + Math.floor(10000 + Math.random() * 90000);
+  }
+
+  // Genera 100 atleti
+  for (let i = 0; i < 100; i++) {
+    const genere = Math.random() > 0.45 ? 'M' : 'F'; // 55% maschi
+    const nome = genere === 'M' ? nomiM[Math.floor(Math.random() * nomiM.length)] : nomiF[Math.floor(Math.random() * nomiF.length)];
+    const cognome = cognomi[Math.floor(Math.random() * cognomi.length)];
+    const soc = societa[Math.floor(Math.random() * societa.length)];
+    const email = `${nome.toLowerCase()}.${cognome.toLowerCase().replace(' ', '')}${Math.floor(Math.random() * 100)}@email.com`;
+    
+    // Categoria: distribuzione realistica
+    const catRnd = Math.random();
+    let categoria;
+    if (catRnd < 0.25) categoria = 'U15';
+    else if (catRnd < 0.5) categoria = 'U19';
+    else categoria = 'SENIOR';
+    
+    const dataNascita = randomDate(categoria);
+    const telefono = randomPhone(soc.includes('Milan') || soc.includes('Roma') || soc.includes('Torino') ? 'IT' : 'FR');
+    
+    // Discipline random (1-4 discipline)
+    const numDisc = 1 + Math.floor(Math.random() * 4);
+    const discShuffle = [...discipline].sort(() => Math.random() - 0.5);
+    const discScelte = discShuffle.slice(0, numDisc).map(d => `${d} (${categoria})`);
+    
+    // Taglia maglia e eventuale felpa
+    const tagliaMaglia = taglie[Math.floor(Math.random() * taglie.length)];
+    const vuoleFelpa = Math.random() > 0.7; // 30% vuole felpa
+    const tagliaFelpa = vuoleFelpa ? taglie[Math.floor(Math.random() * taglie.length)] : null;
+    
+    // Tessere (almeno una)
+    const hasWsId = Math.random() > 0.3;
+    const hasFisr = Math.random() > 0.5 || !hasWsId;
+    const wsId = hasWsId ? randomWsId() : null;
+    const fisrCard = hasFisr ? randomFisrCard() : null;
+    
+    // Costruisci note nel formato del form
+    let note = [`Genere: ${genere}`];
+    if (wsId) note.push(`WS ID: ${wsId}`);
+    if (fisrCard) note.push(`FISR: ${fisrCard}`);
+    note.push(`Maglia: ${tagliaMaglia}`);
+    if (vuoleFelpa) note.push(`Felpa: ${tagliaFelpa}`);
+    
+    db.run(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, note) VALUES (?,?,?,?,?,?,?,?)`,
+      [nome, cognome, dataNascita, discScelte.join(', '), soc, email, telefono, note.join(' | ')]);
+  }
+  console.log('Seeded 100 demo athletes');
+}
+
+function save() {
+  if (usePostgres) return; // PostgreSQL salva automaticamente
+  const data = Buffer.from(db.export());
+  fs.writeFileSync(DB_PATH, data);
+}
+
+function all(sql, params = []) {
+  if (usePostgres) {
+    throw new Error('Usa allAsync per PostgreSQL');
+  }
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+
+// Wrapper async per query - funziona con entrambi i database
+async function dbAll(sql, params = []) {
+  if (usePostgres) {
+    // Converti placeholder ? in $1, $2, etc per PostgreSQL
+    let idx = 0;
+    const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    const res = await pgPool.query(pgSql, params);
+    return res.rows;
+  }
+  return all(sql, params);
+}
+
+async function dbRun(sql, params = []) {
+  if (usePostgres) {
+    let idx = 0;
+    const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    const res = await pgPool.query(pgSql, params);
+    return res;
+  }
+  db.run(sql, params);
+  save();
+}
+
+async function dbInsert(sql, params = []) {
+  if (usePostgres) {
+    let idx = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+    // Aggiungi RETURNING id per ottenere l'ID inserito
+    if (!pgSql.toLowerCase().includes('returning')) {
+      pgSql += ' RETURNING id';
+    }
+    const res = await pgPool.query(pgSql, params);
+    return (res.rows[0] && res.rows[0].id) ? res.rows[0].id : null;
+  }
+  db.run(sql, params);
+  save();
+  const lastId = all('SELECT last_insert_rowid() as id')[0];
+  return (lastId && lastId.id) ? lastId.id : null;
+}
+
+app.get('/api/iscritti', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM iscritti ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per vedere iscritti con prove pista
+app.get('/api/iscritti/con-prove', async (req, res) => {
+  try {
+    const rows = await dbAll("SELECT id, nome, cognome, categoria, note, stato FROM iscritti WHERE note LIKE '%Prove:%' ORDER BY cognome, nome");
+    const risultato = rows.map(r => {
+      // Conta slot prove
+      const proveMatch = r.note.match(/Prove:\s*([^\n|]+)/);
+      let numSlots = 0;
+      let dettaglioProve = '';
+      if (proveMatch) {
+        dettaglioProve = proveMatch[1].trim();
+        numSlots = (dettaglioProve.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g) || []).length;
+      }
+      return {
+        id: r.id,
+        nome: r.nome,
+        cognome: r.cognome,
+        categoria: r.categoria,
+        stato: r.stato,
+        numSlotProve: numSlots,
+        costoProve: numSlots * 5,
+        dettaglioProve: dettaglioProve
+      };
+    });
+    res.json({ totaleIscritti: risultato.length, totaleSlot: risultato.reduce((s, r) => s + r.numSlotProve, 0), iscritti: risultato });
+  } catch (err) {
+    console.error('Errore GET iscritti con prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint riepilogo prove pista SENZA duplicati
+app.get('/api/prove/riepilogo', async (req, res) => {
+  try {
+    // Prendi tutte le prenotazioni dalla tabella prove_prenotazioni
+    const prenotazioni = await dbAll("SELECT * FROM prove_prenotazioni ORDER BY cognome, nome");
+    
+    // Separa: da iscrizione (PRV-BB11-xxx) vs standalone
+    const daIscrizione = prenotazioni.filter(p => p.codice && p.codice.includes('BB11'));
+    const standalone = prenotazioni.filter(p => p.codice && !p.codice.includes('BB11'));
+    
+    // Conta slot unici per persona (evita duplicati)
+    const slotPerPersona = {};
+    for (const p of prenotazioni) {
+      const key = `${p.nome}-${p.cognome}-${p.email}`.toLowerCase();
+      if (!slotPerPersona[key]) {
+        slotPerPersona[key] = { nome: p.nome, cognome: p.cognome, email: p.email, slots: [], totale: 0, stato: p.stato, fonte: [] };
+      }
+      const slotKey = `${p.giorno}-${p.ora}`;
+      if (!slotPerPersona[key].slots.includes(slotKey)) {
+        slotPerPersona[key].slots.push(slotKey);
+        slotPerPersona[key].totale += 5;
+      }
+      if (p.codice.includes('BB11') && !slotPerPersona[key].fonte.includes('iscrizione')) {
+        slotPerPersona[key].fonte.push('iscrizione');
+      } else if (!p.codice.includes('BB11') && !slotPerPersona[key].fonte.includes('standalone')) {
+        slotPerPersona[key].fonte.push('standalone');
+      }
+      // Stato: se almeno uno è confermato, considera confermato
+      if (p.stato === 'confermata') slotPerPersona[key].stato = 'confermata';
+    }
+    
+    const persone = Object.values(slotPerPersona);
+    const confermate = persone.filter(p => p.stato === 'confermata');
+    const sospese = persone.filter(p => p.stato !== 'confermata');
+    
+    const totaleSlotUnici = persone.reduce((s, p) => s + p.slots.length, 0);
+    const totaleConfermato = confermate.reduce((s, p) => s + p.totale, 0);
+    const totaleSospeso = sospese.reduce((s, p) => s + p.totale, 0);
+    
+    res.json({
+      riepilogo: {
+        totalePersone: persone.length,
+        totaleSlotUnici,
+        totaleEuroConfermato: totaleConfermato,
+        totaleEuroSospeso: totaleSospeso,
+        personeConfermate: confermate.length,
+        personeSospese: sospese.length
+      },
+      dettaglioConfermate: confermate.map(p => ({ nome: p.nome, cognome: p.cognome, email: p.email, numSlot: p.slots.length, totale: p.totale, fonte: p.fonte.join('+') })),
+      dettaglioSospese: sospese.map(p => ({ nome: p.nome, cognome: p.cognome, email: p.email, numSlot: p.slots.length, totale: p.totale, fonte: p.fonte.join('+') }))
+    });
+  } catch (err) {
+    console.error('Errore riepilogo prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Riepilogo maglie (iscrizioni + merch)
+app.get('/api/maglie/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    const maglie = {
+      'XS Uomo': 0, 'S Uomo': 0, 'M Uomo': 0, 'L Uomo': 0, 'XL Uomo': 0, 'XXL Uomo': 0, '3XL Uomo': 0,
+      'XS Donna': 0, 'S Donna': 0, 'M Donna': 0, 'L Donna': 0, 'XL Donna': 0, 'XXL Donna': 0
+    };
+    
+    // 1. Conta maglie dalle iscrizioni (campo note contiene "Maglia: XXX")
+    const iscritti = await dbAll("SELECT note FROM iscritti WHERE note LIKE '%Maglia:%'");
+    const maglieIscrizioni = { ...maglie };
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Maglia:\s*([^|]+)/);
+      if (match) {
+        let taglia = match[1].trim();
+        // Normalizza taglia (es: "M" -> "M Uomo" o "M Donna" in base al genere)
+        const genereMatch = note.match(/Genere:\s*([MF])/);
+        const genere = genereMatch ? genereMatch[1] : '';
+        
+        // Se la taglia non ha già Uomo/Donna, aggiungilo
+        if (!taglia.includes('Uomo') && !taglia.includes('Donna')) {
+          taglia = taglia + (genere === 'F' ? ' Donna' : ' Uomo');
+        }
+        
+        if (maglieIscrizioni[taglia] !== undefined) {
+          maglieIscrizioni[taglia]++;
+        }
+      }
+    }
+    
+    // 2. Conta maglie dal merch (se esiste la tabella)
+    const maglieMerch = { ...maglie };
+    try {
+      const merch = await dbAll(`
+        SELECT mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
+      `);
+      for (const row of merch) {
+        let taglia = row.taglia || '';
+        const qty = row.quantita || 1;
+        if (maglieMerch[taglia] !== undefined) {
+          maglieMerch[taglia] += qty;
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste, ignora
+    }
+    
+    // 3. Calcola totali
+    const totali = {};
+    for (const taglia of Object.keys(maglie)) {
+      totali[taglia] = {
+        iscrizioni: maglieIscrizioni[taglia],
+        merch: maglieMerch[taglia],
+        totale: maglieIscrizioni[taglia] + maglieMerch[taglia]
+      };
+    }
+    
+    res.json({
+      perTaglia: totali,
+      totaleIscrizioni: Object.values(maglieIscrizioni).reduce((a, b) => a + b, 0),
+      totaleMerch: Object.values(maglieMerch).reduce((a, b) => a + b, 0),
+      totaleGenerale: Object.values(totali).reduce((a, b) => a + b.totale, 0)
+    });
+  } catch (err) {
+    console.error('Errore riepilogo maglie:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lista maglie con dettaglio persone (iscrizioni + merch)
+app.get('/api/maglie/lista', requireAdmin, async (req, res) => {
+  try {
+    const lista = [];
+    
+    // 1. Maglie dalle iscrizioni
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, stato, pagamento, created_at FROM iscritti WHERE note LIKE '%Maglia:%' ORDER BY created_at DESC");
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Maglia:\s*([^|]+)/);
+      let taglia = match ? match[1].trim() : '';
+      
+      // Determina stato pagamento
+      let statoPagamento = 'Sospeso';
+      if (row.pagamento === 1 || row.stato === 'confermata') {
+        statoPagamento = 'Pagato';
+      } else if (row.stato === 'verifica') {
+        statoPagamento = 'In verifica';
+      }
+      
+      lista.push({
+        id: row.id,
+        cognome: row.cognome,
+        nome: row.nome,
+        taglia: taglia,
+        data: row.created_at,
+        fonte: 'iscrizione',
+        statoPagamento: statoPagamento
+      });
+    }
+    
+    // 2. Maglie dal merch
+    try {
+      const merch = await dbAll(`
+        SELECT mo.id, mo.nome, mo.cognome, mo.stato, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE (mi.articolo = 'Maglia' OR mi.articolo = 'T-Shirt') AND mo.stato != 'annullato'
+        ORDER BY mo.created_at DESC
+      `);
+      
+      for (const row of merch) {
+        // Determina stato pagamento merch
+        let statoPagamento = 'Sospeso';
+        if (row.stato === 'confermata' || row.stato === 'confermato') {
+          statoPagamento = 'Pagato';
+        } else if (row.stato === 'verifica') {
+          statoPagamento = 'In verifica';
+        }
+        
+        for (let i = 0; i < (row.quantita || 1); i++) {
+          lista.push({
+            id: 'M' + row.id,
+            cognome: row.cognome || '',
+            nome: row.nome || '',
+            taglia: row.taglia || '',
+            data: row.created_at,
+            fonte: 'merch',
+            item_id: row.item_id,
+            statoPagamento: statoPagamento
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Errore lettura merch maglie:', e);
+    }
+    
+    // Ordina per data decrescente
+    lista.sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    res.json(lista);
+  } catch (err) {
+    console.error('Errore lista maglie:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia maglia (iscrizione)
+app.put('/api/maglie/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taglia } = req.body;
+    
+    // Leggi le note attuali
+    const [iscritto] = await dbAll("SELECT note FROM iscritti WHERE id = ?", [id]);
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+    
+    let note = iscritto.note || '';
+    
+    if (taglia) {
+      // Aggiorna o aggiungi la maglia
+      if (note.includes('Maglia:')) {
+        note = note.replace(/Maglia:\s*[^|]+/, 'Maglia: ' + taglia);
+      } else {
+        note = note + (note ? ' | ' : '') + 'Maglia: ' + taglia;
+      }
+    } else {
+      // Rimuovi la maglia
+      note = note.replace(/\s*\|\s*Maglia:\s*[^|]+/, '').replace(/Maglia:\s*[^|]+\s*\|\s*/, '').replace(/Maglia:\s*[^|]+/, '').trim();
+    }
+    
+    await dbRun("UPDATE iscritti SET note = ? WHERE id = ?", [note, id]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica maglia:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia maglia (merch)
+app.put('/api/maglie/merch/:itemId', requireAdmin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { taglia } = req.body;
+    
+    await dbRun("UPDATE merch_items SET taglia = ? WHERE id = ?", [taglia, itemId]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica maglia merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Riepilogo felpe (iscrizioni + merch)
+app.get('/api/felpe/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    const felpe = {
+      'XS Uomo': 0, 'S Uomo': 0, 'M Uomo': 0, 'L Uomo': 0, 'XL Uomo': 0, 'XXL Uomo': 0, '3XL Uomo': 0,
+      'XS Donna': 0, 'S Donna': 0, 'M Donna': 0, 'L Donna': 0, 'XL Donna': 0, 'XXL Donna': 0, '3XL Donna': 0
+    };
+    
+    // 1. Conta felpe dalle iscrizioni (campo note contiene "Felpa: XXX")
+    const iscritti = await dbAll("SELECT note FROM iscritti WHERE note LIKE '%Felpa:%'");
+    const felpeIscrizioni = { ...felpe };
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Felpa:\s*([^|]+)/);
+      if (match) {
+        let taglia = match[1].trim();
+        // Normalizza taglia (es: "M" -> "M Uomo" o "M Donna" in base al genere)
+        const genereMatch = note.match(/Genere:\s*([MF])/);
+        const genere = genereMatch ? genereMatch[1] : '';
+        
+        // Se la taglia non ha già Uomo/Donna, aggiungilo
+        if (!taglia.includes('Uomo') && !taglia.includes('Donna')) {
+          taglia = taglia + (genere === 'F' ? ' Donna' : ' Uomo');
+        }
+        
+        if (felpeIscrizioni[taglia] !== undefined) {
+          felpeIscrizioni[taglia]++;
+        }
+      }
+    }
+    
+    // 2. Conta felpe dal merch (se esiste la tabella)
+    const felpeMerch = { ...felpe };
+    try {
+      const merch = await dbAll(`
+        SELECT mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
+      `);
+      for (const row of merch) {
+        let taglia = row.taglia || '';
+        const qty = row.quantita || 1;
+        if (felpeMerch[taglia] !== undefined) {
+          felpeMerch[taglia] += qty;
+        }
+      }
+    } catch (e) {
+      // Tabella merch non esiste, ignora
+    }
+    
+    // 3. Calcola totali
+    const totali = {};
+    for (const taglia of Object.keys(felpe)) {
+      totali[taglia] = {
+        iscrizioni: felpeIscrizioni[taglia],
+        merch: felpeMerch[taglia],
+        totale: felpeIscrizioni[taglia] + felpeMerch[taglia]
+      };
+    }
+    
+    res.json({
+      perTaglia: totali,
+      totaleIscrizioni: Object.values(felpeIscrizioni).reduce((a, b) => a + b, 0),
+      totaleMerch: Object.values(felpeMerch).reduce((a, b) => a + b, 0),
+      totaleGenerale: Object.values(totali).reduce((a, b) => a + b.totale, 0)
+    });
+  } catch (err) {
+    console.error('Errore riepilogo felpe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lista felpe con dettaglio persone (iscrizioni + merch)
+app.get('/api/felpe/lista', requireAdmin, async (req, res) => {
+  try {
+    const lista = [];
+    
+    // 1. Felpe dalle iscrizioni
+    const iscritti = await dbAll("SELECT id, cognome, nome, note, stato, pagamento, created_at FROM iscritti WHERE note LIKE '%Felpa:%' ORDER BY created_at DESC");
+    
+    for (const row of iscritti) {
+      const note = row.note || '';
+      const match = note.match(/Felpa:\s*([^|]+)/);
+      let taglia = match ? match[1].trim() : '';
+      
+      // Determina stato pagamento
+      let statoPagamento = 'Sospeso';
+      if (row.pagamento === 1 || row.stato === 'confermata') {
+        statoPagamento = 'Pagato';
+      } else if (row.stato === 'verifica') {
+        statoPagamento = 'In verifica';
+      }
+      
+      lista.push({
+        id: row.id,
+        cognome: row.cognome,
+        nome: row.nome,
+        taglia: taglia,
+        data: row.created_at,
+        fonte: 'iscrizione',
+        statoPagamento: statoPagamento
+      });
+    }
+    
+    // 2. Felpe dal merch
+    try {
+      const merch = await dbAll(`
+        SELECT mo.id, mo.nome, mo.cognome, mo.stato, mo.created_at, mi.id as item_id, mi.articolo, mi.taglia, mi.quantita
+        FROM merch_ordini mo
+        JOIN merch_items mi ON mi.ordine_id = mo.id
+        WHERE mi.articolo = 'Felpa' AND mo.stato != 'annullato'
+        ORDER BY mo.created_at DESC
+      `);
+      
+      for (const row of merch) {
+        // Determina stato pagamento merch
+        let statoPagamento = 'Sospeso';
+        if (row.stato === 'confermata' || row.stato === 'confermato') {
+          statoPagamento = 'Pagato';
+        } else if (row.stato === 'verifica') {
+          statoPagamento = 'In verifica';
+        }
+        
+        for (let i = 0; i < (row.quantita || 1); i++) {
+          lista.push({
+            id: 'M' + row.id,
+            cognome: row.cognome || '',
+            nome: row.nome || '',
+            taglia: row.taglia || '',
+            data: row.created_at,
+            fonte: 'merch',
+            item_id: row.item_id,
+            statoPagamento: statoPagamento
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Errore lettura merch felpe:', e);
+    }
+    
+    // Ordina per data decrescente
+    lista.sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    res.json(lista);
+  } catch (err) {
+    console.error('Errore lista felpe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia felpa (iscrizione)
+app.put('/api/felpe/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taglia } = req.body;
+    
+    // Leggi le note attuali
+    const [iscritto] = await dbAll("SELECT note FROM iscritti WHERE id = ?", [id]);
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+    
+    let note = iscritto.note || '';
+    
+    if (taglia) {
+      // Aggiorna o aggiungi la felpa
+      if (note.includes('Felpa:')) {
+        note = note.replace(/Felpa:\s*[^|]+/, 'Felpa: ' + taglia);
+      } else {
+        note = note + (note ? ' | ' : '') + 'Felpa: ' + taglia;
+      }
+    } else {
+      // Rimuovi la felpa
+      note = note.replace(/\s*\|\s*Felpa:\s*[^|]+/, '').replace(/Felpa:\s*[^|]+\s*\|\s*/, '').replace(/Felpa:\s*[^|]+/, '').trim();
+    }
+    
+    await dbRun("UPDATE iscritti SET note = ? WHERE id = ?", [note, id]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica felpa:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modifica taglia felpa (merch)
+app.put('/api/felpe/merch/:itemId', requireAdmin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { taglia } = req.body;
+    
+    await dbRun("UPDATE merch_items SET taglia = ? WHERE id = ?", [taglia, itemId]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Errore modifica felpa merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DEBUG COLONNE PROVE ---
+app.get('/api/debug/prove-columns', async (req, res) => {
+  try {
+    if (process.env.DATABASE_URL) {
+      const result = await pgPool.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'prove_prenotazioni'`);
+      res.json({ columns: result.rows });
+    } else {
+      res.json({ error: 'Solo PostgreSQL' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DEBUG COSENTINO ---
+app.get('/api/debug/cosentino', async (req, res) => {
+  try {
+    const rows = await dbAll("SELECT * FROM prove_prenotazioni WHERE cognome ILIKE '%cosentino%'");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DEBUG PAIR SLALOM ---
+app.get('/api/debug/pair-slalom', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Filtra solo chi ha Pair Slalom
+    const pairAtleti = iscritti.filter(i => i.categoria && i.categoria.includes('Pair Slalom'));
+    
+    // Funzione per cercare il compagno nelle note (chi ho indicato io)
+    function cercaCompagnoIndicato(note, nome, cognome) {
+      if (!note) return null;
+      const noteLower = note.toLowerCase();
+      for (const altro of pairAtleti) {
+        if (altro.nome === nome && altro.cognome === cognome) continue;
+        const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
+        const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+        if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+            noteLower.includes(altro.cognome.toLowerCase())) {
+          return altro;
+        }
+      }
+      return null;
+    }
+    
+    // Funzione per cercare chi mi ha indicato come compagno
+    function cercaChiMiHaIndicato(nome, cognome) {
+      const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+      const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+      const mioCognome = cognome.toLowerCase();
+      for (const altro of pairAtleti) {
+        if (altro.nome === nome && altro.cognome === cognome) continue;
+        const altroNote = (altro.note || '').toLowerCase();
+        if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+            altroNote.includes(mioCognome)) {
+          return altro;
+        }
+      }
+      return null;
+    }
+    
+    // Crea lista con abbinamenti
+    const risultato = pairAtleti.map(i => {
+      let compagno = cercaCompagnoIndicato(i.note, i.nome, i.cognome);
+      let metodo = 'indicato da me';
+      if (!compagno) {
+        compagno = cercaChiMiHaIndicato(i.nome, i.cognome);
+        metodo = 'mi ha indicato';
+      }
+      return {
+        codice: 'BB11-' + String(i.id).padStart(4, '0'),
+        nome: i.nome,
+        cognome: i.cognome,
+        note: i.note,
+        compagno_trovato: compagno ? `${compagno.nome} ${compagno.cognome} (BB11-${String(compagno.id).padStart(4, '0')}) [${metodo}]` : '❌ NON TROVATO'
+      };
+    });
+    
+    res.json(risultato);
+  } catch (err) {
+    console.error('Errore debug pair:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- BILANCIO ---
+app.get('/api/bilancio', requireAdmin, async (req, res) => {
+  try {
+    // ========== ISCRIZIONI ==========
+    const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata' OR pagamento = 1");
+    
+    function calcolaTotaleIscrizione(i) {
+      const numDisc = i.categoria ? i.categoria.split(',').length : 0;
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30;
+      if (i.note && i.note.toLowerCase().includes('felpa:')) totale += 35;
+      if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
+      return totale;
+    }
+    
+    const iscrizioni = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+    
+    for (const i of iscritti) {
+      const totale = calcolaTotaleIscrizione(i);
+      const record = { id: i.id, nome: i.nome, cognome: i.cognome, totale };
+      const noteAdmin = (i.note_admin || '').toLowerCase();
+      const note = (i.note || '').toLowerCase();
+      
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        iscrizioni.contanti.items.push(record);
+        iscrizioni.contanti.totale += totale;
+      } else if (i.ricevuta_bonifico || i.ricevuta_base64) {
+        iscrizioni.bonifico.items.push(record);
+        iscrizioni.bonifico.totale += totale;
+      } else {
+        iscrizioni.carta.items.push(record);
+        iscrizioni.carta.totale += totale;
+      }
+    }
+    
+    // ========== PROVE PISTA ==========
+    const prove = await dbAll("SELECT * FROM prove_prenotazioni WHERE stato = 'confermata'");
+    const provePerCodice = {};
+    for (const p of prove) {
+      if (!provePerCodice[p.codice]) {
+        provePerCodice[p.codice] = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: 0, ricevuta: p.ricevuta_bonifico, note: p.note, note_admin: p.note_admin };
+      }
+      provePerCodice[p.codice].slots++;
+    }
+    
+    const provePista = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+    for (const codice in provePerCodice) {
+      const p = provePerCodice[codice];
+      const totale = p.slots * 5;
+      const record = { codice: p.codice, nome: p.nome, cognome: p.cognome, slots: p.slots, totale };
+      const noteAdmin = (p.note_admin || '').toLowerCase();
+      const note = (p.note || '').toLowerCase();
+      
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        provePista.contanti.items.push(record);
+        provePista.contanti.totale += totale;
+      } else if (p.ricevuta) {
+        provePista.bonifico.items.push(record);
+        provePista.bonifico.totale += totale;
+      } else {
+        provePista.carta.items.push(record);
+        provePista.carta.totale += totale;
+      }
+    }
+    
+    // ========== MERCHANDISING ==========
+    const merchOrdini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
+    const merch = { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+    
+    for (const o of merchOrdini) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      const articoli = items.map(i => `${i.quantita}x ${i.articolo}`).join(', ');
+      const record = { codice: o.codice, nome: o.nome, cognome: o.cognome, articoli, totale };
+      const noteAdmin = (o.note_admin || '').toLowerCase();
+      const note = (o.note || '').toLowerCase();
+      
+      // Prima controlla se è pagamento in contanti
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) {
+        merch.contanti.items.push(record);
+        merch.contanti.totale += totale;
+      } else if (o.origine === 'iscrizione') {
+        // Se origine è iscrizione, segue il metodo di pagamento dell'iscrizione collegata
+        const iscrizioneRows = await dbAll('SELECT * FROM iscritti WHERE id=?', [parseInt(o.iscrizione_codice?.replace('BB11-','')) || 0]);
+        const isc = iscrizioneRows[0];
+        if (isc) {
+          const iscNoteAdmin = (isc.note_admin || '').toLowerCase();
+          const iscNote = (isc.note || '').toLowerCase();
+          if (iscNoteAdmin.includes('contanti') || iscNote.includes('contanti')) {
+            merch.contanti.items.push(record);
+            merch.contanti.totale += totale;
+          } else if (isc.ricevuta_bonifico || isc.ricevuta_base64) {
+            merch.bonifico.items.push(record);
+            merch.bonifico.totale += totale;
+          } else {
+            merch.carta.items.push(record);
+            merch.carta.totale += totale;
+          }
+        } else {
+          merch.carta.items.push(record);
+          merch.carta.totale += totale;
+        }
+      } else if (o.ricevuta_bonifico) {
+        // Standalone con bonifico
+        merch.bonifico.items.push(record);
+        merch.bonifico.totale += totale;
+      } else {
+        // Standalone - carta (Stripe) come default
+        merch.carta.items.push(record);
+        merch.carta.totale += totale;
+      }
+    }
+    
+    // ========== TOTALI ==========
+    const totaleGenerale = {
+      bonifico: iscrizioni.bonifico.totale + provePista.bonifico.totale + merch.bonifico.totale,
+      carta: iscrizioni.carta.totale + provePista.carta.totale + merch.carta.totale,
+      contanti: iscrizioni.contanti.totale + provePista.contanti.totale + merch.contanti.totale
+    };
+    totaleGenerale.totale = totaleGenerale.bonifico + totaleGenerale.carta + totaleGenerale.contanti;
+    
+    res.json({ 
+      iscrizioni, 
+      provePista, 
+      merch,
+      totaleGenerale,
+      // Retrocompatibilità
+      bonifico: { iscritti: iscrizioni.bonifico.items, totale: iscrizioni.bonifico.totale, count: iscrizioni.bonifico.items.length },
+      carta: { iscritti: iscrizioni.carta.items, totale: iscrizioni.carta.totale, count: iscrizioni.carta.items.length },
+      contanti: { iscritti: iscrizioni.contanti.items, totale: iscrizioni.contanti.totale, count: iscrizioni.contanti.items.length }
+    });
+  } catch (err) {
+    console.error('Errore bilancio:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EXPORT EXCEL ISCRITTI ---
+app.get('/api/iscritti/export', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    workbook.created = new Date();
+    
+    // Mappatura ISO 2 → ISO 3 lettere
+    const ISO2_TO_ISO3 = {
+      'IT': 'ITA', 'AL': 'ALB', 'AD': 'AND', 'AT': 'AUT', 'BE': 'BEL', 'BY': 'BLR', 'BA': 'BIH',
+      'BG': 'BGR', 'CY': 'CYP', 'HR': 'HRV', 'DK': 'DNK', 'EE': 'EST', 'FI': 'FIN', 'FR': 'FRA',
+      'DE': 'DEU', 'GR': 'GRC', 'IE': 'IRL', 'IS': 'ISL', 'XK': 'XKX', 'LV': 'LVA', 'LI': 'LIE',
+      'LT': 'LTU', 'LU': 'LUX', 'MK': 'MKD', 'MT': 'MLT', 'MD': 'MDA', 'MC': 'MCO', 'ME': 'MNE',
+      'NO': 'NOR', 'NL': 'NLD', 'PL': 'POL', 'PT': 'PRT', 'GB': 'GBR', 'CZ': 'CZE', 'RO': 'ROU',
+      'RU': 'RUS', 'SM': 'SMR', 'RS': 'SRB', 'SK': 'SVK', 'SI': 'SVN', 'ES': 'ESP', 'SE': 'SWE',
+      'CH': 'CHE', 'UA': 'UKR', 'HU': 'HUN', 'SA': 'SAU', 'BH': 'BHR', 'AE': 'ARE', 'JO': 'JOR',
+      'IR': 'IRN', 'IL': 'ISR', 'KW': 'KWT', 'LB': 'LBN', 'OM': 'OMN', 'QA': 'QAT', 'TR': 'TUR',
+      'YE': 'YEM', 'CN': 'CHN', 'KR': 'KOR', 'JP': 'JPN', 'IN': 'IND', 'PH': 'PHL', 'TH': 'THA',
+      'VN': 'VNM', 'MY': 'MYS', 'SG': 'SGP', 'ID': 'IDN', 'TW': 'TWN', 'HK': 'HKG', 'US': 'USA',
+      'CA': 'CAN', 'MX': 'MEX', 'BR': 'BRA', 'AR': 'ARG', 'CL': 'CHL', 'CO': 'COL', 'PE': 'PER',
+      'VE': 'VEN', 'EC': 'ECU', 'UY': 'URY', 'PY': 'PRY', 'BO': 'BOL', 'AU': 'AUS', 'NZ': 'NZL',
+      'EG': 'EGY', 'ZA': 'ZAF', 'MA': 'MAR', 'TN': 'TUN', 'NG': 'NGA', 'KE': 'KEN', 'GH': 'GHA'
+    };
+    
+    // Funzione per convertire ISO2 a ISO3 con bandierina
+    function formatNazionalita(code) {
+      if (!code) return '';
+      const iso3 = ISO2_TO_ISO3[code.toUpperCase()] || code.toUpperCase();
+      // Genera bandierina emoji da codice ISO2
+      const flag = code.length === 2 ? 
+        String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '';
+      return flag ? `${flag} ${iso3}` : iso3;
+    }
+    
+    // Helper per parsing note
+    function parseNote(note) {
+      const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Genere:')) result.genere = p.replace('Genere:', '').trim();
+        else if (p.startsWith('Nazionalità:')) result.nazionalita = p.replace('Nazionalità:', '').trim();
+        else if (p.startsWith('WS ID:')) result.wsId = p.replace('WS ID:', '').trim();
+        else if (p.startsWith('FISR:')) result.fisr = p.replace('FISR:', '').trim();
+        else if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+      }
+      return result;
+    }
+    
+    // Helper per parsing discipline
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      // Formato: "Speed Slalom (U15), Battle (SENIOR)"
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
+    // Helper per calcolare totale iscrizione
+    function calcolaTotaleIscrizioneExcel(isc) {
+      const numDisc = isc.categoria ? isc.categoria.split(',').length : 0;
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30;
+      if (isc.note && isc.note.toLowerCase().includes('felpa:')) totale += 35;
+      if (isc.note && isc.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (isc.note && isc.note.toLowerCase().includes('asciugamano')) totale += 5;
+      return totale;
+    }
+    
+    // Helper per determinare metodo pagamento
+    function getMetodoPagamento(isc) {
+      // Se c'è il campo metodo_pagamento salvato, usalo
+      if (isc.metodo_pagamento === 'online') return 'Carta';
+      if (isc.metodo_pagamento === 'bonifico') return 'Bonifico';
+      
+      // Fallback per iscrizioni vecchie senza il campo
+      const stato = isc.stato || 'sospesa';
+      const noteAdmin = (isc.note_admin || '').toLowerCase();
+      const note = (isc.note || '').toLowerCase();
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) return 'Contanti';
+      if (isc.ricevuta_bonifico || isc.ricevuta_base64) return 'Bonifico';
+      if (stato === 'confermata') return 'Carta'; // Se confermata senza ricevuta = Stripe
+      return 'In attesa';
+    }
+    
+    // Helper per stato pagamento leggibile
+    function getStatoPagamento(isc) {
+      if (isc.stato === 'confermata' || isc.pagamento === 1) return 'Confermato';
+      if (isc.stato === 'sospesa') return 'Sospeso';
+      if (isc.stato === 'rifiutata') return 'Rifiutato';
+      return isc.stato || 'Sospeso';
+    }
+
+    // ========== FOGLIO RIEPILOGO (creato per primo per essere in apertura) ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo Gara');
+    // Dati per il riepilogo (popolato dopo)
+    const riepilogoData = [];
+
+    // ========== FOGLIO 1: TUTTI GLI ATLETI ==========
+    const sheetAtleti = workbook.addWorksheet('Tutti gli Atleti');
+    sheetAtleti.columns = [
+      { header: 'N°', key: 'num', width: 5 },
+      { header: 'Cognome', key: 'cognome', width: 18 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Data Nascita', key: 'data_nascita', width: 12 },
+      { header: 'Genere', key: 'genere', width: 8 },
+      { header: 'Nazionalità', key: 'nazionalita', width: 12 },
+      { header: 'Società', key: 'societa', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'World Skate ID', key: 'ws_id', width: 15 },
+      { header: 'Skate Italia Card', key: 'fisr', width: 15 },
+      { header: 'Maglia', key: 'maglia', width: 8 },
+      { header: 'Felpa', key: 'felpa', width: 8 },
+      { header: 'Discipline', key: 'discipline', width: 40 },
+      { header: 'Importo €', key: 'importo', width: 10 },
+      { header: 'Stato Pagamento', key: 'stato_pagamento', width: 15 },
+      { header: 'Metodo', key: 'metodo_pagamento', width: 10 },
+      { header: 'Note', key: 'note_extra', width: 30 },
+      { header: 'Note Admin', key: 'note_admin', width: 30 }
+    ];
+    
+    // Stile header
+    sheetAtleti.getRow(1).font = { bold: true };
+    sheetAtleti.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    iscritti.forEach((isc, idx) => {
+      const note = parseNote(isc.note);
+      // Estrai note extra (tutto ciò che non è nei campi strutturati)
+      let noteExtra = '';
+      if (isc.note) {
+        const parts = isc.note.split(' | ');
+        const extraParts = parts.filter(p => 
+          !p.startsWith('Genere:') && 
+          !p.startsWith('WS ID:') && 
+          !p.startsWith('FISR:') && 
+          !p.startsWith('Maglia:') && 
+          !p.startsWith('Felpa:') &&
+          !p.startsWith('Prove:')
+        );
+        noteExtra = extraParts.join(' | ');
+      }
+      
+      sheetAtleti.addRow({
+        num: idx + 1,
+        cognome: isc.cognome,
+        nome: isc.nome,
+        data_nascita: isc.data_nascita,
+        genere: note.genere,
+        nazionalita: formatNazionalita(isc.nazionalita || note.nazionalita || ''),
+        societa: isc.societa,
+        email: isc.email,
+        telefono: isc.telefono,
+        ws_id: note.wsId,
+        fisr: note.fisr,
+        maglia: note.maglia,
+        felpa: note.felpa || '-',
+        discipline: isc.categoria,
+        importo: calcolaTotaleIscrizioneExcel(isc),
+        stato_pagamento: getStatoPagamento(isc),
+        metodo_pagamento: getMetodoPagamento(isc),
+        note_extra: noteExtra,
+        note_admin: isc.note_admin || ''
+      });
+    });
+    
+    // ========== FOGLI PER DISCIPLINA/CATEGORIA/GENERE ==========
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump'];
+    const categorie = ['U15', 'U19', 'SENIOR'];
+    const generi = [{ code: 'M', name: 'Maschi' }, { code: 'F', name: 'Femmine' }];
+    
+    for (const disc of discipline) {
+      for (const cat of categorie) {
+        for (const gen of generi) {
+          // Filtra atleti per questa combinazione
+          const atleti = iscritti.filter(isc => {
+            const note = parseNote(isc.note);
+            const discipline = parseDiscipline(isc.categoria);
+            const hasDisc = discipline.some(d => d.nome === disc && d.categoria === cat);
+            return hasDisc && note.genere === gen.code;
+          });
+          
+          if (atleti.length === 0) continue; // Salta fogli vuoti
+          
+          // Raccogli nazionalità per riepilogo
+          const nazionalitaSet = new Set();
+          atleti.forEach(a => {
+            const naz = a.nazionalita || parseNote(a.note).nazionalita || 'N/D';
+            if (naz && naz !== 'N/D') nazionalitaSet.add(naz);
+          });
+          riepilogoData.push({
+            disciplina: disc,
+            categoria: cat,
+            genere: gen.name,
+            numPartecipanti: atleti.length,
+            nazionalita: Array.from(nazionalitaSet).sort()
+          });
+          
+          // Nome foglio max 31 caratteri
+          let sheetName = `${disc.replace(' Slalom', '').replace(' ', '')} ${cat} ${gen.code}`;
+          if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
+          
+          const sheet = workbook.addWorksheet(sheetName);
+          sheet.columns = [
+            { header: 'N°', key: 'num', width: 5 },
+            { header: 'Cognome', key: 'cognome', width: 18 },
+            { header: 'Nome', key: 'nome', width: 15 },
+            { header: 'Data Nascita', key: 'data_nascita', width: 12 },
+            { header: 'Nazionalità', key: 'nazionalita', width: 12 },
+            { header: 'Società', key: 'societa', width: 25 },
+            { header: 'World Skate ID', key: 'ws_id', width: 15 },
+            { header: 'Skate Italia Card', key: 'fisr', width: 15 }
+          ];
+          
+          // Stile header
+          sheet.getRow(1).font = { bold: true };
+          sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+          
+          // Titolo
+          sheet.insertRow(1, [`${disc} - ${cat} - ${gen.name}`]);
+          sheet.getRow(1).font = { bold: true, size: 14 };
+          sheet.mergeCells('A1:H1');
+          
+          atleti.forEach((isc, idx) => {
+            const note = parseNote(isc.note);
+            sheet.addRow({
+              num: idx + 1,
+              cognome: isc.cognome,
+              nome: isc.nome,
+              data_nascita: isc.data_nascita,
+              nazionalita: formatNazionalita(isc.nazionalita || note.nazionalita || ''),
+              societa: isc.societa,
+              ws_id: note.wsId,
+              fisr: note.fisr
+            });
+          });
+          
+          // Riga totale
+          sheet.addRow([]);
+          sheet.addRow([`Totale iscritti: ${atleti.length}`]);
+        }
+      }
+    }
+    
+    // ========== FOGLIO PAIR SLALOM (Categoria Unica) ==========
+    const pairAtleti = iscritti.filter(isc => {
+      return isc.categoria && isc.categoria.includes('Pair Slalom');
+    });
+    
+    if (pairAtleti.length > 0) {
+      const sheetPair = workbook.addWorksheet('Pair Slalom');
+      sheetPair.columns = [
+        { header: 'N°', key: 'num', width: 5 },
+        { header: 'Atleta 1 - Cognome', key: 'cognome1', width: 18 },
+        { header: 'Atleta 1 - Nome', key: 'nome1', width: 15 },
+        { header: 'Atleta 1 - Società', key: 'societa1', width: 20 },
+        { header: 'Atleta 1 - WS ID', key: 'ws_id1', width: 15 },
+        { header: 'Atleta 2 - Cognome', key: 'cognome2', width: 18 },
+        { header: 'Atleta 2 - Nome', key: 'nome2', width: 15 },
+        { header: 'Atleta 2 - Società', key: 'societa2', width: 20 },
+        { header: 'Atleta 2 - WS ID', key: 'ws_id2', width: 15 },
+        { header: 'Note (Compagno indicato)', key: 'note', width: 35 }
+      ];
+      
+      // Stile header
+      sheetPair.getRow(1).font = { bold: true };
+      sheetPair.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+      
+      // Titolo
+      sheetPair.insertRow(1, ['PAIR SLALOM - Categoria Unica']);
+      sheetPair.getRow(1).font = { bold: true, size: 14 };
+      sheetPair.mergeCells('A1:J1');
+      
+      // Cerca di abbinare le coppie
+      const usati = new Set();
+      let numCoppia = 0;
+      
+      // Funzione per cercare il compagno nelle note (chi ho indicato io)
+      function cercaCompagnoIndicato(note, nome, cognome) {
+        if (!note) return null;
+        const noteLower = note.toLowerCase();
+        // Cerca tra tutti gli altri atleti pair
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
+          const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+          if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+              noteLower.includes(altro.cognome.toLowerCase())) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Funzione per cercare chi mi ha indicato come compagno
+      function cercaChiMiHaIndicato(nome, cognome) {
+        const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+        const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+        const mioCognome = cognome.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const altroNote = (altro.note || '').toLowerCase();
+          if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+              altroNote.includes(mioCognome)) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      for (const isc of pairAtleti) {
+        if (usati.has(isc.id)) continue;
+        
+        const note = parseNote(isc.note);
+        // Estrai note extra per il compagno
+        let noteExtra = '';
+        if (isc.note) {
+          const parts = isc.note.split(' | ');
+          const extraParts = parts.filter(p => 
+            !p.startsWith('Genere:') && 
+            !p.startsWith('WS ID:') && 
+            !p.startsWith('FISR:') && 
+            !p.startsWith('Maglia:') && 
+            !p.startsWith('Felpa:') &&
+            !p.startsWith('Prove:') &&
+            !p.startsWith('Nazionalità:') &&
+            !p.startsWith('Compagno Pair:')
+          );
+          noteExtra = extraParts.join(' | ');
+        }
+        
+        // Cerca il compagno: prima chi ho indicato, poi chi mi ha indicato
+        let compagno = cercaCompagnoIndicato(isc.note, isc.nome, isc.cognome);
+        if (!compagno || usati.has(compagno.id)) {
+          // Se non ho indicato nessuno o il mio indicato è già usato, cerca chi mi ha indicato
+          compagno = cercaChiMiHaIndicato(isc.nome, isc.cognome);
+        }
+        
+        numCoppia++;
+        usati.add(isc.id);
+        
+        if (compagno && !usati.has(compagno.id)) {
+          // Coppia trovata!
+          usati.add(compagno.id);
+          const noteCompagno = parseNote(compagno.note);
+          
+          sheetPair.addRow({
+            num: numCoppia,
+            cognome1: isc.cognome,
+            nome1: isc.nome,
+            societa1: isc.societa,
+            ws_id1: note.wsId,
+            cognome2: compagno.cognome,
+            nome2: compagno.nome,
+            societa2: compagno.societa,
+            ws_id2: noteCompagno.wsId,
+            note: noteExtra
+          });
+        } else {
+          // Compagno non trovato, mostra solo atleta 1
+          sheetPair.addRow({
+            num: numCoppia,
+            cognome1: isc.cognome,
+            nome1: isc.nome,
+            societa1: isc.societa,
+            ws_id1: note.wsId,
+            cognome2: '???',
+            nome2: '???',
+            societa2: '',
+            ws_id2: '',
+            note: noteExtra || '⚠️ Compagno non indicato o non trovato'
+          });
+        }
+      }
+      
+      // Riga totale
+      sheetPair.addRow([]);
+      sheetPair.addRow([`Totale coppie: ${numCoppia}`]);
+      
+      // Aggiungi Pair Slalom al riepilogo
+      const nazPair = new Set();
+      pairAtleti.forEach(a => {
+        const naz = a.nazionalita || parseNote(a.note).nazionalita || 'N/D';
+        if (naz && naz !== 'N/D') nazPair.add(naz);
+      });
+      riepilogoData.push({
+        disciplina: 'Pair Slalom',
+        categoria: 'UNICA',
+        genere: 'Misto',
+        numPartecipanti: pairAtleti.length,
+        nazionalita: Array.from(nazPair).sort()
+      });
+    }
+    
+    // ========== POPOLA FOGLIO RIEPILOGO ==========
+    // Intestazione
+    sheetRiepilogo.mergeCells('A1:E1');
+    sheetRiepilogo.getCell('A1').value = 'BUSTO BATTLE XI - RIEPILOGO GARA';
+    sheetRiepilogo.getCell('A1').font = { bold: true, size: 16 };
+    sheetRiepilogo.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    sheetRiepilogo.getRow(3).values = ['Disciplina', 'Categoria', 'Genere', 'N° Partecipanti', 'Nazionalità rappresentate'];
+    sheetRiepilogo.getRow(3).font = { bold: true };
+    sheetRiepilogo.getRow(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+    
+    sheetRiepilogo.columns = [
+      { key: 'disciplina', width: 18 },
+      { key: 'categoria', width: 12 },
+      { key: 'genere', width: 12 },
+      { key: 'numPartecipanti', width: 15 },
+      { key: 'nazionalita', width: 50 }
+    ];
+    
+    let totalePartecipanti = 0;
+    const tutteNazionalita = new Set();
+    
+    riepilogoData.forEach(r => {
+      sheetRiepilogo.addRow({
+        disciplina: r.disciplina,
+        categoria: r.categoria,
+        genere: r.genere,
+        numPartecipanti: r.numPartecipanti,
+        nazionalita: r.nazionalita.join(', ')
+      });
+      totalePartecipanti += r.numPartecipanti;
+      r.nazionalita.forEach(n => tutteNazionalita.add(n));
+    });
+    
+    // Righe totali
+    sheetRiepilogo.addRow([]);
+    const rowTotale = sheetRiepilogo.addRow(['TOTALE ISCRIZIONI', '', '', totalePartecipanti, '']);
+    rowTotale.font = { bold: true };
+    rowTotale.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+    
+    sheetRiepilogo.addRow([]);
+    sheetRiepilogo.addRow(['TOTALE ATLETI UNICI:', '', '', iscritti.length, '']);
+    sheetRiepilogo.addRow(['NAZIONALITÀ TOTALI:', '', '', tutteNazionalita.size, Array.from(tutteNazionalita).sort().join(', ')]);
+    
+    // Genera e invia file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.xlsx');
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Excel export error:', err);
+    res.status(500).json({ error: 'Errore generazione Excel: ' + err.message });
+  }
+});
+
+// --- EXPORT PDF ISCRITTI ---
+app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Mappatura ISO 2 → ISO 3 lettere
+    const ISO2_TO_ISO3 = {
+      'IT': 'ITA', 'AL': 'ALB', 'AD': 'AND', 'AT': 'AUT', 'BE': 'BEL', 'BY': 'BLR', 'BA': 'BIH',
+      'BG': 'BGR', 'CY': 'CYP', 'HR': 'HRV', 'DK': 'DNK', 'EE': 'EST', 'FI': 'FIN', 'FR': 'FRA',
+      'DE': 'DEU', 'GR': 'GRC', 'IE': 'IRL', 'IS': 'ISL', 'XK': 'XKX', 'LV': 'LVA', 'LI': 'LIE',
+      'LT': 'LTU', 'LU': 'LUX', 'MK': 'MKD', 'MT': 'MLT', 'MD': 'MDA', 'MC': 'MCO', 'ME': 'MNE',
+      'NO': 'NOR', 'NL': 'NLD', 'PL': 'POL', 'PT': 'PRT', 'GB': 'GBR', 'CZ': 'CZE', 'RO': 'ROU',
+      'RU': 'RUS', 'SM': 'SMR', 'RS': 'SRB', 'SK': 'SVK', 'SI': 'SVN', 'ES': 'ESP', 'SE': 'SWE',
+      'CH': 'CHE', 'UA': 'UKR', 'HU': 'HUN', 'SA': 'SAU', 'BH': 'BHR', 'AE': 'ARE', 'JO': 'JOR',
+      'IR': 'IRN', 'IL': 'ISR', 'KW': 'KWT', 'LB': 'LBN', 'OM': 'OMN', 'QA': 'QAT', 'TR': 'TUR',
+      'YE': 'YEM', 'CN': 'CHN', 'KR': 'KOR', 'JP': 'JPN', 'IN': 'IND', 'PH': 'PHL', 'TH': 'THA',
+      'VN': 'VNM', 'MY': 'MYS', 'SG': 'SGP', 'ID': 'IDN', 'TW': 'TWN', 'HK': 'HKG', 'US': 'USA',
+      'CA': 'CAN', 'MX': 'MEX', 'BR': 'BRA', 'AR': 'ARG', 'CL': 'CHL', 'CO': 'COL', 'PE': 'PER',
+      'VE': 'VEN', 'EC': 'ECU', 'UY': 'URY', 'PY': 'PRY', 'BO': 'BOL', 'AU': 'AUS', 'NZ': 'NZL',
+      'EG': 'EGY', 'ZA': 'ZAF', 'MA': 'MAR', 'TN': 'TUN', 'NG': 'NGA', 'KE': 'KEN', 'GH': 'GHA'
+    };
+    
+    function toISO3(code) {
+      if (!code) return '';
+      return ISO2_TO_ISO3[code.toUpperCase()] || code.toUpperCase();
+    }
+    
+    // Funzione per disegnare bandiera + codice ISO3
+    function drawFlag(doc, code, x, y, width) {
+      if (!code) return;
+      const iso3 = toISO3(code);
+      const flagPath = path.join(__dirname, 'public', 'flags', `${iso3}.png`);
+      
+      if (fs.existsSync(flagPath)) {
+        try {
+          doc.image(flagPath, x, y - 2, { height: 10 });
+          doc.text(iso3, x + 16, y, { width: width - 16, align: 'left' });
+        } catch (e) {
+          doc.text(iso3, x, y, { width: width, align: 'left' });
+        }
+      } else {
+        doc.text(iso3, x, y, { width: width, align: 'left' });
+      }
+    }
+    
+    // Traccia bandiere mancanti
+    const missingFlags = new Set();
+    
+    function parseNote(note) {
+      const result = { genere: '', nazionalita: '', wsId: '', fisr: '', maglia: '', felpa: '' };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Genere:')) result.genere = p.replace('Genere:', '').trim();
+        else if (p.startsWith('Nazionalità:')) result.nazionalita = p.replace('Nazionalità:', '').trim();
+        else if (p.startsWith('WS ID:')) result.wsId = p.replace('WS ID:', '').trim();
+        else if (p.startsWith('FISR:')) result.fisr = p.replace('FISR:', '').trim();
+      }
+      return result;
+    }
+    
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
+    // Crea PDF - layout verticale (portrait)
+    const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 40, bufferPages: true });
+    
+    // Registra font con supporto caratteri speciali (polacco, etc.)
+    const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+    const fontBoldPath = path.join(__dirname, 'fonts', 'NotoSans-Bold.ttf');
+    if (fs.existsSync(fontPath) && fs.existsSync(fontBoldPath)) {
+      doc.registerFont('NotoSans', fontPath);
+      doc.registerFont('NotoSans-Bold', fontBoldPath);
+    }
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_Iscritti.pdf');
+    
+    doc.pipe(res);
+    
+    // Path immagini intestazione
+    const headerPath = path.join(__dirname, 'public', 'Header.png');
+    const footerPath = path.join(__dirname, 'public', 'footer.png');
+    const hasHeader = fs.existsSync(headerPath);
+    const hasFooter = fs.existsSync(footerPath);
+    
+    // Funzione per disegnare header e footer su una pagina
+    // Header: 1337x270 -> scalato a 595pt larghezza = ~120pt altezza
+    // Footer: 1331x237 -> scalato a 595pt larghezza = ~106pt altezza
+    function drawPageHeaderFooter() {
+      if (hasHeader) {
+        doc.image(headerPath, 0, 0, { width: 595 }); // A4 width = 595pt
+      }
+      if (hasFooter) {
+        doc.image(footerPath, 0, 735, { width: 595 }); // 842 - 107 = 735
+      }
+    }
+    
+    // ========== PAGINA 1: TUTTI GLI ATLETI ==========
+    // Header/Footer
+    drawPageHeaderFooter();
+    
+    doc.y = hasHeader ? 125 : 40; // Inizia sotto l'header (~120pt)
+    doc.fontSize(16).font('NotoSans-Bold').text('Elenco Completo Iscritti', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(9).font('NotoSans').text(`Generato il: ${new Date().toLocaleDateString('it-IT')} - Totale iscritti: ${iscritti.length}`, { align: 'center' });
+    doc.moveDown(0.5);
+    
+    // Header tabella - Naz come prima colonna
+    const startX = 40;
+    let y = doc.y;
+    const colWidths = [35, 85, 65, 22, 160, 120];
+    const headers = ['Naz', 'Cognome', 'Nome', 'Gen', 'Discipline', 'WS ID / FISR'];
+    
+    doc.fontSize(8).font('NotoSans-Bold');
+    let x = startX;
+    headers.forEach((h, i) => {
+      doc.text(h, x, y, { width: colWidths[i], align: 'left' });
+      x += colWidths[i];
+    });
+    
+    y += 14;
+    doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
+    y += 5;
+    
+    // Righe - font più piccolo
+    doc.font('NotoSans').fontSize(7);
+    
+    const maxY = hasFooter ? 720 : 780; // Lascia spazio per footer
+    
+    iscritti.forEach((isc, idx) => {
+      // Nuova pagina se necessario
+      if (y > maxY) {
+        doc.addPage();
+        drawPageHeaderFooter();
+        y = hasHeader ? 125 : 40;
+        // Ripeti header tabella
+        doc.fontSize(8).font('NotoSans-Bold');
+        x = startX;
+        headers.forEach((h, i) => {
+          doc.text(h, x, y, { width: colWidths[i], align: 'left' });
+          x += colWidths[i];
+        });
+        y += 14;
+        doc.moveTo(startX, y).lineTo(startX + colWidths.reduce((a, b) => a + b, 0), y).stroke();
+        y += 5;
+        doc.font('NotoSans').fontSize(7);
+      }
+      
+      const note = parseNote(isc.note);
+      const nazCode = isc.nazionalita || note.nazionalita;
+      const naz = toISO3(nazCode);
+      
+      // Traccia bandiere mancanti
+      if (nazCode) {
+        const flagPath = path.join(__dirname, 'public', 'flags', `${naz}.png`);
+        if (!fs.existsSync(flagPath)) {
+          missingFlags.add(naz);
+        }
+      }
+      
+      x = startX;
+      // Nazionalità con bandiera (PRIMA COLONNA)
+      drawFlag(doc, nazCode, x, y, colWidths[0]);
+      x += colWidths[0];
+      // Cognome
+      doc.text(isc.cognome || '', x, y, { width: colWidths[1], align: 'left' });
+      x += colWidths[1];
+      // Nome
+      doc.text(isc.nome || '', x, y, { width: colWidths[2], align: 'left' });
+      x += colWidths[2];
+      // Genere
+      doc.text(note.genere || '', x, y, { width: colWidths[3], align: 'left' });
+      x += colWidths[3];
+      // Discipline - abbrevia nomi (rimuovi "Slalom")
+      const discAbbrev = (isc.categoria || '')
+        .replace(/Speed Slalom/g, 'Speed')
+        .replace(/Classic Slalom/g, 'Classic')
+        .replace(/Pair Slalom/g, 'Pair')
+        .replace(/\s*\([^)]+\)/g, '');
+      doc.text(discAbbrev.substring(0, 40), x, y, { width: colWidths[4], align: 'left' });
+      x += colWidths[4];
+      // WS ID (o FISR se vuoto)
+      doc.fontSize(8);
+      doc.text(note.wsId || note.fisr || '', x, y, { width: colWidths[5], align: 'left' });
+      doc.fontSize(7);
+      
+      y += 11;
+    });
+    
+    // Traccia info pagina per footer
+    const pageInfo = [];
+    pageInfo.push({ start: 0, label: 'Elenco Completo Iscritti' });
+    
+    // ========== PAGINE PER DISCIPLINA + CATEGORIA ==========
+    const discipline = ['Speed Slalom', 'Classic Slalom', 'Battle', 'Slides', 'Free Jump'];
+    const categorie = ['U15', 'U19', 'SENIOR', 'UNICA'];
+    const generi = [{ code: 'M', name: 'Men' }, { code: 'F', name: 'Women' }];
+    
+    for (const disc of discipline) {
+      for (const cat of categorie) {
+        // Filtra atleti per questa disciplina e categoria
+        const atletiCat = iscritti.filter(isc => {
+          const discipline = parseDiscipline(isc.categoria);
+          return discipline.some(d => d.nome === disc && d.categoria === cat);
+        });
+        
+        if (atletiCat.length === 0) continue;
+        
+        // Nuova pagina per ogni disciplina + categoria
+        doc.addPage();
+        drawPageHeaderFooter();
+        const currentPageStart = doc.bufferedPageRange().count - 1;
+        const sectionLabel = `${disc} - ${cat}`;
+        pageInfo.push({ start: currentPageStart, label: sectionLabel });
+        
+        doc.y = hasHeader ? 125 : 40;
+        doc.fontSize(18).font('NotoSans-Bold').text(disc.toUpperCase(), { align: 'center' });
+        doc.fontSize(14).font('NotoSans').text(cat, { align: 'center' });
+        doc.fontSize(10).text(`${atletiCat.length} iscritti`, { align: 'center' });
+        doc.moveDown(0.8);
+        
+        // Dividi per genere
+        for (const gen of generi) {
+          const atleti = atletiCat.filter(isc => {
+            const note = parseNote(isc.note);
+            return note.genere === gen.code;
+          });
+          
+          if (atleti.length === 0) continue;
+          
+          // Titolo genere - allineato a sinistra con posizione X esplicita
+          doc.fontSize(11).font('NotoSans-Bold').text(`${gen.name} (${atleti.length})`, startX, doc.y, { underline: true });
+          doc.moveDown(0.3);
+          
+          // Header mini-tabella - Naz come prima colonna
+          y = doc.y;
+          const miniColWidths = [40, 110, 90, 170];
+          const miniHeaders = ['Naz', 'Cognome', 'Nome', 'WS ID / FISR'];
+          
+          doc.fontSize(8).font('NotoSans-Bold');
+          x = startX;
+          miniHeaders.forEach((h, i) => {
+            doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
+            x += miniColWidths[i];
+          });
+          y += 12;
+          doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
+          y += 4;
+          
+          doc.font('NotoSans').fontSize(8);
+          
+          atleti.forEach((isc) => {
+            if (y > maxY) {
+              doc.addPage();
+              drawPageHeaderFooter();
+              y = hasHeader ? 125 : 40;
+              // Solo header tabella
+              doc.fontSize(8).font('NotoSans-Bold');
+              x = startX;
+              miniHeaders.forEach((h, i) => {
+                doc.text(h, x, y, { width: miniColWidths[i], align: 'left' });
+                x += miniColWidths[i];
+              });
+              y += 12;
+              doc.moveTo(startX, y).lineTo(startX + miniColWidths.reduce((a, b) => a + b, 0), y).stroke();
+              y += 4;
+              doc.font('NotoSans').fontSize(8);
+            }
+            
+            const note = parseNote(isc.note);
+            const nazCode = isc.nazionalita || note.nazionalita;
+            
+            x = startX;
+            // Nazionalità con bandiera (PRIMA COLONNA)
+            drawFlag(doc, nazCode, x, y, miniColWidths[0]);
+            x += miniColWidths[0];
+            // Cognome
+            doc.text(isc.cognome || '', x, y, { width: miniColWidths[1], align: 'left' });
+            x += miniColWidths[1];
+            // Nome
+            doc.text(isc.nome || '', x, y, { width: miniColWidths[2], align: 'left' });
+            x += miniColWidths[2];
+            // WS ID (o FISR se vuoto)
+            doc.text(note.wsId || note.fisr || '', x, y, { width: miniColWidths[3], align: 'left' });
+            
+            y += 11;
+          });
+          
+          doc.moveDown(0.8);
+          y = doc.y;
+        }
+      }
+    }
+    
+    // ========== PAIR SLALOM - COPPIE ==========
+    const pairAtleti = iscritti.filter(isc => isc.categoria && isc.categoria.includes('Pair Slalom'));
+    
+    if (pairAtleti.length > 0) {
+      // Funzione per cercare il compagno nelle note (chi ho indicato io)
+      function cercaCompagnoIndicato(note, nome, cognome) {
+        if (!note) return null;
+        const noteLower = note.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const nomeCompleto = `${altro.nome} ${altro.cognome}`.toLowerCase();
+          const cognomeNome = `${altro.cognome} ${altro.nome}`.toLowerCase();
+          if (noteLower.includes(nomeCompleto) || noteLower.includes(cognomeNome) ||
+              noteLower.includes(altro.cognome.toLowerCase())) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Funzione per cercare chi mi ha indicato come compagno
+      function cercaChiMiHaIndicato(nome, cognome) {
+        const mioNomeCompleto = `${nome} ${cognome}`.toLowerCase();
+        const mioCognomeNome = `${cognome} ${nome}`.toLowerCase();
+        const mioCognome = cognome.toLowerCase();
+        for (const altro of pairAtleti) {
+          if (altro.nome === nome && altro.cognome === cognome) continue;
+          const altroNote = (altro.note || '').toLowerCase();
+          if (altroNote.includes(mioNomeCompleto) || altroNote.includes(mioCognomeNome) ||
+              altroNote.includes(mioCognome)) {
+            return altro;
+          }
+        }
+        return null;
+      }
+      
+      // Costruisci coppie
+      const usati = new Set();
+      const coppie = [];
+      
+      for (const isc of pairAtleti) {
+        if (usati.has(isc.id)) continue;
+        
+        // Cerca il compagno: prima chi ho indicato, poi chi mi ha indicato
+        let compagno = cercaCompagnoIndicato(isc.note, isc.nome, isc.cognome);
+        if (!compagno || usati.has(compagno.id)) {
+          compagno = cercaChiMiHaIndicato(isc.nome, isc.cognome);
+        }
+        
+        usati.add(isc.id);
+        
+        if (compagno && !usati.has(compagno.id)) {
+          usati.add(compagno.id);
+          coppie.push({ atleta1: isc, atleta2: compagno });
+        } else {
+          coppie.push({ atleta1: isc, atleta2: null });
+        }
+      }
+      
+      // Nuova pagina per Pair Slalom
+      doc.addPage();
+      drawPageHeaderFooter();
+      const pairPageStart = doc.bufferedPageRange().count - 1;
+      pageInfo.push({ start: pairPageStart, label: 'Pair Slalom' });
+      
+      doc.y = hasHeader ? 125 : 40;
+      doc.fontSize(18).font('NotoSans-Bold').text('PAIR SLALOM', { align: 'center' });
+      doc.fontSize(14).font('NotoSans').text('UNICA', { align: 'center' });
+      doc.fontSize(10).text(`${coppie.length} coppie`, { align: 'center' });
+      doc.moveDown(0.8);
+      
+      // Header per coppie
+      y = doc.y;
+      const pairColWidths = [35, 100, 35, 100, 150];
+      const pairHeaders = ['Naz', 'Atleta 1', 'Naz', 'Atleta 2', 'WS ID / FISR'];
+      
+      doc.fontSize(8).font('NotoSans-Bold');
+      x = startX;
+      pairHeaders.forEach((h, i) => {
+        doc.text(h, x, y, { width: pairColWidths[i], align: 'left' });
+        x += pairColWidths[i];
+      });
+      y += 12;
+      doc.moveTo(startX, y).lineTo(startX + pairColWidths.reduce((a, b) => a + b, 0), y).stroke();
+      y += 4;
+      
+      doc.font('NotoSans').fontSize(8);
+      
+      for (const coppia of coppie) {
+        if (y > maxY) {
+          doc.addPage();
+          drawPageHeaderFooter();
+          y = hasHeader ? 125 : 40;
+          doc.fontSize(8).font('NotoSans-Bold');
+          x = startX;
+          pairHeaders.forEach((h, i) => {
+            doc.text(h, x, y, { width: pairColWidths[i], align: 'left' });
+            x += pairColWidths[i];
+          });
+          y += 12;
+          doc.moveTo(startX, y).lineTo(startX + pairColWidths.reduce((a, b) => a + b, 0), y).stroke();
+          y += 4;
+          doc.font('NotoSans').fontSize(8);
+        }
+        
+        const note1 = parseNote(coppia.atleta1.note);
+        const naz1 = coppia.atleta1.nazionalita || note1.nazionalita;
+        
+        x = startX;
+        // Naz 1
+        drawFlag(doc, naz1, x, y, pairColWidths[0]);
+        x += pairColWidths[0];
+        // Atleta 1
+        doc.text(`${coppia.atleta1.cognome} ${coppia.atleta1.nome}`, x, y, { width: pairColWidths[1], align: 'left' });
+        x += pairColWidths[1];
+        
+        if (coppia.atleta2) {
+          const note2 = parseNote(coppia.atleta2.note);
+          const naz2 = coppia.atleta2.nazionalita || note2.nazionalita;
+          // Naz 2
+          drawFlag(doc, naz2, x, y, pairColWidths[2]);
+          x += pairColWidths[2];
+          // Atleta 2
+          doc.text(`${coppia.atleta2.cognome} ${coppia.atleta2.nome}`, x, y, { width: pairColWidths[3], align: 'left' });
+          x += pairColWidths[3];
+          // WS ID (del primo atleta)
+          doc.text(note1.wsId || note1.fisr || '', x, y, { width: pairColWidths[4], align: 'left' });
+        } else {
+          // Naz 2 vuota
+          x += pairColWidths[2];
+          // Atleta 2
+          doc.text('(compagno non trovato)', x, y, { width: pairColWidths[3], align: 'left' });
+          x += pairColWidths[3];
+          doc.text(note1.wsId || note1.fisr || '', x, y, { width: pairColWidths[4], align: 'left' });
+        }
+        
+        y += 11;
+      }
+    }
+    
+    // Aggiungi numeri di pagina e footer a tutte le pagine
+    const totalPages = doc.bufferedPageRange().count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+      
+      // Trova il label per questa pagina
+      let label = 'Elenco Completo Iscritti';
+      for (let j = pageInfo.length - 1; j >= 0; j--) {
+        if (i >= pageInfo[j].start) {
+          label = pageInfo[j].label;
+          break;
+        }
+      }
+      
+      doc.fontSize(7).font('NotoSans').text(
+        `${label} - ${i + 1} di ${totalPages}`,
+        40, 800,
+        { align: 'center', width: 515 }
+      );
+    }
+    
+    // Log bandiere mancanti
+    if (missingFlags.size > 0) {
+      console.log('Bandiere mancanti:', Array.from(missingFlags).join(', '));
+    }
+    
+    doc.end();
+    
+  } catch (err) {
+    console.error('PDF export error:', err);
+    res.status(500).json({ error: 'Errore generazione PDF: ' + err.message });
+  }
+});
+
+// --- AUTH API ---
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const rows = await dbAll('SELECT * FROM users WHERE username=?', [username]);
+    const user = rows[0];
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Credenziali non valide' });
+    }
+    req.session.user = { id: user.id, username: user.username, role: user.role };
+    res.json({ ok: true, username: user.username, role: user.role });
+  } catch (err) {
+    console.error('Errore login:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ ok: true });
+});
+
+app.get('/api/me', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Non autenticato' });
+  res.json(req.session.user);
+});
+
+// Cambio password admin
+app.post('/api/admin/change-password', requireAdmin, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Vecchia e nuova password richieste' });
+    }
+    
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'La nuova password deve essere almeno 8 caratteri' });
+    }
+    
+    // Verifica la vecchia password
+    const rows = await dbAll('SELECT * FROM users WHERE username=?', [req.session.user.username]);
+    const user = rows[0];
+    
+    if (!user || !bcrypt.compareSync(oldPassword, user.password)) {
+      return res.status(401).json({ error: 'Password attuale non corretta' });
+    }
+    
+    // Aggiorna con la nuova password
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    await dbRun('UPDATE users SET password=? WHERE username=?', [newHash, req.session.user.username]);
+    
+    console.log('Password admin aggiornata per:', req.session.user.username);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore cambio password:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Middleware protezione admin
+function requireAdmin(req, res, next) {
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Accesso negato' });
+  }
+  next();
+}
+
+// Protezione pagina admin
+app.get('/admin.html', (req, res, next) => {
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.redirect('/login.html');
+  }
+  next();
+});
+
+// --- PAGE SETTINGS API ---
+app.get('/api/pages', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM page_settings');
+    res.json(rows);
+  } catch (err) {
+    console.error('Errore GET pages:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/pages/:page', requireAdmin, async (req, res) => {
+  try {
+    const { enabled, visible } = req.body;
+    if (enabled !== undefined) {
+      await dbRun('UPDATE page_settings SET enabled=? WHERE page=?', [enabled ? 1 : 0, req.params.page]);
+    }
+    if (visible !== undefined) {
+      await dbRun('UPDATE page_settings SET visible=? WHERE page=?', [visible ? 1 : 0, req.params.page]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore PUT pages:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SIMULAZIONE UTENTE ---
+app.post('/api/admin/simulate', requireAdmin, async (req, res) => {
+  try {
+    const { iscritto_id } = req.body;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [+iscritto_id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    req.session.simulating = iscritto;
+    res.json({ ok: true, iscritto });
+  } catch (err) {
+    console.error('Errore simulate:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/stop-simulate', requireAdmin, (req, res) => {
+  delete req.session.simulating;
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/simulating', requireAdmin, (req, res) => {
+  res.json({ simulating: req.session.simulating || null });
+});
+
+// Endpoint temporaneo per aggiungere iscritto test
+app.get('/api/add-test-user', async (req, res) => {
+  try {
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, stato)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Test', 'Utente', '1990-01-01', 'Speed Slalom', 'Test Club', 'amicocatoblepa78@gmail.com', '3331234567', 'confermata']);
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    res.json({ ok: true, id, codice, email: 'amicocatoblepa78@gmail.com' });
+  } catch (err) {
+    console.error('Errore add-test-user:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/iscritti', async (req, res) => {
+  try {
+    const { nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, prove, paymentMethod, stato, nazionalita } = req.body;
+    
+    // Validazione età minima (nati dal 2016 o prima)
+    if (data_nascita) {
+      const annoNascita = parseInt(data_nascita.split('-')[0]);
+      if (annoNascita > 2016) {
+        return res.status(400).json({ error: 'Gli atleti devono essere nati nel 2016 o prima (età minima U15)' });
+      }
+    }
+    
+    // Estrai World Skate ID e Skate Italia Card dal campo note
+    let worldSkateId = null;
+    let skateItaliaCard = null;
+    if (note) {
+      const wsMatch = note.match(/WS ID:\s*(\S+)/i);
+      const fisrMatch = note.match(/FISR:\s*(\S+)/i);
+      if (wsMatch) worldSkateId = wsMatch[1];
+      if (fisrMatch) skateItaliaCard = fisrMatch[1];
+    }
+    
+    // Controllo duplicati per World Skate ID
+    if (worldSkateId) {
+      const existingWS = await dbAll("SELECT id, nome, cognome FROM iscritti WHERE note LIKE ?", [`%WS ID: ${worldSkateId}%`]);
+      if (existingWS.length > 0) {
+        return res.status(400).json({ 
+          error: `World Skate ID "${worldSkateId}" già registrato per ${existingWS[0].nome} ${existingWS[0].cognome}`,
+          errorEn: `World Skate ID "${worldSkateId}" already registered for ${existingWS[0].nome} ${existingWS[0].cognome}`
+        });
+      }
+    }
+    
+    // Controllo duplicati per Skate Italia Card
+    if (skateItaliaCard) {
+      const existingFISR = await dbAll("SELECT id, nome, cognome FROM iscritti WHERE note LIKE ?", [`%FISR: ${skateItaliaCard}%`]);
+      if (existingFISR.length > 0) {
+        return res.status(400).json({ 
+          error: `Skate Italia Card "${skateItaliaCard}" già registrata per ${existingFISR[0].nome} ${existingFISR[0].cognome}`,
+          errorEn: `Skate Italia Card "${skateItaliaCard}" already registered for ${existingFISR[0].nome} ${existingFISR[0].cognome}`
+        });
+      }
+    }
+    
+    const id = await dbInsert(`INSERT INTO iscritti (nome, cognome, data_nascita, categoria, societa, email, telefono, navetta, navetta_dettagli, note, metodo_pagamento, stato, nazionalita)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, note || null, paymentMethod || 'bonifico', stato || 'sospesa', nazionalita || null]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Nuovo iscritto:', { id, codice, nome, cognome, paymentMethod });
+    
+    // Salva prenotazioni prove pista
+    if (prove && prove.length > 0) {
+      const proveCodice = 'PRV-' + codice;
+      for (const p of prove) {
+        // Supporta sia formato vecchio (stringa) che nuovo (oggetto {ora, giorno, specialita})
+        let ora, giorno, specialita;
+        if (typeof p === 'string') {
+          ora = p;
+          giorno = null;
+          specialita = null;
+        } else {
+          ora = p.ora;
+          giorno = p.giorno || null;
+          specialita = p.specialita || null;
+        }
+        const noteProva = specialita ? `${ora}: ${specialita}` : null;
+        await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, origine, iscrizione_codice, note) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+          [nome, cognome, email || null, telefono || null, ora, giorno, proveCodice, 'sospesa', 'iscrizione', codice, noteProva]);
+      }
+      console.log('Prove prenotate:', { codice: proveCodice, sessioni: prove });
+    }
+    
+    // Invio email di conferma SOLO per bonifico (non per pagamento online)
+    // Per pagamento online, l'email parte dopo il completamento del pagamento Stripe
+    if (email && paymentMethod !== 'online') {
+      const discipline = categoria ? categoria.split(', ') : [];
+      const totale = discipline.length * 40;
+      // Usa sendStatusEmail con stato 'sospesa' che usa Brevo API
+      sendStatusEmail(email, { nome, cognome, codice, categoria, stato: 'sospesa' }).catch(console.error);
+    }
+    res.json({ id, codice });
+  } catch (err) {
+    console.error('Errore POST iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per aggiungere testo alle note senza cancellare
+app.post('/api/iscritti/:id/append-note', requireAdmin, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Testo mancante' });
+    
+    const rows = await dbAll('SELECT note FROM iscritti WHERE id=?', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    const noteAttuali = rows[0].note || '';
+    const nuoveNote = noteAttuali ? `${noteAttuali} | ${text}` : text;
+    
+    await dbRun('UPDATE iscritti SET note=? WHERE id=?', [nuoveNote, req.params.id]);
+    res.json({ ok: true, note: nuoveNote });
+  } catch (err) {
+    console.error('Errore append note:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint one-time per accoppiare le sorelle Ditta
+app.get('/api/fix-ditta-sisters', requireAdmin, async (req, res) => {
+  try {
+    // Adele Ditta (154) -> aggiungi Vittoria Ditta
+    const adele = await dbAll('SELECT note FROM iscritti WHERE id=154');
+    if (adele.length > 0) {
+      const noteAdele = adele[0].note || '';
+      if (!noteAdele.toLowerCase().includes('vittoria')) {
+        await dbRun('UPDATE iscritti SET note=? WHERE id=154', [noteAdele + ' | Compagno Pair: Vittoria Ditta']);
+      }
+    }
+    
+    // Vittoria Ditta (155) -> aggiungi Adele Ditta
+    const vittoria = await dbAll('SELECT note FROM iscritti WHERE id=155');
+    if (vittoria.length > 0) {
+      const noteVittoria = vittoria[0].note || '';
+      if (!noteVittoria.toLowerCase().includes('adele')) {
+        await dbRun('UPDATE iscritti SET note=? WHERE id=155', [noteVittoria + ' | Compagno Pair: Adele Ditta']);
+      }
+    }
+    
+    res.json({ ok: true, message: 'Sorelle Ditta accoppiate!' });
+  } catch (err) {
+    console.error('Errore fix Ditta:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/iscritti/:id', async (req, res) => {
+  try {
+    const { nome, cognome, data_nascita, categoria, societa, nazionalita, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
+    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, nazionalita=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=? WHERE id=?`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, nazionalita || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore PUT iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/iscritti/:id', async (req, res) => {
+  try {
+    const id = +req.params.id;
+    // Prima ottieni il codice per cancellare le prove e merch associate
+    const rows = await dbAll('SELECT id FROM iscritti WHERE id=?', [id]);
+    if (rows.length) {
+      const codice = 'BB11-' + String(id).padStart(4, '0');
+      const proveCodice = 'PRV-' + codice;
+      // Cancella le prenotazioni prove associate (sia per codice che per iscrizione_codice)
+      await dbRun('DELETE FROM prove_prenotazioni WHERE codice=? OR iscrizione_codice=?', [proveCodice, codice]);
+      console.log('Cancellate prove associate:', proveCodice, codice);
+      // Cancella anche merch associato
+      const merchRows = await dbAll('SELECT id FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+      for (const m of merchRows) {
+        await dbRun('DELETE FROM merch_items WHERE ordine_id=?', [m.id]);
+      }
+      await dbRun('DELETE FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+      console.log('Cancellato merch associato:', codice);
+    }
+    // Poi cancella l'iscritto
+    await dbRun('DELETE FROM iscritti WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore DELETE iscritti:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Conferma pagamento tramite codice (chiamato dopo ritorno da Stripe)
+app.post('/api/iscritti/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    // Estrai ID dal codice (es. BB11-0101 -> 101)
+    const match = codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    await dbRun('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
+    console.log('Pagamento Stripe confermato per iscritto:', { codice, id });
+    
+    // Invia email conferma
+    if (iscritto && iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma pagamento:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload ricevuta bonifico
+const uploadRicevute = multer({
+  storage: multer.memoryStorage(), // Usa memoria invece di disco
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
+});
+
+app.post('/api/iscritti/upload-ricevuta', uploadRicevute.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    if (!req.file) return res.status(400).json({ error: 'File ricevuta mancante' });
+    
+    const match = codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+    
+    // Salva file come base64 nel database (per evitare problemi filesystem Render)
+    const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const filename = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    
+    // Aggiorna stato a "verifica" e salva ricevuta come base64
+    await dbRun('UPDATE iscritti SET stato=?, ricevuta_bonifico=?, ricevuta_base64=? WHERE id=?', ['verifica', filename, base64Data, id]);
+    console.log('Ricevuta caricata:', { codice, id, filename });
+    
+    // Invia email conferma ricezione
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'verifica' }).catch(console.error);
+    }
+    
+    res.json({ ok: true, stato: 'verifica' });
+  } catch (err) {
+    console.error('Errore upload ricevuta:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ottieni stato iscrizione per codice (pubblico)
+app.get('/api/iscritti/stato/:codice', async (req, res) => {
+  try {
+    const match = req.params.codice.match(/BB11-(\d+)/);
+    if (!match) return res.status(400).json({ error: 'Codice non valido' });
+    
+    const id = parseInt(match[1]);
+    const rows = await dbAll('SELECT id, nome, cognome, stato, pagamento, ricevuta_bonifico FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscrizione non trovata' });
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    res.json({ ...iscritto, codice });
+  } catch (err) {
+    console.error('Errore stato iscrizione:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Visualizza ricevuta (admin)
+app.get('/api/iscritti/:id/ricevuta', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT ricevuta_base64, ricevuta_bonifico FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto || !iscritto.ricevuta_base64) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    // Estrai mimetype e dati dal base64
+    const matches = iscritto.ricevuta_base64.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(500).json({ error: 'Formato ricevuta non valido' });
+    }
+    
+    const mimetype = matches[1];
+    const data = Buffer.from(matches[2], 'base64');
+    
+    res.setHeader('Content-Type', mimetype);
+    res.setHeader('Content-Disposition', `inline; filename="${iscritto.ricevuta_bonifico || 'ricevuta'}"`);
+    res.send(data);
+  } catch (err) {
+    console.error('Errore ricevuta:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: conferma pagamento bonifico
+app.post('/api/iscritti/:id/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    await dbRun('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Bonifico confermato da admin:', { codice, id });
+    
+    // Conferma automaticamente le prove pista collegate
+    const proveCodice = 'PRV-' + codice;
+    const proveCollegate = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=? OR iscrizione_codice=?', [proveCodice, codice]);
+    if (proveCollegate.length > 0) {
+      await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=? OR iscrizione_codice=?', ['confermata', proveCodice, codice]);
+      console.log('Prove pista confermate automaticamente:', { proveCodice, count: proveCollegate.length });
+    }
+    
+    // Conferma automaticamente il merch collegato all'iscrizione
+    const merchCollegate = await dbAll('SELECT * FROM merch_ordini WHERE iscrizione_codice=?', [codice]);
+    if (merchCollegate.length > 0) {
+      await dbRun('UPDATE merch_ordini SET stato=? WHERE iscrizione_codice=?', ['confermata', codice]);
+      console.log('Merch confermato automaticamente:', { codice, count: merchCollegate.length });
+    }
+    
+    // Invia email conferma
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'confermata' }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma bonifico:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: rigetta ricevuta bonifico
+app.post('/api/iscritti/:id/rigetta-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const { motivo } = req.body;
+    
+    if (!motivo || !motivo.trim()) {
+      return res.status(400).json({ error: 'Motivo del rigetto obbligatorio' });
+    }
+    
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    // Resetta stato a sospesa e rimuovi ricevuta per permettere nuovo upload
+    await dbRun('UPDATE iscritti SET stato=?, ricevuta_bonifico=NULL, ricevuta_base64=NULL WHERE id=?', ['sospesa', id]);
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    console.log('Ricevuta rigettata da admin:', { codice, id, motivo });
+    
+    // Invia email rigetto
+    if (iscritto.email) {
+      sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'rigettata', motivo }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore rigetto bonifico:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: invia sollecito singolo iscrizione per richiedere ricevuta
+app.post('/api/iscritti/:id/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const id = +req.params.id;
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [id]);
+    const iscritto = rows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    if (!iscritto.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const codice = 'BB11-' + String(id).padStart(4, '0');
+    await sendStatusEmail(iscritto.email, { ...iscritto, codice, stato: 'sollecito' });
+    
+    console.log('Sollecito iscrizione inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito iscrizione:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: unifica tutte le iscrizioni Pair Slalom a categoria UNICA
+app.post('/api/admin/unifica-pair-slalom', requireAdmin, async (req, res) => {
+  try {
+    // Trova tutte le iscrizioni con Pair Slalom che non hanno già UNICA
+    const iscritti = await dbAll('SELECT id, categoria FROM iscritti WHERE categoria LIKE ?', ['%Pair Slalom%']);
+    
+    let modificati = 0;
+    for (const iscritto of iscritti) {
+      // Sostituisci "Pair Slalom (U15)" o "Pair Slalom (U19)" o "Pair Slalom (SENIOR)" con "Pair Slalom (UNICA)"
+      const nuovaCategoria = iscritto.categoria.replace(/Pair Slalom \((U15|U19|SENIOR)\)/gi, 'Pair Slalom (UNICA)');
+      
+      if (nuovaCategoria !== iscritto.categoria) {
+        await dbRun('UPDATE iscritti SET categoria=? WHERE id=?', [nuovaCategoria, iscritto.id]);
+        modificati++;
+        console.log(`Pair Slalom unificato per iscritto #${iscritto.id}: "${iscritto.categoria}" -> "${nuovaCategoria}"`);
+      }
+    }
+    
+    res.json({ ok: true, modificati, totale: iscritti.length });
+  } catch (err) {
+    console.error('Errore unifica pair slalom:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Funzione per inviare email di stato
+async function sendStatusEmail(to, data) {
+  const { nome, cognome, codice, stato, categoria } = data;
+  
+  // Header comune con logo (senza sottotitolo)
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+    </div>
+  `;
+  
+  // Footer comune bilingue con sponsor
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 Busto Arsizio (VA), Italy</p>
+      
+      <div style="margin:20px 0;padding:15px 0;border-top:1px solid #333">
+        <p style="color:#666;margin:0 0 10px;font-size:11px;font-family:Arial,sans-serif">SPONSORS</p>
+        <a href="https://www.fr-skates.com" target="_blank" style="display:inline-block;margin:0 15px">
+          <img src="https://bb2026.onrender.com/Fr.webp" alt="FR Skates" style="height:50px">
+        </a>
+        <a href="https://www.tmc.it" target="_blank" style="display:inline-block;margin:0 15px">
+          <img src="https://bb2026.onrender.com/tmc.png" alt="TMC" style="height:40px;filter:invert(1)">
+        </a>
+      </div>
+      
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = `Busto Battle XI - Iscrizione Sospesa / Registration Pending - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🕐 Iscrizione Sospesa / Registration Pending</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è stata registrata con successo!<br><em style="color:#888">Your registration has been recorded successfully!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline / Disciplines:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare l'iscrizione / To complete registration:</h3>
+          
+          <p><strong>1. Effettua il bonifico bancario / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> ${codice} - ${nome} ${cognome}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta del bonifico / Upload the transfer receipt:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Dopo aver caricato la ricevuta, verificheremo il pagamento e riceverai la conferma via email.<br><em>After uploading the receipt, we will verify the payment and send you a confirmation email.</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'verifica') {
+    subject = `Busto Battle XI - Iscrizione in Verifica / Under Review - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 Iscrizione in Verifica / Under Review</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per la tua iscrizione.<br><em style="color:#888">We have received the bank transfer receipt for your registration.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#1e3a5f;border:1px solid #3b82f6;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#3b82f6">⏳ Verifica in corso / Verification in progress</strong><br>
+              <span style="color:#888;font-size:14px">Il nostro team verificherà il pagamento entro 2-3 giorni lavorativi.<br><em>Our team will verify the payment within 2-3 business days.</em></span>
+            </p>
+          </div>
+          
+          <p>Riceverai una email di conferma non appena completata la verifica.<br><em style="color:#888">You will receive a confirmation email as soon as the verification is complete.</em></p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Grazie per la pazienza! / Thank you for your patience!</p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'confermata') {
+    subject = `Busto Battle XI - Iscrizione Confermata / Registration Confirmed! - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ Iscrizione Confermata / Registration Confirmed!</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è stata <strong style="color:#22c55e">confermata</strong>!<br><em style="color:#888">Your registration has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline / Disciplines:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:20px;color:#22c55e">🎉 Ci vediamo a Busto Arsizio! / See you in Busto Arsizio!</p>
+            <p style="margin:10px 0 0;color:#888">📅 13-15 Novembre / November 2026</p>
+          </div>
+          
+          ${(categoria && (categoria.includes('Classic Slalom') || categoria.includes('Pair Slalom'))) ? `
+          <div style="background:#2d1f3d;border:2px solid #9333ea;padding:20px;border-radius:6px;margin:20px 0">
+            <h3 style="color:#9333ea;margin:0 0 15px">🎵 Invia la tua musica / Send your music</h3>
+            <p style="margin:0;color:#f0f0f0">Se sei iscritto a <strong>Classic Slalom</strong> o <strong>Pair Slalom</strong>, invia il file musicale a:<br><em style="color:#888">If you registered for <strong>Classic Slalom</strong> or <strong>Pair Slalom</strong>, send your music file to:</em></p>
+            <p style="margin:15px 0;text-align:center">
+              <a href="mailto:bustobattle@gmail.com?subject=Musica ${codice} - ${nome} ${cognome}" style="background:#9333ea;color:#fff;padding:12px 25px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📧 bustobattle@gmail.com</a>
+            </p>
+            <p style="margin:0;color:#888;font-size:13px">📝 Oggetto / Subject: <strong style="color:#ccc">"Musica - ${nome} ${cognome}"</strong></p>
+          </div>
+          ` : ''}
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🚆 Come Arrivare / How to Get Here</h3>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0;color:#ccc;font-size:13px"><strong>Da Malpensa:</strong> Malpensa Express → Busto Arsizio FN (~15 min)</p>
+            <p style="margin:5px 0 0;color:#ccc;font-size:13px"><strong>Da Milano Cadorna/Centrale:</strong> Treno FN → Busto Arsizio FN (~35 min)</p>
+            <p style="margin:8px 0 0;color:#888;font-size:12px"><em>From Malpensa: Malpensa Express → Busto Arsizio FN (~15 min)<br>From Milan Cadorna/Centrale: FN train → Busto Arsizio FN (~35 min)</em></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">📍 Luoghi della Gara / Competition Venues</h3>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:15px 0">
+            <p style="margin:0 0 5px"><strong style="color:#F7AF40">PalaCastiglioni</strong> - Speed Slalom • Classic Slalom • Battle • Slides • Pair Slalom • Free Jump</p>
+            <p style="margin:0;color:#888;font-size:12px">🚶 200m dalla Stazione FN e dagli hotel / 200m from FN Station and hotels</p>
+            <p style="margin:5px 0 0"><a href="https://share.google/6E1klmiKIJL51MLUg" style="color:#F7AF40;font-size:12px">📍 Google Maps →</a></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🏨 Hotel Convenzionati / Partner Hotels</h3>
+          <p style="color:#888;font-size:12px;margin-bottom:10px">200m dalla Stazione FN e ~500m dal PalaCastiglioni</p>
+          
+          <div style="background:#222;padding:12px;border-radius:6px;margin:10px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Hotel Ristorante Mazzini</strong> - 📍 Piazza Manzoni 1</p>
+            <p style="margin:5px 0 0;color:#ccc;font-size:12px">Singola €50 | Doppia €70 | Tripla €90</p>
+            <p style="margin:5px 0 0;font-size:12px">📞 0331 631715 | 💬 <a href="https://wa.me/393299835000" style="color:#25D366">WhatsApp</a></p>
+          </div>
+          <div style="background:#222;padding:12px;border-radius:6px;margin:10px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Tower Hotel</strong> <span style="color:#888;font-size:12px">- Dettagli in arrivo / Coming soon</span></p>
+          </div>
+          <p style="color:#888;font-size:12px;margin:8px 0">💡 Indica "Busto Battle XI" per la convenzione / Mention "Busto Battle XI" for special rate</p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🍽️ Cena Atleti / Athletes Dinner</h3>
+          <p style="color:#ccc;font-size:13px"><strong>Ristorante Albergo Mazzini</strong> - 📍 Piazza Manzoni 1</p>
+          <p style="color:#ccc;font-size:13px">13-14 Novembre | Menu completo: <strong style="color:#F7AF40">€18</strong></p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px;margin-top:30px">🔗 Link Utili / Useful Links</h3>
+          <p style="text-align:center;margin:15px 0">
+            <a href="https://bb2026.onrender.com/programma.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">📅 Programma / Schedule</a>
+            <a href="https://bb2026.onrender.com/travel.html" style="background:#F7AF40;color:#000;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin:5px;font-size:13px">✈️ Travel Info</a>
+          </p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'sollecito') {
+    subject = `Busto Battle XI - Promemoria Iscrizione / Registration Reminder - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA ISCRIZIONE</h2>
+            <p style="margin:5px 0 0;font-size:14px">Registration Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua iscrizione è ancora in attesa di conferma!<br><em style="color:#888">Your registration is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Discipline / Disciplines:</strong> ${categoria || 'N/D'}</p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare l'iscrizione:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> ${codice} - ${nome} ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'rigettata') {
+    const motivo = data.motivo || 'Motivo non specificato';
+    subject = `Busto Battle XI - Ricevuta Non Valida / Invalid Receipt - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Ricevuta Non Valida / Invalid Receipt</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta del bonifico che hai caricato per la tua iscrizione <strong style="color:#ef4444">non è stata accettata</strong>.<br><em style="color:#888">The bank transfer receipt you uploaded for your registration <strong style="color:#ef4444">has not been accepted</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice iscrizione / Registration code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#3d1515;border:2px solid #ef4444;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444;font-weight:bold">📋 Motivo / Reason:</p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivo}</p>
+          </div>
+          
+          <p>Per completare l'iscrizione, carica una nuova ricevuta valida:<br><em style="color:#888">To complete your registration, please upload a new valid receipt:</em></p>
+          
+          <p style="text-align:center;margin:25px 0">
+            <a href="https://bb2026.onrender.com/carica-ricevuta.html?codice=${codice}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Se hai domande, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a><br><em>If you have questions, contact us at bustobattle@gmail.com</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  }
+  
+  if (!subject) return;
+  
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
+}
+
+// Funzione per inviare email prove pista via Brevo API
+async function sendProveEmail(to, data) {
+  const { nome, cognome, codice, stato, sessioni, totale, giorno, motivo } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">Prove Pista / Track Practice</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  const sessioniList = sessioni ? sessioni.map(s => '<li>' + s + '</li>').join('') : '';
+  const sessioniText = sessioni ? sessioni.join(', ') : '';
+  const linkRicevuta = 'https://bustobattle.com/carica-ricevuta-prove.html?codice=' + codice;
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = 'Busto Battle XI - Prova Pista in Attesa / Track Practice Pending - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🕐 Prenotazione in Attesa / Booking Pending</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata registrata!<br><em style="color:#888">Your track practice booking has been registered!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
+          
+          <p><strong>1. Effettua il bonifico / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta / Upload the receipt:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong>📍 Luogo / Venue:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'verifica') {
+    subject = 'Busto Battle XI - Prova Pista in Verifica / Under Review - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 In Verifica / Under Review</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per la tua prenotazione prove pista.<br><em style="color:#888">We have received the bank transfer receipt for your track practice booking.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#1e3a5f;border:1px solid #3b82f6;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#3b82f6">⏳ Verifica in corso / Verification in progress</strong><br>
+              <span style="color:#888;font-size:14px">Verificheremo il pagamento entro 2-3 giorni lavorativi.<br><em>We will verify the payment within 2-3 business days.</em></span>
+            </p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'confermata') {
+    subject = 'Busto Battle XI - Prova Pista Confermata / Track Practice Confirmed! - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ Prenotazione Confermata / Booking Confirmed!</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata <strong style="color:#22c55e">confermata</strong>!<br><em style="color:#888">Your track practice booking has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#22c55e"><strong>Totale pagato / Total paid: €${totale}</strong></p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:20px;color:#22c55e">🎉 Ci vediamo in pista! / See you on the track!</p>
+          </div>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong>📍 Luogo / Venue:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'sollecito') {
+    subject = 'Busto Battle XI - Promemoria Prove Pista / Track Practice Reminder - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA PRENOTAZIONE</h2>
+            <p style="margin:5px 0 0;font-size:14px">Booking Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è ancora in attesa di conferma!<br><em style="color:#888">Your track practice booking is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Slot prenotati / Booked slots:</strong></p>
+            <ul style="margin:5px 0">${sessioniList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totale}</strong></p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare la prenotazione:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'rigettata') {
+    const motivoText = motivo || 'Non specificato / Not specified';
+    subject = 'Busto Battle XI - Ricevuta Prove Pista Rifiutata / Receipt Rejected - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Ricevuta Rifiutata / Receipt Rejected</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta caricata per la prenotazione prove pista <strong style="color:#ef4444">non è stata accettata</strong>.<br><em style="color:#888">The receipt you uploaded for your track practice booking <strong style="color:#ef4444">has not been accepted</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+          </div>
+          
+          <div style="background:#3d1515;border:2px solid #ef4444;padding:20px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444;font-weight:bold">📋 Motivo / Reason:</p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivoText}</p>
+          </div>
+          
+          <p>Per completare, carica una nuova ricevuta:<br><em style="color:#888">To complete, please upload a new receipt:</em></p>
+          
+          <p style="text-align:center;margin:25px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <h3 style="color:#F7AF40;margin-top:0">💳 Coordinate bancarie / Bank details</h3>
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale:</strong> Prove Pista - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'annullata') {
+    subject = 'Busto Battle XI - Prova Pista Annullata / Booking Cancelled - ' + codice;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ Prenotazione Annullata / Booking Cancelled</h2>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La tua prenotazione prove pista è stata <strong style="color:#ef4444">annullata</strong>.<br><em style="color:#888">Your track practice booking has been <strong style="color:#ef4444">cancelled</strong>.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice / Code:</strong> ${codice}</p>
+            <p style="margin:0"><strong style="color:#F7AF40">Slot:</strong> ${sessioniText}</p>
+          </div>
+          
+          <p style="color:#888;font-size:14px;margin-top:30px">Se ritieni sia un errore, contattaci a <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a><br><em>If you think this is a mistake, contact us at bustobattle@gmail.com</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  }
+  
+  if (!subject) return;
+  
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
+}
+
+// Funzione per inviare email merchandising via Brevo API
+async function sendMerchEmail(to, data) {
+  const { nome, cognome, codice, stato, items, totale, motivo } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛍️ Merchandising</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  // Lista articoli
+  const itemsList = items ? items.map(i => {
+    const taglia = i.taglia ? ` (${i.taglia})` : '';
+    return `<li>${i.quantita}x ${i.articolo}${taglia} - €${(i.prezzo_unitario || 5) * i.quantita}</li>`;
+  }).join('') : '';
+  
+  // Calcola totale se non fornito
+  const totaleCalc = totale || (items ? items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0) : 0);
+  
+  // Link per caricare ricevuta
+  const linkRicevuta = 'https://bb2026.onrender.com/carica-ricevuta-merch.html?codice=' + codice;
+  
+  let subject, html;
+  
+  if (stato === 'sospesa') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ordine in Attesa / Order Pending - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🛍️ ORDINE MERCHANDISING IN ATTESA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Pending</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è stato registrato!<br><em style="color:#888">Your merchandising order has been registered!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
+          
+          <p><strong>1. Effettua il bonifico / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Merch BB11 - ${codice} - ${cognome}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta / Upload the receipt:</strong></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <div style="background:#1a3a1a;border:1px solid #22c55e;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;text-align:center">
+              <strong style="color:#22c55e">📦 Ritiro / Pickup:</strong><br>
+              <span style="color:#888">Il merchandising sarà disponibile per il ritiro durante l'evento.<br><em>Merchandise will be available for pickup during the event.</em></span>
+            </p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'sollecito') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricordati di caricare la ricevuta! / Remember to upload receipt! - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">⏰ PROMEMORIA ORDINE MERCHANDISING</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Reminder</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è ancora in attesa di conferma!<br><em style="color:#888">Your merchandising order is still pending confirmation!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <p>Se hai già effettuato il bonifico, <strong>carica la ricevuta</strong> per confermare l'ordine:</p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+          
+          <p>Se non hai ancora effettuato il bonifico:</p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Merch BB11 - ${codice} - ${cognome}</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'verifica') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricevuta in Verifica / Receipt Under Review - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#3b82f6;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🔍 RICEVUTA IN VERIFICA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Receipt Under Review</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Abbiamo ricevuto la ricevuta del bonifico per il tuo ordine merchandising.<br><em style="color:#888">We have received the bank transfer receipt for your merchandising order.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <p>Il nostro team verificherà il pagamento e riceverai una email di conferma a breve.<br><em style="color:#888">Our team will verify the payment and you will receive a confirmation email shortly.</em></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'confermata') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ordine Confermato / Order Confirmed! - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">✅ ORDINE MERCHANDISING CONFERMATO!</h2>
+            <p style="margin:5px 0 0;font-size:14px">Merchandising Order Confirmed!</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>Il tuo ordine merchandising è stato <strong style="color:#22c55e">confermato</strong>!<br><em style="color:#888">Your merchandising order has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#22c55e"><strong>Totale pagato / Total paid: €${totale}</strong></p>
+          </div>
+          
+          <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+            <p style="margin:0;font-size:18px;color:#22c55e">📦 Ritira il tuo merchandising durante l'evento!</p>
+            <p style="margin:10px 0 0;color:#888">Pick up your merchandise during the event!</p>
+            <p style="margin:15px 0 0;color:#f0f0f0"><strong>📍 PalaCastiglioni</strong> - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  } else if (stato === 'rigettata') {
+    subject = `Busto Battle XI - 🛍️ MERCHANDISING - Ricevuta Rigettata / Receipt Rejected - ${codice}`;
+    html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#ef4444;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">❌ RICEVUTA RIGETTATA</h2>
+            <p style="margin:5px 0 0;font-size:14px">Receipt Rejected</p>
+          </div>
+          
+          <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+          <p>La ricevuta del bonifico per il tuo ordine merchandising è stata rigettata.<br><em style="color:#888">The bank transfer receipt for your merchandising order has been rejected.</em></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+            <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+            <ul style="margin:5px 0">${itemsList}</ul>
+            <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale / Total: €${totaleCalc}</strong></p>
+          </div>
+          
+          <div style="background:#3a1a1a;border:1px solid #ef4444;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0;color:#ef4444"><strong>❌ Motivo del rigetto / Rejection reason:</strong></p>
+            <p style="margin:10px 0 0;color:#f0f0f0">${motivo || 'Non specificato'}</p>
+          </div>
+          
+          <p>Per favore, carica una nuova ricevuta valida:<br><em style="color:#888">Please upload a new valid receipt:</em></p>
+          <p style="text-align:center;margin:20px 0">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:15px 30px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold">📤 Carica Nuova Ricevuta / Upload New Receipt</a>
+          </p>
+          
+          <p>Se hai domande, contattaci a: <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a></p>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+  }
+  
+  if (!html) return;
+  
+  // Usa la funzione helper centralizzata per inviare email
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
+}
+
+// Funzione per inviare email conferma prenotazione merchandising (pagamento sul posto)
+async function sendMerchPrenotazioneEmail(to, data) {
+  const { nome, cognome, codice, items, totale } = data;
+  
+  // Header comune con logo
+  const emailHeader = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+      <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+      <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+      <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">🛍️ Merchandising</p>
+    </div>
+  `;
+  
+  // Footer comune
+  const emailFooter = `
+    <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+      <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+      <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+        <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+        <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+      </p>
+    </div>
+  `;
+  
+  // Lista articoli
+  const itemsList = items.map(i => {
+    const taglia = i.taglia ? ` (${i.taglia})` : '';
+    return `<li>${i.quantita}x ${i.articolo}${taglia} - €${(i.prezzo_unitario || 5) * i.quantita}</li>`;
+  }).join('');
+  
+  const subject = `Busto Battle XI - 🛍️ MERCHANDISING - Prenotazione Confermata / Booking Confirmed - ${codice}`;
+  const html = `
+    <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+      ${emailHeader}
+      <div style="padding:30px;color:#f0f0f0">
+        <div style="background:#22c55e;color:#fff;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+          <h2 style="margin:0">✅ PRENOTAZIONE MERCHANDISING CONFERMATA!</h2>
+          <p style="margin:5px 0 0;font-size:14px">Merchandising Booking Confirmed!</p>
+        </div>
+        
+        <p>Ciao / Hello <strong>${nome} ${cognome}</strong>,</p>
+        <p>La tua prenotazione merchandising è stata <strong style="color:#22c55e">confermata</strong>!<br><em style="color:#888">Your merchandising booking has been <strong style="color:#22c55e">confirmed</strong>!</em></p>
+        
+        <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+          <p style="margin:0 0 10px"><strong style="color:#F7AF40">Codice Ordine / Order Code:</strong> ${codice}</p>
+          <p style="margin:0 0 10px"><strong style="color:#F7AF40">Articoli / Items:</strong></p>
+          <ul style="margin:5px 0">${itemsList}</ul>
+          <p style="margin:10px 0 0;font-size:1.2em;color:#F7AF40"><strong>Totale da pagare al ritiro / Total to pay at pickup: €${totale}</strong></p>
+        </div>
+        
+        <div style="background:#1a3a1a;border:2px solid #22c55e;padding:20px;border-radius:6px;text-align:center;margin:20px 0">
+          <p style="margin:0;font-size:18px;color:#22c55e">📦 Ritira e paga il tuo merchandising durante l'evento!</p>
+          <p style="margin:10px 0 0;color:#888">Pick up and pay for your merchandise during the event!</p>
+          <p style="margin:15px 0 0;color:#f0f0f0"><strong>📍 PalaCastiglioni</strong> - Via Ariosto 3, Busto Arsizio (VA)</p>
+        </div>
+        
+        <div style="background:#332200;border:1px solid #f59e0b;padding:15px;border-radius:6px;margin:20px 0">
+          <p style="margin:0;color:#f59e0b"><strong>💰 Importante / Important:</strong></p>
+          <p style="margin:10px 0 0;color:#f0f0f0">Il pagamento verrà effettuato al momento del ritiro durante l'evento.<br><em style="color:#888">Payment will be made at pickup during the event.</em></p>
+        </div>
+        
+        <p style="color:#888;font-size:0.9rem;text-align:center">Conserva questa email e il codice ordine per il ritiro.<br><em>Keep this email and order code for pickup.</em></p>
+      </div>
+      ${emailFooter}
+    </div>
+  `;
+  
+  await sendBrevoEmail({
+    to: to,
+    toName: `${nome} ${cognome}`,
+    subject: subject,
+    html: html,
+    replyTo: 'bustobattle@gmail.com'
+  });
+}
+
+// Endpoint per inviare email di test (solo per admin)
+app.get('/api/test-email', async (req, res) => {
+  const { to, stato, nome, cognome, motivo, categoria } = req.query;
+  
+  if (!to || !stato) {
+    return res.status(400).json({ error: 'Parametri mancanti: to, stato. Esempio: /api/test-email?to=email@test.com&stato=confermata&nome=Pino&cognome=Pinotto. Per rigettata aggiungere &motivo=... Per testare musica: &categoria=Classic Slalom (SENIOR)' });
+  }
+  
+  // Dati per il test (usa parametri o default)
+  const testData = {
+    nome: nome || 'Mario',
+    cognome: cognome || 'Rossi',
+    codice: 'BB11-TEST',
+    stato: stato,
+    categoria: categoria || 'Speed Slalom (U15), Battle (U19), Classic Slalom (SENIOR)',
+    motivo: motivo || 'Importo non corrispondente'
+  };
+  
+  try {
+    await sendStatusEmail(to, testData);
+    res.json({ ok: true, message: `Email di test (${stato}) inviata a ${to}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- STRIPE CHECKOUT API ---
+app.post('/api/stripe/create-checkout', async (req, res) => {
+  try {
+    const { iscritto_id, totale, descrizione, success_url, cancel_url, from_page } = req.body;
+    
+    console.log('Stripe checkout request:', { iscritto_id, totale, descrizione });
+    
+    if (!iscritto_id || iscritto_id === 0 || !totale || totale <= 0) {
+      return res.status(400).json({ error: 'Dati mancanti', details: { iscritto_id, totale } });
+    }
+
+    // Recupera l'iscritto (usa dbAll per compatibilità PostgreSQL/SQLite)
+    const rows = await dbAll('SELECT * FROM iscritti WHERE id=?', [+iscritto_id]);
+    const iscritto = rows[0];
+    if (!iscritto) {
+      return res.status(404).json({ error: 'Iscritto non trovato' });
+    }
+
+    const codice = 'BB11-' + String(iscritto_id).padStart(4, '0');
+    
+    // Determina la pagina di ritorno (default iscrizioni.html)
+    const returnPage = from_page || 'iscrizioni.html';
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    // Crea sessione Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Iscrizione Busto Battle XI - ${codice}`,
+            description: descrizione || `${iscritto.nome} ${iscritto.cognome} - ${iscritto.categoria || 'N/D'}`,
+          },
+          unit_amount: Math.round(totale * 100), // Stripe usa centesimi
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: success_url || `${baseUrl}/${returnPage}?payment=success&codice=${codice}`,
+      cancel_url: cancel_url || `${baseUrl}/${returnPage}?payment=cancel&codice=${codice}`,
+      metadata: {
+        iscritto_id: String(iscritto_id),
+        codice: codice
+      },
+      customer_email: iscritto.email || undefined,
+    });
+
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Webhook Stripe per confermare pagamento (opzionale, per server sempre attivi)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  if (!endpointSecret) {
+    return res.status(400).send('Webhook secret non configurato');
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const iscritto_id = session.metadata && session.metadata.iscritto_id ? session.metadata.iscritto_id : null;
+    if (iscritto_id) {
+      db.run('UPDATE iscritti SET pagamento=1 WHERE id=?', [+iscritto_id]);
+      save();
+      console.log(`Pagamento confermato per iscritto ${iscritto_id}`);
+      
+      // Conferma automaticamente le prove pista collegate
+      const codice = 'BB11-' + String(iscritto_id).padStart(4, '0');
+      const proveCodice = 'PRV-' + codice;
+      db.run('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', proveCodice]);
+      save();
+      console.log(`Prove pista confermate automaticamente: ${proveCodice}`);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// --- NAVETTA API ---
+app.get('/api/navetta/slots', (req, res) => {
+  res.json(all('SELECT * FROM navetta_slots ORDER BY giorno, ora'));
+});
+
+app.post('/api/navetta/slots', requireAdmin, (req, res) => {
+  const { giorno, ora, partenza, arrivo, posti_max, costo } = req.body;
+  if (!giorno || !ora || !partenza || !arrivo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+  db.run('INSERT INTO navetta_slots (giorno, ora, partenza, arrivo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+    [giorno, ora, partenza, arrivo, posti_max || 8, costo || 2]);
+  save();
+  res.json({ ok: true });
+});
+
+app.put('/api/navetta/slots/:id', requireAdmin, (req, res) => {
+  const { giorno, ora, partenza, arrivo, posti_max, costo } = req.body;
+  db.run('UPDATE navetta_slots SET giorno=?, ora=?, partenza=?, arrivo=?, posti_max=?, costo=? WHERE id=?',
+    [giorno, ora, partenza, arrivo, posti_max, costo, +req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+app.delete('/api/navetta/slots/:id', requireAdmin, (req, res) => {
+  db.run('DELETE FROM navetta_slots WHERE id=?', [+req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+app.get('/api/navetta/config', (req, res) => {
+  const slots = all('SELECT DISTINCT giorno FROM navetta_slots ORDER BY giorno');
+  const ore = all('SELECT DISTINCT ora FROM navetta_slots ORDER BY ora');
+  const first = all('SELECT * FROM navetta_slots LIMIT 1')[0] || {};
+  res.json({
+    giorni: slots.map(s => s.giorno),
+    ore: ore.map(o => o.ora),
+    posti_max: first.posti_max || 8,
+    max_per_prenotazione: 8,
+    costo_persona: first.costo || 2,
+    partenza: first.partenza || '',
+    arrivo: first.arrivo || ''
+  });
+});
+
+app.get('/api/navetta/disponibilita', (req, res) => {
+  const slots = all('SELECT * FROM navetta_slots ORDER BY giorno, ora');
+  const result = {};
+  for (const slot of slots) {
+    if (!result[slot.giorno]) result[slot.giorno] = {};
+    for (const dir of ['andata', 'ritorno']) {
+      const key = `${slot.ora}_${dir}`;
+      const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [slot.giorno, slot.ora, dir]);
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
+      result[slot.giorno][key] = {
+        posti: slot.posti_max - occupati,
+        partenza: dir === 'andata' ? slot.partenza : slot.arrivo,
+        arrivo: dir === 'andata' ? slot.arrivo : slot.partenza
+      };
+    }
+  }
+  res.json(result);
+});
+
+app.post('/api/navetta/prenota', (req, res) => {
+  const { nome, cognome, email, telefono, corse } = req.body;
+  if (!corse || !corse.length) return res.status(400).json({ error: 'Nessuna corsa selezionata' });
+  
+  for (const c of corse) {
+    const slot = all('SELECT * FROM navetta_slots WHERE giorno=? AND ora=?', [c.giorno, c.ora])[0];
+    if (!slot) return res.status(400).json({ error: `Slot ${c.giorno} ${c.ora} non trovato` });
+    
+    if (c.num_persone < 1 || c.num_persone > 8) {
+      return res.status(400).json({ error: 'Max 8 persone per corsa' });
+    }
+    const rows = all('SELECT SUM(num_persone) as tot FROM navetta_prenotazioni WHERE giorno=? AND ora=? AND direzione=?', [c.giorno, c.ora, c.direzione]);
+    const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
+    if (occupati + c.num_persone > slot.posti_max) {
+      return res.status(400).json({ error: `Posti esauriti per ${c.giorno} ${c.ora} ${c.direzione}` });
+    }
+  }
+  
+  const codice = 'NAV-' + Date.now().toString(36).toUpperCase();
+  let totale = 0;
+  for (const c of corse) {
+    const slot = all('SELECT costo FROM navetta_slots WHERE giorno=? AND ora=?', [c.giorno, c.ora])[0];
+    db.run('INSERT INTO navetta_prenotazioni (nome, cognome, email, telefono, giorno, ora, direzione, num_persone, codice) VALUES (?,?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, c.giorno, c.ora, c.direzione, c.num_persone, codice]);
+    totale += c.num_persone * ((slot && slot.costo) ? slot.costo : 2);
+  }
+  save();
+  res.json({ codice, totale });
+});
+
+app.get('/api/navetta/prenotazioni', (req, res) => {
+  res.json(all('SELECT * FROM navetta_prenotazioni ORDER BY giorno, ora, direzione'));
+});
+
+app.delete('/api/navetta/prenotazioni/:codice', (req, res) => {
+  db.run('DELETE FROM navetta_prenotazioni WHERE codice=?', [req.params.codice]);
+  save();
+  res.json({ ok: true });
+});
+
+app.put('/api/navetta/prenotazioni/:id', (req, res) => {
+  const { ora, direzione } = req.body;
+  db.run('UPDATE navetta_prenotazioni SET ora=?, direzione=? WHERE id=?', [ora, direzione, +req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+// --- CONTACT API ---
+app.post('/api/contact', (req, res) => {
+  const { nome, email, oggetto, messaggio } = req.body;
+  if (!nome || !email || !oggetto || !messaggio) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+  sendContactEmail({ nome, email, oggetto, messaggio }).catch(console.error);
+  res.json({ ok: true });
+});
+
+// --- RISULTATI API ---
+app.get('/api/risultati', (req, res) => {
+  res.json(all('SELECT * FROM risultati ORDER BY created_at DESC'));
+});
+
+app.post('/api/risultati', upload.single('pdf'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'File PDF richiesto' });
+  const { titolo, categoria } = req.body;
+  if (!titolo) return res.status(400).json({ error: 'Titolo richiesto' });
+  db.run('INSERT INTO risultati (titolo, filename, categoria) VALUES (?, ?, ?)',
+    [titolo, req.file.filename, categoria || null]);
+  save();
+  // Invia push notification a tutti gli iscritti
+  const subs = all('SELECT * FROM push_subscriptions');
+  const payload = JSON.stringify({
+    title: '🏆 Busto Battle XI',
+    body: `Nuova classifica: ${titolo}`,
+    url: '/risultati.html'
+  });
+  for (const sub of subs) {
+    const pushSub = {
+      endpoint: sub.endpoint,
+      keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+    };
+    webpush.sendNotification(pushSub, payload).catch(err => {
+      if (err.statusCode === 410) {
+        db.run('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
+        save();
+      }
+    });
+  }
+  res.json({ ok: true, filename: req.file.filename });
+});
+
+app.delete('/api/risultati/:id', (req, res) => {
+  const rows = all('SELECT filename FROM risultati WHERE id=?', [+req.params.id]);
+  if (rows.length) {
+    const filepath = path.join(UPLOADS_DIR, rows[0].filename);
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+  }
+  db.run('DELETE FROM risultati WHERE id=?', [+req.params.id]);
+  save();
+  res.json({ ok: true });
+});
+
+// --- MERCHANDISING API ---
+const PREZZI_MERCH = { Felpa: 35, Maglia: 15, Cappellino: 5, Asciugamano: 5 };
+
+app.post('/api/merch/ordina', async (req, res) => {
+  try {
+    const { nome, cognome, email, telefono, items, note, origine, iscrizione_codice } = req.body;
+    if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+    if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
+
+    const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+    const tipoOrigine = origine || 'standalone';
+    const stato = tipoOrigine === 'iscrizione' ? 'sospesa' : 'sospesa'; // Inizialmente sempre sospesa
+    
+    // Inserisci ordine con origine e stato
+    const result = await dbRun(
+      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note, stato, origine, iscrizione_codice) VALUES (?,?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, codice, note || null, stato, tipoOrigine, iscrizione_codice || null]
+    );
+    
+    // Recupera l'ID dell'ordine appena inserito
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [codice]);
+    const ordineId = ordineRows[0]?.id;
+
+    let totale = 0;
+    const itemsWithPrezzi = [];
+    for (const item of items) {
+      const prezzo = PREZZI_MERCH[item.articolo] || 5;
+      await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+        [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
+      totale += prezzo * item.quantita;
+      itemsWithPrezzi.push({ ...item, prezzo_unitario: prezzo });
+    }
+
+    console.log('Nuovo ordine merch:', { codice, nome, cognome, totale, items, origine: tipoOrigine });
+    
+    // Invia email solo per ordini standalone (non da iscrizione)
+    if (email && tipoOrigine === 'standalone') {
+      sendMerchEmail(email, {
+        nome, cognome, codice, stato: 'sospesa',
+        items: itemsWithPrezzi, totale
+      }).catch(console.error);
+    }
+    
+    res.json({ codice, totale, ordineId });
+  } catch (err) {
+    console.error('Errore ordine merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Prenotazione merch (senza pagamento - pagamento sul posto)
+app.post('/api/merch/prenota', async (req, res) => {
+  try {
+    const { nome, cognome, email, telefono, items, note } = req.body;
+    if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+    if (!items || !items.length) return res.status(400).json({ error: 'Seleziona almeno un articolo' });
+
+    const codice = 'MRC-' + Date.now().toString(36).toUpperCase();
+    const stato = 'prenotato'; // Pagamento sarà sul posto
+    
+    // Inserisci ordine con stato prenotato
+    const result = await dbRun(
+      'INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, note, stato, origine) VALUES (?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, codice, note || null, stato, 'standalone']
+    );
+    
+    // Recupera l'ID dell'ordine appena inserito
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [codice]);
+    const ordineId = ordineRows[0]?.id;
+
+    let totale = 0;
+    const itemsWithPrezzi = [];
+    for (const item of items) {
+      const prezzo = PREZZI_MERCH[item.articolo] || 5;
+      await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+        [ordineId, item.articolo, item.taglia || null, item.quantita, prezzo]);
+      totale += prezzo * item.quantita;
+      itemsWithPrezzi.push({ ...item, prezzo_unitario: prezzo });
+    }
+
+    console.log('Nuova prenotazione merch:', { codice, nome, cognome, totale, items });
+    
+    // Invia email di conferma prenotazione
+    if (email) {
+      sendMerchPrenotazioneEmail(email, {
+        nome, cognome, codice,
+        items: itemsWithPrezzi, totale
+      }).catch(console.error);
+    }
+    
+    res.json({ codice, totale, ordineId });
+  } catch (err) {
+    console.error('Errore prenotazione merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/merch/ordini', requireAdmin, async (req, res) => {
+  try {
+    const ordini = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    for (const o of ordini) {
+      o.items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+    }
+    res.json(ordini);
+  } catch (err) {
+    console.error('Errore lista ordini merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/merch/ordini/:codice', requireAdmin, async (req, res) => {
+  try {
+    const ordineRows = await dbAll('SELECT id FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    const ordine = ordineRows[0];
+    if (ordine) {
+      await dbRun('DELETE FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await dbRun('DELETE FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore eliminazione ordine merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ API ORDINI STAMPATI (per tracking stampe fornitore) ============
+
+// GET lista date ordini stampati
+app.get('/api/merch/stampati/date', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT DISTINCT data_ordine FROM merch_stampati ORDER BY data_ordine');
+    res.json(rows.map(r => r.data_ordine));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET dettaglio ordine stampato per data
+app.get('/api/merch/stampati/:data', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM merch_stampati WHERE data_ordine=?', [req.params.data]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST nuovo ordine stampato
+app.post('/api/merch/stampati', requireAdmin, async (req, res) => {
+  try {
+    const { data_ordine, articoli } = req.body;
+    if (!data_ordine || !articoli) return res.status(400).json({ error: 'Data e articoli richiesti' });
+    
+    // Elimina eventuali record esistenti per questa data
+    await dbRun('DELETE FROM merch_stampati WHERE data_ordine=?', [data_ordine]);
+    
+    // Inserisci nuovi record
+    for (const [articolo, quantita] of Object.entries(articoli)) {
+      if (quantita > 0) {
+        await dbRun('INSERT INTO merch_stampati (data_ordine, articolo, quantita) VALUES (?, ?, ?)', 
+          [data_ordine, articolo, quantita]);
+      }
+    }
+    
+    res.json({ success: true, data_ordine });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE ordine stampato per data
+app.delete('/api/merch/stampati/:data', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('DELETE FROM merch_stampati WHERE data_ordine=?', [req.params.data]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export Excel ordini merch - con separazione merch/iscrizioni e riepilogo taglie
+app.get('/api/merch/export', requireAdmin, async (req, res) => {
+  try {
+    // Fetch tutti gli ordini merch
+    const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    
+    // Fetch tutti gli iscritti con merch (maglia/felpa/cappellino/asciugamano)
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Fetch ordini stampati dal database
+    const stampatiRows = await dbAll('SELECT * FROM merch_stampati ORDER BY data_ordine');
+    
+    // Raggruppa per data
+    const ORDINI_STAMPATI = [];
+    const dateMap = {};
+    for (const row of stampatiRows) {
+      if (!dateMap[row.data_ordine]) {
+        dateMap[row.data_ordine] = { data: row.data_ordine, articoli: {} };
+        ORDINI_STAMPATI.push(dateMap[row.data_ordine]);
+      }
+      dateMap[row.data_ordine].articoli[row.articolo] = row.quantita;
+    }
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    
+    // Helper per parsing note iscritti
+    function parseNote(note) {
+      const result = { maglia: '', felpa: '', cappellino: false, asciugamano: false };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+        else if (p.toLowerCase().includes('cappellino')) result.cappellino = true;
+        else if (p.toLowerCase().includes('asciugamano')) result.asciugamano = true;
+      }
+      return result;
+    }
+    
+    // ========== FOGLIO 1: ORDINI DA MERCH ==========
+    const sheetMerch = workbook.addWorksheet('Ordini Merch');
+    sheetMerch.columns = [
+      { header: 'Codice', key: 'codice', width: 15 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'Articoli', key: 'articoli', width: 45 },
+      { header: 'Totale €', key: 'totale', width: 10 },
+      { header: 'Stato', key: 'stato', width: 12 },
+      { header: 'Note', key: 'note', width: 20 },
+      { header: 'Data', key: 'data', width: 12 }
+    ];
+    sheetMerch.getRow(1).font = { bold: true };
+    sheetMerch.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    for (const o of ordiniMerch) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      const articoliStr = items.map(i => {
+        const taglia = i.taglia ? ` (${i.taglia})` : '';
+        return `${i.quantita}x ${i.articolo}${taglia}`;
+      }).join(', ');
+      
+      const totale = items.reduce((sum, i) => {
+        const prezzi = { Felpa: 35, Maglia: 15, Cappellino: 5, Asciugamano: 5 };
+        return sum + (prezzi[i.articolo] || 5) * (i.quantita || 1);
+      }, 0);
+      
+      sheetMerch.addRow({
+        codice: o.codice,
+        cognome: o.cognome,
+        nome: o.nome,
+        email: o.email || '',
+        telefono: o.telefono || '',
+        articoli: articoliStr,
+        totale: totale,
+        stato: o.stato || 'sospeso',
+        note: o.note || '',
+        data: o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : ''
+      });
+    }
+    
+    // ========== FOGLIO 2: ORDINI DA ISCRIZIONI ==========
+    const sheetIscr = workbook.addWorksheet('Ordini Iscrizioni');
+    sheetIscr.columns = [
+      { header: 'Cognome', key: 'cognome', width: 18 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Maglia', key: 'maglia', width: 15 },
+      { header: 'Felpa', key: 'felpa', width: 15 },
+      { header: 'Cappellino', key: 'cappellino', width: 12 },
+      { header: 'Asciugamano', key: 'asciugamano', width: 12 },
+      { header: 'Pagamento', key: 'pagamento', width: 12 }
+    ];
+    sheetIscr.getRow(1).font = { bold: true };
+    sheetIscr.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+    
+    for (const isc of iscritti) {
+      const note = parseNote(isc.note);
+      // Solo se ha almeno un articolo merch
+      if (note.maglia || note.felpa || note.cappellino || note.asciugamano) {
+        sheetIscr.addRow({
+          cognome: isc.cognome,
+          nome: isc.nome,
+          email: isc.email || '',
+          maglia: note.maglia || '',
+          felpa: note.felpa || '',
+          cappellino: note.cappellino ? 'Sì' : '',
+          asciugamano: note.asciugamano ? 'Sì' : '',
+          pagamento: isc.stato === 'confermata' ? 'Confermato' : (isc.stato || 'Sospeso')
+        });
+      }
+    }
+    
+    // ========== FOGLIO 3: RIEPILOGO TAGLIE ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo Taglie');
+    
+    // Struttura per conteggio
+    const conteggio = {
+      // Maglie
+      'Maglia XS Uomo': 0, 'Maglia S Uomo': 0, 'Maglia M Uomo': 0, 'Maglia L Uomo': 0, 'Maglia XL Uomo': 0,
+      'Maglia XXL Uomo': 0, 'Maglia 3XL Uomo': 0, 'Maglia 4XL Uomo': 0, 'Maglia 5XL Uomo': 0,
+      'Maglia XS Donna': 0, 'Maglia S Donna': 0, 'Maglia M Donna': 0, 'Maglia L Donna': 0, 'Maglia XL Donna': 0,
+      'Maglia XXL Donna': 0, 'Maglia 3XL Donna': 0,
+      // Felpe
+      'Felpa XS Uomo': 0, 'Felpa S Uomo': 0, 'Felpa M Uomo': 0, 'Felpa L Uomo': 0, 'Felpa XL Uomo': 0,
+      'Felpa XXL Uomo': 0, 'Felpa 3XL Uomo': 0,
+      'Felpa XS Donna': 0, 'Felpa S Donna': 0, 'Felpa M Donna': 0, 'Felpa L Donna': 0, 'Felpa XL Donna': 0,
+      'Felpa XXL Donna': 0,
+      // Accessori
+      'Cappellino': 0,
+      'Asciugamano': 0
+    };
+    
+    // Conta da iscrizioni
+    for (const isc of iscritti) {
+      const note = parseNote(isc.note);
+      if (note.maglia) {
+        const key = 'Maglia ' + note.maglia;
+        if (conteggio[key] !== undefined) conteggio[key]++;
+      }
+      if (note.felpa) {
+        const key = 'Felpa ' + note.felpa;
+        if (conteggio[key] !== undefined) conteggio[key]++;
+      }
+      if (note.cappellino) conteggio['Cappellino']++;
+      if (note.asciugamano) conteggio['Asciugamano']++;
+    }
+    
+    // Conta da ordini merch
+    for (const o of ordiniMerch) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
+      for (const item of items) {
+        if (item.articolo === 'Maglia' && item.taglia) {
+          const key = 'Maglia ' + item.taglia;
+          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
+        } else if (item.articolo === 'Felpa' && item.taglia) {
+          const key = 'Felpa ' + item.taglia;
+          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
+        } else if (item.articolo === 'Cappellino') {
+          conteggio['Cappellino'] += (item.quantita || 1);
+        } else if (item.articolo === 'Asciugamano') {
+          conteggio['Asciugamano'] += (item.quantita || 1);
+        }
+      }
+    }
+    
+    // Colonne riepilogo dinamiche basate su ORDINI_STAMPATI
+    const columns = [
+      { header: 'Articolo', key: 'articolo', width: 22 },
+      { header: 'Totale Ordinati', key: 'totale', width: 15 }
+    ];
+    
+    // Aggiungi una colonna per ogni ordine stampato
+    ORDINI_STAMPATI.forEach((ordine, idx) => {
+      columns.push({ header: `Stampati ${ordine.data}`, key: `stamp${idx}`, width: 16 });
+    });
+    
+    columns.push({ header: 'DA ORDINARE', key: 'daOrdinare', width: 15 });
+    sheetRiepilogo.columns = columns;
+    
+    sheetRiepilogo.getRow(1).font = { bold: true };
+    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6366F1' } };
+    
+    // Ordine logico degli articoli
+    const ordineArticoli = [
+      // Maglie Uomo
+      'Maglia XS Uomo', 'Maglia S Uomo', 'Maglia M Uomo', 'Maglia L Uomo', 'Maglia XL Uomo',
+      'Maglia XXL Uomo', 'Maglia 3XL Uomo', 'Maglia 4XL Uomo', 'Maglia 5XL Uomo',
+      // Maglie Donna
+      'Maglia XS Donna', 'Maglia S Donna', 'Maglia M Donna', 'Maglia L Donna', 'Maglia XL Donna',
+      'Maglia XXL Donna', 'Maglia 3XL Donna',
+      // Felpe Uomo
+      'Felpa XS Uomo', 'Felpa S Uomo', 'Felpa M Uomo', 'Felpa L Uomo', 'Felpa XL Uomo',
+      'Felpa XXL Uomo', 'Felpa 3XL Uomo',
+      // Felpe Donna
+      'Felpa XS Donna', 'Felpa S Donna', 'Felpa M Donna', 'Felpa L Donna', 'Felpa XL Donna',
+      'Felpa XXL Donna',
+      // Accessori
+      'Cappellino',
+      'Asciugamano'
+    ];
+    
+    for (const art of ordineArticoli) {
+      const totale = conteggio[art] || 0;
+      if (totale > 0 || art.includes('Maglia') || art.includes('Felpa')) {
+        const rowData = {
+          articolo: art,
+          totale: totale
+        };
+        
+        // Aggiungi quantità stampate per ogni ordine
+        let totaleStampato = 0;
+        ORDINI_STAMPATI.forEach((ordine, idx) => {
+          const qty = ordine.articoli[art] || 0;
+          rowData[`stamp${idx}`] = qty;
+          totaleStampato += qty;
+        });
+        
+        // Calcola DA ORDINARE
+        rowData.daOrdinare = totale - totaleStampato;
+        
+        const row = sheetRiepilogo.addRow(rowData);
+        
+        // Colora la colonna "DA ORDINARE" in base al valore
+        const daOrdCell = row.getCell('daOrdinare');
+        if (rowData.daOrdinare > 0) {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Giallo
+        } else if (rowData.daOrdinare === 0) {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Verde
+        } else {
+          daOrdCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Rosso (ordinato troppo)
+        }
+        daOrdCell.font = { bold: true };
+      }
+    }
+    
+    // Riga totali
+    const lastRow = sheetRiepilogo.rowCount;
+    sheetRiepilogo.addRow({});
+    const totRowData = {
+      articolo: 'TOTALE',
+      totale: { formula: `SUM(B2:B${lastRow})` }
+    };
+    ORDINI_STAMPATI.forEach((_, idx) => {
+      const col = String.fromCharCode(67 + idx); // C, D, E, ...
+      totRowData[`stamp${idx}`] = { formula: `SUM(${col}2:${col}${lastRow})` };
+    });
+    const lastCol = String.fromCharCode(67 + ORDINI_STAMPATI.length); // Colonna DA ORDINARE
+    totRowData.daOrdinare = { formula: `SUM(${lastCol}2:${lastCol}${lastRow})` };
+    
+    const totRow = sheetRiepilogo.addRow(totRowData);
+    totRow.font = { bold: true };
+    totRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=merchandising_completo.xlsx');
+    await workbook.xlsx.write(res);
+  } catch (err) {
+    console.error('Errore export merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stripe Checkout per merch
+app.post('/api/merch/create-checkout', async (req, res) => {
+  try {
+    const { codice, totale } = req.body;
+    if (!codice || !totale) return res.status(400).json({ error: 'Codice e totale richiesti' });
+    
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    const ordine = ordineRows[0];
+    if (!ordine) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    // Commissioni: 1.65% + €0.25
+    const commissioni = Math.round(totale * 0.0165 * 100) / 100 + 0.25;
+    const totaleConCommissioni = Math.round((totale + commissioni) * 100); // In centesimi
+    
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Merchandising Busto Battle XI - ${codice}`,
+            description: `Ordine ${ordine.nome} ${ordine.cognome}`,
+          },
+          unit_amount: totaleConCommissioni,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${baseUrl}/merch.html?payment=success&codice=${codice}`,
+      cancel_url: `${baseUrl}/merch.html?payment=cancel&codice=${codice}`,
+      metadata: {
+        codice: codice,
+        tipo: 'merch'
+      },
+      customer_email: ordine.email || undefined,
+    });
+    
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe merch error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Conferma pagamento Stripe merch (chiamato dal frontend dopo redirect success)
+app.post('/api/merch/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Pagamento Stripe merch confermato:', codice);
+    
+    // Invia email conferma
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    const ordine = ordineRows[0];
+    if (ordine && ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice,
+        stato: 'confermata',
+        items,
+        totale
+      }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: conferma ordine merch
+app.post('/api/merch/ordini/:codice/conferma', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', req.params.codice]);
+    console.log('Ordine merch confermato da admin:', req.params.codice);
+    
+    // Invia email conferma
+    const ordineRows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    const ordine = ordineRows[0];
+    if (ordine && ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      const totale = items.reduce((sum, i) => sum + (i.prezzo_unitario || 5) * (i.quantita || 1), 0);
+      sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: req.params.codice,
+        stato: 'confermata',
+        items,
+        totale
+      }).catch(console.error);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: aggiorna note_admin ordine merch
+app.put('/api/merch/ordini/:codice/aggiorna', requireAdmin, async (req, res) => {
+  try {
+    const { note_admin } = req.body;
+    await dbRun('UPDATE merch_ordini SET note_admin=? WHERE codice=?', [note_admin || null, req.params.codice]);
+    console.log('Ordine merch aggiornato:', req.params.codice, { note_admin });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore aggiorna merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ottieni singolo ordine merch per codice (pubblico per carica-ricevuta)
+app.get('/api/merch/ordini/:codice', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    const ordine = rows[0];
+    const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+    ordine.items = items;
+    res.json(ordine);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Carica ricevuta bonifico merch
+app.post('/api/merch/ordini/:codice/ricevuta', upload.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
+    
+    const ricevutaBase64 = req.file.buffer.toString('base64');
+    const ricevutaData = `data:${req.file.mimetype};base64,${ricevutaBase64}`;
+    
+    await dbRun('UPDATE merch_ordini SET ricevuta_bonifico=?, stato=? WHERE codice=?', 
+      [ricevutaData, 'verifica', codice]);
+    
+    console.log('Ricevuta merch caricata:', codice);
+    
+    // Invia email stato verifica
+    const ordine = rows[0];
+    if (ordine.email) {
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: codice,
+        stato: 'verifica',
+        items: await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id])
+      });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore caricamento ricevuta merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Visualizza ricevuta merch (admin)
+app.get('/api/merch/ordini/:codice/ricevuta', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT ricevuta_bonifico FROM merch_ordini WHERE codice=?', [req.params.codice]);
+    if (!rows.length || !rows[0].ricevuta_bonifico) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    const data = rows[0].ricevuta_bonifico;
+    const matches = data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Formato ricevuta non valido' });
+    
+    const mimeType = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    res.setHeader('Content-Type', mimeType);
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: conferma bonifico merch (dopo verifica ricevuta)
+app.post('/api/merch/ordini/:codice/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Merch confermato da admin (bonifico):', codice);
+    
+    // Invia email conferma
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (rows.length && rows[0].email) {
+      const ordine = rows[0];
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: codice,
+        stato: 'confermata',
+        items: items
+      });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma bonifico merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: invia sollecito singolo merch per richiedere ricevuta
+app.post('/api/merch/ordini/:codice/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const ordine = rows[0];
+    if (!ordine.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+    await sendMerchEmail(ordine.email, {
+      nome: ordine.nome,
+      cognome: ordine.cognome,
+      codice: ordine.codice,
+      stato: 'sollecito',
+      items: items
+    });
+    
+    console.log('Sollecito merch inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: rigetta ricevuta merch
+app.post('/api/merch/ordini/:codice/rigetta', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { motivo } = req.body;
+    
+    const rows = await dbAll('SELECT * FROM merch_ordini WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Ordine non trovato' });
+    
+    const ordine = rows[0];
+    
+    // Rimuovi ricevuta e torna a sospesa
+    await dbRun('UPDATE merch_ordini SET stato=?, ricevuta_bonifico=NULL WHERE codice=?', ['sospesa', codice]);
+    
+    // Invia email con motivo rigetto
+    if (ordine.email) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [ordine.id]);
+      await sendMerchEmail(ordine.email, {
+        nome: ordine.nome,
+        cognome: ordine.cognome,
+        codice: ordine.codice,
+        stato: 'rigettata',
+        items: items,
+        motivo: motivo
+      });
+    }
+    
+    console.log('Ricevuta merch rigettata:', codice, motivo);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore rigetto ricevuta merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- PROVE PISTA API ---
+app.get('/api/prove/slots', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    // Aggiungi conteggio prenotazioni per ogni slot
+    for (const slot of rows) {
+      const ora = slot.ora_inizio + '-' + slot.ora_fine;
+      const countRes = await dbAll(
+        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
+        [ora, slot.giorno]
+      );
+      slot.prenotati = countRes[0]?.tot || 0;
+    }
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/prove/slots', requireAdmin, async (req, res) => {
+  try {
+    const { giorno, ora_inizio, ora_fine, luogo, posti_max, costo } = req.body;
+    if (!giorno || !ora_inizio || !ora_fine || !luogo) return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+    await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+      [giorno, ora_inizio, ora_fine, luogo, posti_max || 10, costo || 5]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/prove/slots/:id', requireAdmin, async (req, res) => {
+  try {
+    const { posti_max } = req.body;
+    const slotId = +req.params.id;
+    
+    // Recupera lo slot attuale
+    const slotRows = await dbAll('SELECT * FROM prove_slots WHERE id=?', [slotId]);
+    if (!slotRows.length) return res.status(404).json({ error: 'Slot non trovato' });
+    const slot = slotRows[0];
+    
+    // Conta prenotazioni esistenti per questo slot
+    const ora = slot.ora_inizio + '-' + slot.ora_fine;
+    const countRes = await dbAll(
+      'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
+      [ora, slot.giorno]
+    );
+    const prenotati = countRes[0]?.tot || 0;
+    
+    // Non permettere di ridurre sotto le prenotazioni esistenti
+    if (posti_max < prenotati) {
+      return res.status(400).json({ 
+        error: `Non puoi ridurre a ${posti_max} posti, ci sono già ${prenotati} prenotazioni!` 
+      });
+    }
+    
+    await dbRun('UPDATE prove_slots SET posti_max=? WHERE id=?', [posti_max, slotId]);
+    res.json({ ok: true, prenotati });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/prove/slots/:id', requireAdmin, async (req, res) => {
+  try {
+    await dbRun('DELETE FROM prove_slots WHERE id=?', [+req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Aggiorna posti max per tutti gli slot di un giorno
+app.put('/api/prove/slots/giorno/:giorno/posti', requireAdmin, async (req, res) => {
+  try {
+    const { giorno } = req.params;
+    const { posti_max } = req.body;
+    if (!posti_max || posti_max < 1) return res.status(400).json({ error: 'posti_max richiesto' });
+    
+    await dbRun('UPDATE prove_slots SET posti_max=? WHERE giorno=?', [posti_max, giorno]);
+    console.log('Aggiornati posti slot:', { giorno, posti_max });
+    res.json({ ok: true, message: `Posti aggiornati a ${posti_max} per ${giorno}` });
+  } catch (err) {
+    console.error('Errore aggiornamento posti slot:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per forzare reset slot (interno)
+app.post('/api/prove/force-reset', async (req, res) => {
+  try {
+    // Prima elimina tutti gli slot esistenti
+    await dbRun('DELETE FROM prove_slots');
+    // Poi inserisce i nuovi
+    const proveSlots = [
+      ['2026-11-12', '14:00', '14:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '14:30', '15:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:00', '15:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '15:30', '16:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:00', '16:30', 'PalaCastiglioni', 20, 5],
+      ['2026-11-12', '16:30', '17:00', 'PalaCastiglioni', 20, 5],
+      ['2026-11-13', '21:00', '21:30', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '21:30', '22:00', 'PalaCastiglioni', 5, 5],
+      ['2026-11-13', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-13', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '21:30', '22:00', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:00', '22:30', 'PalaCastiglioni', 10, 5],
+      ['2026-11-14', '22:30', '23:00', 'PalaCastiglioni', 10, 5],
+    ];
+    for (const [g, oi, of_, l, p, c] of proveSlots) {
+      await dbRun('INSERT INTO prove_slots (giorno, ora_inizio, ora_fine, luogo, posti_max, costo) VALUES (?,?,?,?,?,?)',
+        [g, oi, of_, l, p, c]);
+    }
+    res.json({ ok: true, count: proveSlots.length });
+  } catch (err) {
+    console.error('Force reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint temporaneo per sistemare Cosentino
+app.get('/api/prove/fix-byz', async (req, res) => {
+  try {
+    // Fix Cosentino - metti in sospesa e invia sollecito
+    await dbRun("UPDATE prove_prenotazioni SET stato='sospesa' WHERE codice='PRV-MVY3RJ2R'");
+    
+    // Invia sollecito a Cosentino
+    const cosentino = await dbAll("SELECT * FROM prove_prenotazioni WHERE codice='PRV-MVY3RJ2R'");
+    if (cosentino.length && cosentino[0].email) {
+      const sessioni = cosentino.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      await sendProveEmail(cosentino[0].email, {
+        nome: cosentino[0].nome,
+        cognome: cosentino[0].cognome,
+        codice: 'PRV-MVY3RJ2R',
+        stato: 'sollecito',
+        sessioni,
+        totale: cosentino.length * 5
+      });
+    }
+    
+    res.json({ ok: true, message: 'Cosentino messo in sospesa e sollecito inviato' });
+  } catch (err) {
+    console.error('Fix error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/prove/config', async (req, res) => {
+  try {
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    const first = slots[0] || {};
+    res.json({
+      giorno: first.giorno || '2026-11-14',
+      slots: slots.map(s => ({ ora: `${s.ora_inizio}-${s.ora_fine}`, luogo: s.luogo, posti_max: s.posti_max, costo: s.costo })),
+      posti_max: first.posti_max || 20,
+      costo_ora: first.costo || 10
+    });
+  } catch (err) {
+    console.error('Errore prove config:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/prove/disponibilita', async (req, res) => {
+  try {
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    const result = {};
+    for (const slot of slots) {
+      const ora = `${slot.ora_inizio}-${slot.ora_fine}`;
+      // Chiave unica: giorno + ora
+      const key = `${slot.giorno}|${ora}`;
+      // Conta prenotazioni per ora E giorno specifico
+      const rows = await dbAll(
+        'SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?',
+        [ora, slot.giorno]
+      );
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
+      result[key] = {
+        ora: ora,
+        posti: slot.posti_max - occupati,
+        luogo: slot.luogo,
+        costo: slot.costo,
+        posti_max: slot.posti_max,
+        giorno: slot.giorno
+      };
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('Errore prove disponibilita:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/prove/prenota', async (req, res) => {
+  const { nome, cognome, email, telefono, sessioni, note, paymentMethod } = req.body;
+  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+  if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
+
+  try {
+    // Verifica disponibilità
+    let totale = 0;
+    // Supporta sia formato vecchio (array di stringhe) che nuovo (array di oggetti {ora, giorno})
+    const sessioniNormalizzate = sessioni.map(s => {
+      if (typeof s === 'string') {
+        return { ora: s, giorno: null };
+      }
+      return s;
+    });
+    
+    for (const sess of sessioniNormalizzate) {
+      const ora = sess.ora;
+      const parts = ora.split('-');
+      
+      // Cerca lo slot filtrando anche per giorno se disponibile
+      let slots;
+      if (sess.giorno) {
+        slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=? AND giorno=?', [parts[0], parts[1], sess.giorno]);
+      } else {
+        slots = await dbAll('SELECT * FROM prove_slots WHERE ora_inizio=? AND ora_fine=?', [parts[0], parts[1]]);
+      }
+      const slot = slots[0];
+      if (!slot) return res.status(400).json({ error: `Slot ${ora} non trovato` });
+      
+      // Conta prenotazioni per ora E giorno specifico
+      let rows;
+      if (sess.giorno) {
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=? AND giorno=?', [ora, sess.giorno]);
+        console.log(`[PROVE] Check disponibilità: ora=${ora}, giorno=${sess.giorno}, occupati=${rows[0]?.tot || 0}, posti_max=${slot.posti_max}`);
+      } else {
+        rows = await dbAll('SELECT COUNT(*) as tot FROM prove_prenotazioni WHERE ora=?', [ora]);
+        console.log(`[PROVE] Check disponibilità (no giorno): ora=${ora}, occupati=${rows[0]?.tot || 0}, posti_max=${slot.posti_max}`);
+      }
+      const occupati = (rows[0] && rows[0].tot) ? rows[0].tot : 0;
+      if (occupati >= slot.posti_max) {
+        console.log(`[PROVE] ESAURITO: ${ora} - occupati ${occupati} >= max ${slot.posti_max}`);
+        return res.status(400).json({ error: `Sessione ${sess.giorno ? sess.giorno + ' ' : ''}${ora} esaurita` });
+      }
+      totale += slot.costo;
+    }
+
+    const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
+    for (const sess of sessioniNormalizzate) {
+      const giorno = sess.giorno || null;
+      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, note) VALUES (?,?,?,?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, sess.ora, giorno, codice, 'sospesa', note || null]);
+    }
+
+    // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
+    if (email && paymentMethod !== 'online') {
+      const sessioniForEmail = sessioniNormalizzate.map(s => (s.giorno ? s.giorno + ' ' : '') + s.ora);
+      await sendProveEmail(email, {
+        nome, cognome, codice, stato: 'sospesa',
+        sessioni: sessioniForEmail,
+        totale
+      });
+    }
+
+    res.json({ codice, totale, sessioni: sessioniNormalizzate });
+  } catch (err) {
+    console.error('Errore prenotazione prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifica admin per prenotazioni prove pista (chiamato dopo tutte le prenotazioni)
+app.post('/api/prove/notifica-admin', async (req, res) => {
+  try {
+    const { atleti, email, telefono, paymentMethod, totaleComplessivo } = req.body;
+    
+    if (!atleti || !atleti.length) {
+      return res.status(400).json({ error: 'Nessun atleta da notificare' });
+    }
+    
+    // Invia email di notifica admin via Brevo API
+    try {
+      const brevoApiKey = process.env.BREVO_API_KEY;
+      
+      if (brevoApiKey) {
+        // Costruisci riepilogo atleti
+        const atletiHtml = atleti.map(a => `
+          <div style="background:#333;padding:10px;border-radius:6px;margin-bottom:10px">
+            <p style="margin:0"><strong>👤 ${a.nome} ${a.cognome}</strong> · <span style="color:#F7AF40">${a.codice}</span></p>
+            <p style="margin:5px 0 0;font-size:0.9em">Slot: ${a.sessioni.join(', ')}</p>
+            <p style="margin:5px 0 0;font-size:0.9em">Disciplina: ${a.note || 'Non specificata'}</p>
+            <p style="margin:5px 0 0;color:#22c55e">€${a.totale}</p>
+          </div>
+        `).join('');
+        
+        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#F7AF40;padding:20px;text-align:center">
+            <h1 style="color:#000;margin:0">🆕 Nuova Prenotazione Prove Pista</h1>
+            <p style="color:#000;margin:5px 0 0">${atleti.length} atleta/i · €${totaleComplessivo}</p>
+          </div>
+          <div style="padding:20px;background:#1a1a1a;color:#fff">
+            <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+              <h3 style="color:#F7AF40;margin-top:0">📧 Contatto</h3>
+              <p><strong>Email:</strong> ${email || 'Non fornita'}</p>
+              <p><strong>Telefono:</strong> ${telefono || 'Non fornito'}</p>
+            </div>
+            
+            <div style="background:#222;padding:15px;border-radius:8px;margin-bottom:15px">
+              <h3 style="color:#F7AF40;margin-top:0">👥 Atleti (${atleti.length})</h3>
+              ${atletiHtml}
+            </div>
+            
+            <div style="background:#222;padding:15px;border-radius:8px">
+              <p style="font-size:1.2em;margin:0"><strong>💰 Totale complessivo:</strong> <span style="color:#22c55e">€${totaleComplessivo}</span></p>
+              <p style="margin:10px 0 0"><strong>💳 Metodo:</strong> ${paymentMethod === 'online' ? 'Pagamento online' : 'Bonifico'}</p>
+            </div>
+            
+            <p style="text-align:center;margin-top:20px">
+              <a href="https://bb2026.onrender.com/admin.html" style="background:#F7AF40;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">Gestisci da Admin</a>
+            </p>
+          </div>
+        </div>`;
+        
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
+            to: [{ email: 'bustobattle@gmail.com' }],
+            subject: '🆕 Nuova Prenotazione Prove Pista - ' + atleti.length + ' atleta/i - €' + totaleComplessivo,
+            htmlContent: html
+          })
+        });
+        
+        if (response.ok) {
+          console.log('Email notifica admin prove batch inviata via Brevo:', atleti.length, 'atleti');
+        } else {
+          const errorData = await response.json();
+          console.error('Errore Brevo API notifica admin:', errorData);
+        }
+      } else {
+        console.log('Email notifica admin non inviata (BREVO_API_KEY non configurata)');
+      }
+    } catch (emailErr) {
+      console.error('Errore invio email notifica admin prove:', emailErr);
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore notifica admin prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- STRIPE CHECKOUT per PROVE PISTA ---
+app.post('/api/prove/stripe-checkout', async (req, res) => {
+  try {
+    const { codice, totale, email, nome, cognome, from_page } = req.body;
+    
+    console.log('Stripe prove checkout request:', { codice, totale, email });
+    
+    if (!codice || !totale || totale <= 0) {
+      return res.status(400).json({ error: 'Dati mancanti', details: { codice, totale } });
+    }
+
+    // Verifica che la prenotazione esista
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Prenotazione non trovata' });
+    }
+
+    const returnPage = from_page || 'prove.html';
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    // Crea sessione Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Prove Pista Busto Battle XI - ${codice}`,
+            description: `${nome} ${cognome} - ${rows.length} slot`,
+          },
+          unit_amount: Math.round(totale * 100), // Stripe usa centesimi
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${baseUrl}/${returnPage}?payment=success&codice=${codice}`,
+      cancel_url: `${baseUrl}/${returnPage}?payment=cancel&codice=${codice}`,
+      metadata: {
+        tipo: 'prove',
+        codice: codice
+      },
+      customer_email: email || undefined,
+    });
+
+    res.json({ url: session.url, session_id: session.id });
+  } catch (err) {
+    console.error('Stripe prove error:', err);
+    res.status(500).json({ error: 'Errore creazione pagamento: ' + err.message });
+  }
+});
+
+// Conferma pagamento prove (chiamato dopo ritorno da Stripe)
+app.post('/api/prove/conferma-pagamento', async (req, res) => {
+  try {
+    const { codice } = req.body;
+    if (!codice) return res.status(400).json({ error: 'Codice mancante' });
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    console.log('Pagamento Stripe prove confermato:', codice);
+    
+    // Recupera dati per email
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (rows.length > 0 && rows[0].email) {
+      const prenotazione = rows[0];
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      const totale = rows.length * 5; // €5 per slot
+      
+      await sendProveEmail(prenotazione.email, {
+        nome: prenotazione.nome,
+        cognome: prenotazione.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore conferma pagamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/prove/prenotazioni', async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/prove/prenotazioni/:codice', async (req, res) => {
+  try {
+    await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [req.params.codice]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Aggiorna giorno e note prenotazione prove (admin)
+app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { giorno, slots, note_admin } = req.body;
+    // slots è un array di { ora, note } per aggiornare ogni singolo slot
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    const giornoFinale = giorno || first.giorno;
+    
+    // Aggiorna note_admin per tutti gli slot della prenotazione
+    if (note_admin !== undefined) {
+      await dbRun('UPDATE prove_prenotazioni SET note_admin=? WHERE codice=?', [note_admin || null, codice]);
+    }
+    
+    // Se ci sono nuovi slots, dobbiamo ricreare la prenotazione
+    if (slots && slots.length > 0) {
+      const slotAttuali = rows.map(r => r.ora);
+      const slotNuovi = slots.map(s => s.ora);
+      
+      // Slot da rimuovere
+      const daRimuovere = slotAttuali.filter(ora => !slotNuovi.includes(ora));
+      // Slot da aggiungere
+      const daAggiungere = slotNuovi.filter(ora => !slotAttuali.includes(ora));
+      
+      // Rimuovi slot non più presenti
+      for (const ora of daRimuovere) {
+        await dbRun('DELETE FROM prove_prenotazioni WHERE codice=? AND ora=?', [codice, ora]);
+      }
+      
+      // Aggiungi nuovi slot
+      for (const ora of daAggiungere) {
+        const noteSlot = slots.find(s => s.ora === ora)?.note || ora;
+        await dbRun(`INSERT INTO prove_prenotazioni (codice, nome, cognome, email, telefono, giorno, ora, note, stato, note_admin) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [codice, first.nome, first.cognome, first.email, first.telefono, giornoFinale, ora, noteSlot, first.stato || 'sospesa', first.note_admin]);
+      }
+      
+      // Aggiorna giorno per tutti gli slot rimanenti
+      if (giorno) {
+        await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
+      }
+      
+      // Aggiorna note per ogni slot specifico
+      for (const s of slots) {
+        if (s.ora && s.note) {
+          await dbRun('UPDATE prove_prenotazioni SET note=? WHERE codice=? AND ora=?', [s.note, codice, s.ora]);
+        }
+      }
+    } else if (giorno) {
+      // Solo aggiornamento giorno
+      await dbRun('UPDATE prove_prenotazioni SET giorno=? WHERE codice=?', [giorno, codice]);
+    }
+    
+    console.log('Prenotazione aggiornata:', { codice, giorno, note_admin, slots });
+    res.json({ ok: true, message: 'Prenotazione aggiornata' });
+  } catch (err) {
+    console.error('Errore aggiornamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Conferma prova pista (admin)
+app.post('/api/prove/prenotazioni/:codice/conferma', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    // Prendi le info della prenotazione
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    
+    // Invia email di conferma
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      const totale = sessioni.length * 5; // €5 per slot
+      
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
+    }
+    
+    res.json({ ok: true, message: 'Prenotazione confermata' });
+  } catch (err) {
+    console.error('Errore conferma prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Annulla prova pista (admin) - libera gli slot
+app.put('/api/prove/prenotazioni/:codice/annulla', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    // Prendi le info prima di cancellare
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Elimina la prenotazione (libera gli slot)
+    await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [codice]);
+    
+    // Invia email di annullamento
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'annullata',
+        sessioni
+      });
+    }
+    
+    res.json({ ok: true, message: 'Prenotazione annullata e slot liberati' });
+  } catch (err) {
+    console.error('Errore annullamento prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload ricevuta bonifico prove pista
+app.post('/api/prove/prenotazioni/:codice/ricevuta', uploadRicevute.single('ricevuta'), async (req, res) => {
+  try {
+    const { codice } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'Nessun file caricato' });
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    // Salva il file path e aggiorna stato a verifica
+    const filePath = req.file.filename;
+    await dbRun('UPDATE prove_prenotazioni SET ricevuta_bonifico=?, stato=? WHERE codice=?', [filePath, 'verifica', codice]);
+    
+    res.json({ ok: true, message: 'Ricevuta caricata, in attesa di verifica' });
+  } catch (err) {
+    console.error('Errore upload ricevuta prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Visualizza ricevuta prove pista
+app.get('/api/prove/prenotazioni/:codice/ricevuta', async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT ricevuta_bonifico FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length || !rows[0].ricevuta_bonifico) {
+      return res.status(404).json({ error: 'Ricevuta non trovata' });
+    }
+    
+    const filePath = path.join(__dirname, 'uploads', rows[0].ricevuta_bonifico);
+    res.sendFile(filePath);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Conferma bonifico prove pista (admin)
+app.post('/api/prove/prenotazioni/:codice/conferma-bonifico', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Aggiorna stato a confermata
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', codice]);
+    
+    // Invia email di conferma
+    if (first.email) {
+      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+      const totale = sessioni.length * 5;
+      
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'confermata',
+        sessioni,
+        totale
+      });
+    }
+    
+    res.json({ ok: true, message: 'Bonifico confermato' });
+  } catch (err) {
+    console.error('Errore conferma bonifico prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rigetta ricevuta prove pista (admin)
+app.post('/api/prove/prenotazioni/:codice/rigetta', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { motivo } = req.body;
+    
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    
+    // Torna a stato sospesa e rimuovi ricevuta
+    await dbRun('UPDATE prove_prenotazioni SET stato=?, ricevuta_bonifico=NULL WHERE codice=?', ['sospesa', codice]);
+    
+    // Invia email di rigetto
+    if (first.email) {
+      await sendProveEmail(first.email, {
+        nome: first.nome,
+        cognome: first.cognome,
+        codice,
+        stato: 'rigettata',
+        motivo
+      });
+    }
+    
+    res.json({ ok: true, message: 'Ricevuta rigettata, email inviata' });
+  } catch (err) {
+    console.error('Errore rigetto prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: invia sollecito singolo prove pista per richiedere ricevuta
+app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
+    if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    
+    const first = rows[0];
+    if (!first.email) return res.status(400).json({ error: 'Email non presente' });
+    
+    const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
+    const totale = rows.length * 5;
+    
+    await sendProveEmail(first.email, {
+      nome: first.nome,
+      cognome: first.cognome,
+      codice,
+      stato: 'sollecito',
+      sessioni,
+      totale
+    });
+    
+    console.log('Sollecito prove pista inviato:', codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore invio sollecito prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EXPORT EXCEL PROVE PISTA ---
+app.get('/api/prove/export', async (req, res) => {
+  try {
+    const prenotazioni = await dbAll(`SELECT id, nome, cognome, 
+      COALESCE(email, '') as email, COALESCE(telefono, '') as telefono, ora, 
+      COALESCE(codice, '') as codice,
+      COALESCE(stato, 'sospesa') as stato, 
+      COALESCE(note, '') as note, COALESCE(origine, 'standalone') as origine,
+      COALESCE(giorno, '') as giorno, COALESCE(note_admin, '') as note_admin,
+      COALESCE(ricevuta_bonifico, '') as ricevuta_bonifico, created_at
+      FROM prove_prenotazioni ORDER BY giorno, ora, cognome`);
+    const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
+    
+    // Mappa slot per lookup giorno
+    const slotMap = {};
+    for (const s of slots) {
+      const ora = `${s.ora_inizio}-${s.ora_fine}`;
+      slotMap[ora] = s;
+    }
+    
+    // Funzione per determinare il pagamento
+    const getPagamento = (p) => {
+      // Contanti: se note_admin contiene "pagare" o "contanti"
+      if (p.note_admin && (p.note_admin.toLowerCase().includes('pagare') || p.note_admin.toLowerCase().includes('contanti'))) return 'Contanti';
+      // Carta: se confermata e NON ha ricevuta
+      if (p.stato === 'confermata' && !p.ricevuta_bonifico) return 'Carta';
+      // Bonifico: se ha ricevuta o verifica o sospesa
+      if (p.ricevuta_bonifico || p.stato === 'verifica' || p.stato === 'sospesa') return 'Bonifico';
+      return '';
+    };
+    
+    // Funzione per formattare origine
+    const getOrigine = (p) => {
+      if (p.origine === 'iscrizione') return 'Iscrizione';
+      return 'Prova Pista';
+    };
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    workbook.created = new Date();
+    
+    // ========== FOGLIO 1: TUTTI I DATI ==========
+    const sheetAll = workbook.addWorksheet('Tutti i Dati');
+    sheetAll.columns = [
+      { header: 'Codice', key: 'codice', width: 20 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Telefono', key: 'telefono', width: 15 },
+      { header: 'Giorno', key: 'giorno', width: 12 },
+      { header: 'Orario', key: 'ora', width: 12 },
+      { header: 'Disciplina', key: 'specialita', width: 20 },
+      { header: 'Stato', key: 'stato', width: 12 },
+      { header: 'Origine', key: 'origine', width: 12 },
+      { header: 'Pagamento', key: 'pagamento', width: 15 },
+      { header: 'Note', key: 'note', width: 30 },
+      { header: 'Note Admin', key: 'note_admin', width: 20 },
+      { header: 'Data Prenotazione', key: 'created_at', width: 18 }
+    ];
+    
+    sheetAll.getRow(1).font = { bold: true };
+    sheetAll.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    for (const p of prenotazioni) {
+      const slot = slotMap[p.ora];
+      // Estrai specialità dalle note
+      let specialita = '';
+      if (p.note && p.ora) {
+        const oraEscaped = p.ora.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = p.note.match(new RegExp(oraEscaped + ':\\s*([^,]+)'));
+        if (match) specialita = match[1].trim();
+      }
+      
+      const giorno = p.giorno || ((slot && slot.giorno) ? slot.giorno : '');
+      
+      sheetAll.addRow({
+        codice: p.codice || ('PRV-' + p.id),
+        cognome: p.cognome,
+        nome: p.nome,
+        email: p.email || '',
+        telefono: p.telefono || '',
+        giorno: giorno,
+        ora: p.ora,
+        specialita: specialita,
+        stato: p.stato || 'sospesa',
+        origine: getOrigine(p),
+        pagamento: getPagamento(p),
+        note: p.note || '',
+        note_admin: p.note_admin || '',
+        created_at: p.created_at ? new Date(p.created_at).toLocaleDateString('it-IT') : ''
+      });
+    }
+    
+    // ========== FOGLIO 2: RIEPILOGO PER GIORNO/ORARIO ==========
+    const sheetRiepilogo = workbook.addWorksheet('Riepilogo per Giorno-Orario');
+    sheetRiepilogo.columns = [
+      { header: 'Giorno', key: 'giorno', width: 15 },
+      { header: 'Orario', key: 'ora', width: 12 },
+      { header: 'Cognome', key: 'cognome', width: 15 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Stato', key: 'stato', width: 12 },
+      { header: 'Pagamento', key: 'pagamento', width: 15 },
+      { header: 'Origine', key: 'origine', width: 12 }
+    ];
+    
+    sheetRiepilogo.getRow(1).font = { bold: true };
+    sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+    
+    // Raggruppa per giorno e orario
+    const perGiornoOra = {};
+    for (const p of prenotazioni) {
+      const giorno = p.giorno || 'Non specificato';
+      const key = `${giorno}|${p.ora}`;
+      if (!perGiornoOra[key]) perGiornoOra[key] = [];
+      perGiornoOra[key].push(p);
+    }
+    
+    // Ordina per giorno e orario
+    const chiavi = Object.keys(perGiornoOra).sort();
+    
+    for (const key of chiavi) {
+      const [giorno, ora] = key.split('|');
+      const lista = perGiornoOra[key];
+      
+      // Formatta giorno
+      let giornoFormatted = giorno;
+      if (giorno && giorno.includes('-')) {
+        const d = new Date(giorno);
+        const giorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+        giornoFormatted = `${giorni[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+      }
+      
+      for (const p of lista) {
+        sheetRiepilogo.addRow({
+          giorno: giornoFormatted,
+          ora: ora,
+          cognome: p.cognome,
+          nome: p.nome,
+          stato: p.stato || 'sospesa',
+          pagamento: getPagamento(p),
+          origine: getOrigine(p)
+        });
+      }
+    }
+    
+    // Genera file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=prove_pista_export.xlsx');
+    
+    await workbook.xlsx.write(res);
+    res.end();
+    
+  } catch (err) {
+    console.error('Errore export prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CENA ATLETI API ---
+app.post('/api/cena/prenota', (req, res) => {
+  const { nome, cognome, email, telefono, giorni, num_persone, note } = req.body;
+  if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
+  if (!giorni || !giorni.length) return res.status(400).json({ error: 'Seleziona almeno una serata' });
+  if (num_persone < 1 || num_persone > 10) return res.status(400).json({ error: 'Numero persone non valido (1-10)' });
+
+  const codice = 'CEN-' + Date.now().toString(36).toUpperCase();
+  for (const giorno of giorni) {
+    db.run('INSERT INTO cena_prenotazioni (nome, cognome, email, telefono, giorno, num_persone, note, codice) VALUES (?,?,?,?,?,?,?,?)',
+      [nome, cognome, email || null, telefono || null, giorno, num_persone, note || null, codice]);
+  }
+  save();
+
+  const totale = giorni.length * num_persone * 20;
+  const nomiGiorni = giorni.map(g => {
+    if (g === '2025-11-13') return 'Gio 13/11';
+    if (g === '2025-11-14') return 'Ven 14/11';
+    return g;
+  });
+  const riepilogo = `${num_persone} persone × ${nomiGiorni.join(' + ')}`;
+  res.json({ codice, totale, riepilogo });
+});
+
+app.get('/api/cena/prenotazioni', (req, res) => {
+  res.json(all('SELECT * FROM cena_prenotazioni ORDER BY giorno, cognome, nome'));
+});
+
+app.delete('/api/cena/prenotazioni/:codice', (req, res) => {
+  db.run('DELETE FROM cena_prenotazioni WHERE codice=?', [req.params.codice]);
+  save();
+  res.json({ ok: true });
+});
+
+// --- PUSH SUBSCRIPTION API ---
+app.get('/api/push/vapidPublicKey', (req, res) => {
+  res.json({ key: VAPID_PUBLIC });
+});
+
+// Endpoint per contare le subscription (debug)
+app.get('/api/push/count', requireAdmin, async (req, res) => {
+  try {
+    const subs = await dbAll('SELECT COUNT(*) as count FROM push_subscriptions');
+    const allSubs = await dbAll('SELECT endpoint, created_at FROM push_subscriptions ORDER BY created_at DESC LIMIT 10');
+    res.json({ 
+      count: subs[0].count,
+      recentSubscriptions: allSubs.map(s => ({
+        endpoint: s.endpoint.substring(0, 60) + '...',
+        created_at: s.created_at
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per leggere tutte le notifiche (pubblico)
+app.get('/api/notifiche', async (req, res) => {
+  try {
+    const notifiche = await dbAll('SELECT * FROM notifiche ORDER BY created_at DESC LIMIT 50');
+    res.json(notifiche);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TEMPORANEO: seed notifica iniziale (rimuovere dopo uso)
+app.get('/api/notifiche/seed-init', async (req, res) => {
+  try {
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [
+      'Classic Slalom - Music',
+      "Hi Skater! Don't forget to send your Classic music to bustobattle@gmail.com as soon as possible! Thank you! Chiara - BustoBattleTeam"
+    ]);
+    res.json({ ok: true, message: 'Notifica inserita' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per inserire notifica senza invio push (admin)
+app.post('/api/notifiche', requireAdmin, async (req, res) => {
+  try {
+    const { titolo, messaggio } = req.body;
+    if (!titolo || !messaggio) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [titolo, messaggio]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys) return res.status(400).json({ error: 'Subscription invalida' });
+    
+    if (usePostgres) {
+      await pgPool.query(
+        'INSERT INTO push_subscriptions (endpoint, keys_p256dh, keys_auth) VALUES ($1, $2, $3) ON CONFLICT (endpoint) DO UPDATE SET keys_p256dh = $2, keys_auth = $3',
+        [endpoint, keys.p256dh, keys.auth]
+      );
+    } else {
+      db.run('INSERT OR REPLACE INTO push_subscriptions (endpoint, keys_p256dh, keys_auth) VALUES (?, ?, ?)',
+        [endpoint, keys.p256dh, keys.auth]);
+      save();
+    }
+    console.log('Push subscription salvata:', endpoint.substring(0, 50) + '...');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Push subscribe error:', err);
+    res.status(500).json({ error: 'Errore salvataggio subscription' });
+  }
+});
+
+// --- NOTIFICA MANUALE ---
+app.post('/api/push/send', requireAdmin, async (req, res) => {
+  try {
+    const { title, body } = req.body;
+    if (!title || !body) return res.status(400).json({ error: 'Titolo e messaggio richiesti' });
+    
+    // Salva la notifica nel database
+    await dbInsert('INSERT INTO notifiche (titolo, messaggio) VALUES (?, ?)', [title, body]);
+    
+    let subs;
+    try {
+      subs = await dbAll('SELECT * FROM push_subscriptions');
+    } catch (dbErr) {
+      console.error('DB error fetching subscriptions:', dbErr);
+      return res.json({ ok: true, sent: 0 });
+    }
+    
+    if (!subs || subs.length === 0) {
+      return res.json({ ok: true, sent: 0 });
+    }
+    
+    console.log(`Invio notifica a ${subs.length} utenti: "${title}"`);
+    const payload = JSON.stringify({ title, body, url: '/notifiche.html' });
+    
+    let sent = 0;
+    let failed = 0;
+    const results = await Promise.allSettled(subs.map(async sub => {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+      };
+      try {
+        await webpush.sendNotification(pushSub, payload);
+        return { success: true };
+      } catch (err) {
+        console.error('Push error:', sub.endpoint.substring(0, 50), err.statusCode || err.message);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await dbRun('DELETE FROM push_subscriptions WHERE endpoint=?', [sub.endpoint]);
+          console.log('Subscription rimossa (scaduta):', sub.endpoint.substring(0, 50));
+        }
+        return { success: false, error: err.statusCode || err.message };
+      }
+    }));
+    
+    results.forEach(r => {
+      if (r.status === 'fulfilled' && r.value.success) sent++;
+      else failed++;
+    });
+    
+    console.log(`Push completato: ${sent} ok, ${failed} fallite`);
+    res.json({ ok: true, sent, failed });
+  } catch (err) {
+    console.error('Push send error:', err);
+    res.status(500).json({ error: 'Errore invio notifiche: ' + err.message });
+  }
+});
+
+// --- EMAIL ---
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.example.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || ''
+  }
+});
+
+// Helper per convertire HTML in testo plain (per evitare spam filters)
+function htmlToPlainText(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&euro;/g, '€')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Funzione centralizzata per invio email via Brevo con best practices anti-spam
+async function sendBrevoEmail({ to, toName, subject, html, replyTo }) {
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (!brevoApiKey) {
+    console.log('Email non inviata (BREVO_API_KEY non configurata):', { to, subject });
+    return { success: false, reason: 'no_api_key' };
+  }
+  
+  try {
+    const plainText = htmlToPlainText(html);
+    
+    const emailData = {
+      sender: { 
+        name: 'Busto Battle XI', 
+        email: process.env.BREVO_FROM || 'noreply@bustobattle.com' 
+      },
+      to: [{ 
+        email: to, 
+        name: toName || to 
+      }],
+      replyTo: { 
+        email: replyTo || 'bustobattle@gmail.com',
+        name: 'Busto Battle XI'
+      },
+      subject: subject,
+      htmlContent: html,
+      textContent: plainText,
+      headers: {
+        'X-Mailer': 'Busto Battle XI Registration System',
+        'Precedence': 'bulk'
+      }
+    };
+    
+    // Aggiungi BCC solo se non è già il destinatario
+    if (to !== 'bustobattle@gmail.com') {
+      emailData.bcc = [{ email: 'bustobattle@gmail.com' }];
+    }
+    
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(emailData)
+    });
+    
+    if (response.ok) {
+      console.log('Email inviata via Brevo:', { to, subject });
+      return { success: true };
+    } else {
+      const errorData = await response.json();
+      console.error('Errore Brevo API:', errorData);
+      return { success: false, error: errorData };
+    }
+  } catch (err) {
+    console.error('Errore invio email:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+// --- EMAIL BROADCAST ---
+// Anteprima destinatari email broadcast
+app.get('/api/email/preview', requireAdmin, async (req, res) => {
+  try {
+    const soloConfermati = req.query.soloConfermati === 'true';
+    
+    let iscritti;
+    if (soloConfermati) {
+      iscritti = await dbAll("SELECT id, nome, cognome, email, stato, pagamento FROM iscritti WHERE email IS NOT NULL AND email != '' AND (stato = 'confermata' OR pagamento = 1)");
+    } else {
+      iscritti = await dbAll("SELECT id, nome, cognome, email, stato, pagamento FROM iscritti WHERE email IS NOT NULL AND email != ''");
+    }
+    
+    res.json({
+      count: iscritti ? iscritti.length : 0,
+      destinatari: iscritti || []
+    });
+  } catch (err) {
+    console.error('Errore preview email:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/email/broadcast', requireAdmin, async (req, res) => {
+  try {
+    const { oggetto, messaggio, soloConfermati } = req.body;
+    if (!oggetto || !messaggio) {
+      return res.status(400).json({ error: 'Oggetto e messaggio richiesti' });
+    }
+    
+    console.log('Email broadcast richiesta:', { oggetto, soloConfermati });
+    
+    // Recupera iscritti con email
+    let iscritti;
+    if (soloConfermati) {
+      iscritti = await dbAll("SELECT * FROM iscritti WHERE email IS NOT NULL AND email != '' AND (stato = 'confermata' OR pagamento = 1)");
+    } else {
+      iscritti = await dbAll("SELECT * FROM iscritti WHERE email IS NOT NULL AND email != ''");
+    }
+    
+    console.log('Iscritti trovati per broadcast:', iscritti ? iscritti.length : 0);
+    
+    if (!iscritti || iscritti.length === 0) {
+      return res.json({ ok: true, sent: 0, errors: 0, message: 'Nessun iscritto trovato con i criteri selezionati' });
+    }
+    
+    console.log(`Invio email broadcast a ${iscritti.length} iscritti: "${oggetto}"`);
+    console.log('Destinatari:', iscritti.map(i => i.email).join(', '));
+    
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (!brevoApiKey) {
+      return res.status(500).json({ error: 'BREVO_API_KEY non configurata' });
+    }
+    
+    let sent = 0;
+    let errors = 0;
+    
+    for (const iscritto of iscritti) {
+      try {
+        // Personalizza il messaggio
+        const messaggioPersonalizzato = messaggio
+          .replace(/\{nome\}/g, iscritto.nome)
+          .replace(/\{cognome\}/g, iscritto.cognome);
+        
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
+            to: [{ email: iscritto.email, name: `${iscritto.nome} ${iscritto.cognome}` }],
+            bcc: [{ email: 'bustobattle@gmail.com' }],
+            subject: oggetto,
+            htmlContent: `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#111;color:#f0f0f0;border-radius:8px;overflow:hidden">
+                <div style="background:#1a1a1a;padding:20px;text-align:center;border-bottom:3px solid #F7AF40">
+                  <h1 style="color:#F7AF40;margin:0;font-size:24px">🏆 Busto Battle XI</h1>
+                  <p style="color:#888;margin:5px 0 0 0;font-size:14px">13-14-15 Novembre 2026 | Busto Arsizio</p>
+                </div>
+                <div style="padding:25px">
+                  <p style="margin:0 0 15px 0">Ciao <strong style="color:#F7AF40">${iscritto.nome}</strong>,</p>
+                  <div style="background:#1a1a1a;padding:20px;border-radius:6px;border-left:4px solid #F7AF40;white-space:pre-wrap;line-height:1.6">${messaggioPersonalizzato}</div>
+                </div>
+                <div style="background:#0a0a0a;padding:20px;text-align:center;border-top:1px solid #222">
+                  <p style="margin:0;color:#888;font-size:12px">
+                    📧 bustobattle@gmail.com | 📸 @bustobattle
+                  </p>
+                  <p style="margin:10px 0 0 0;color:#666;font-size:11px">
+                    Ricevi questa email perché sei iscritto a Busto Battle XI
+                  </p>
+                </div>
+              </div>
+            `
+          })
+        });
+        
+        if (response.ok) {
+          sent++;
+        } else {
+          const errorData = await response.json();
+          console.error(`Errore invio email a ${iscritto.email}:`, errorData);
+          errors++;
+        }
+        
+        // Piccola pausa per evitare rate limiting
+        await new Promise(r => setTimeout(r, 100));
+        
+      } catch (err) {
+        console.error(`Errore invio email a ${iscritto.email}:`, err.message);
+        errors++;
+      }
+    }
+    
+    console.log(`Email broadcast completato: ${sent} inviate, ${errors} errori`);
+    res.json({ ok: true, sent, errors });
+    
+  } catch (err) {
+    console.error('Email broadcast error:', err);
+    res.status(500).json({ error: 'Errore invio email: ' + err.message });
+  }
+});
+
+async function sendContactEmail({ nome, email, oggetto, messaggio }) {
+  // Usa Brevo API per inviare email
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  
+  if (!brevoApiKey) {
+    console.log('Email contatto non inviata (BREVO_API_KEY non configurata):', { nome, email, oggetto });
+    return;
+  }
+  
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
+        to: [{ email: 'bustobattle@gmail.com' }],
+        replyTo: { email: email, name: nome },
+        subject: `[Contatto BB XI] ${oggetto}`,
+        htmlContent: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#111;color:#f0f0f0;border-radius:8px;overflow:hidden">
+            <div style="background:#1a1a1a;padding:20px;text-align:center">
+              <h1 style="color:#F7AF40;margin:0">📬 Nuovo Messaggio</h1>
+            </div>
+            <div style="padding:20px">
+              <p><strong style="color:#F7AF40">Da:</strong> ${nome}</p>
+              <p><strong style="color:#F7AF40">Email:</strong> <a href="mailto:${email}" style="color:#F7AF40">${email}</a></p>
+              <p><strong style="color:#F7AF40">Oggetto:</strong> ${oggetto}</p>
+              <div style="background:#222;padding:15px;border-radius:6px;margin-top:15px">
+                <p style="margin:0;white-space:pre-wrap">${messaggio}</p>
+              </div>
+            </div>
+          </div>
+        `
+      })
+    });
+    
+    if (response.ok) {
+      console.log('Email contatto inviata via Brevo API:', { nome, email, oggetto });
+    } else {
+      const errorData = await response.json();
+      console.error('Errore Brevo API (contatto):', errorData);
+    }
+  } catch (err) {
+    console.error('Errore invio email contatto:', err);
+  }
+}
+
+// ============ STATISTICHE PERMANENZA ============
+// Calcola la permanenza media degli atleti in base alle discipline
+// Programma gara:
+// - Giovedì 12: Qualifiche Classic (NON CONTA)
+// - Venerdì 13: Classic Slalom, Pair Slalom, Free Jump
+// - Sabato 14: Battle, Slides
+// - Domenica 15: Speed Slalom
+// Regola: arrivo giorno prima, partenza giorno dopo
+app.get('/api/statistiche/permanenza', async (req, res) => {
+  try {
+    const iscritti = await dbAll('SELECT id, nome, cognome, categoria, stato FROM iscritti');
+    
+    // Mappa discipline -> giorno gara
+    const disciplinaGiorno = {
+      'classic slalom': 'venerdi',   // Venerdì 13
+      'classic': 'venerdi',
+      'pair slalom': 'venerdi',      // Venerdì 13
+      'pair': 'venerdi',
+      'free jump': 'venerdi',        // Venerdì 13
+      'freejump': 'venerdi',
+      'battle': 'sabato',            // Sabato 14
+      'slides': 'sabato',            // Sabato 14
+      'speed slalom': 'domenica',    // Domenica 15
+      'speed': 'domenica'
+    };
+    
+    // Calcolo notti in base ai giorni di gara
+    // Arrivo = giorno prima del primo giorno gara
+    // Partenza = giorno dopo l'ultimo giorno gara
+    function calcolaNotti(giorniGara) {
+      if (giorniGara.size === 0) return 0;
+      
+      const ordineGiorni = { 'venerdi': 1, 'sabato': 2, 'domenica': 3 };
+      const giorni = Array.from(giorniGara).sort((a, b) => ordineGiorni[a] - ordineGiorni[b]);
+      
+      const primo = giorni[0];
+      const ultimo = giorni[giorni.length - 1];
+      
+      // Arrivo = giorno prima del primo
+      // Partenza = giorno dopo dell'ultimo
+      // Giovedì=0, Venerdì=1, Sabato=2, Domenica=3, Lunedì=4
+      const arrivoIdx = ordineGiorni[primo]; // Ven=1 -> arrivo Gio (idx 0), notte giovedì
+      const partenzaIdx = ordineGiorni[ultimo] + 1; // Dom=3 -> partenza Lun (idx 4)
+      
+      return partenzaIdx - arrivoIdx + 1; // notti = dal giorno di arrivo al giorno prima della partenza
+    }
+    
+    const risultati = [];
+    const distribuzione = { 2: 0, 3: 0, 4: 0 }; // notti -> numero atleti
+    const perCombinazione = {}; // combinazione giorni -> {count, notti}
+    
+    for (const iscritto of iscritti) {
+      const cat = (iscritto.categoria || '').toLowerCase();
+      const giorniGara = new Set();
+      
+      // Estrai discipline dalle categorie
+      for (const [disc, giorno] of Object.entries(disciplinaGiorno)) {
+        if (cat.includes(disc)) {
+          giorniGara.add(giorno);
+        }
+      }
+      
+      const notti = calcolaNotti(giorniGara);
+      
+      if (notti > 0) {
+        const giorniArr = Array.from(giorniGara).sort((a, b) => {
+          const ord = { 'venerdi': 1, 'sabato': 2, 'domenica': 3 };
+          return ord[a] - ord[b];
+        });
+        const comboKey = giorniArr.join('+') || 'nessuna';
+        
+        risultati.push({
+          id: iscritto.id,
+          nome: iscritto.nome,
+          cognome: iscritto.cognome,
+          discipline: iscritto.categoria,
+          giorniGara: giorniArr,
+          notti,
+          stato: iscritto.stato
+        });
+        
+        distribuzione[notti] = (distribuzione[notti] || 0) + 1;
+        
+        if (!perCombinazione[comboKey]) {
+          perCombinazione[comboKey] = { count: 0, notti, giorni: giorniArr };
+        }
+        perCombinazione[comboKey].count++;
+      }
+    }
+    
+    // Calcola media
+    const totaleNotti = risultati.reduce((sum, r) => sum + r.notti, 0);
+    const media = risultati.length > 0 ? (totaleNotti / risultati.length).toFixed(2) : 0;
+    
+    // Solo confermati
+    const confermati = risultati.filter(r => r.stato === 'confermata');
+    const totaleNottiConfermati = confermati.reduce((sum, r) => sum + r.notti, 0);
+    const mediaConfermati = confermati.length > 0 ? (totaleNottiConfermati / confermati.length).toFixed(2) : 0;
+    
+    // Distribuzione confermati
+    const distribuzioneConfermati = { 2: 0, 3: 0, 4: 0 };
+    confermati.forEach(r => {
+      distribuzioneConfermati[r.notti] = (distribuzioneConfermati[r.notti] || 0) + 1;
+    });
+    
+    res.json({
+      totaleIscritti: risultati.length,
+      totaleConfermati: confermati.length,
+      mediaNotti: parseFloat(media),
+      mediaNottiConfermati: parseFloat(mediaConfermati),
+      distribuzione: {
+        '2_notti': distribuzione[2] || 0,
+        '3_notti': distribuzione[3] || 0,
+        '4_notti': distribuzione[4] || 0
+      },
+      distribuzioneConfermati: {
+        '2_notti': distribuzioneConfermati[2] || 0,
+        '3_notti': distribuzioneConfermati[3] || 0,
+        '4_notti': distribuzioneConfermati[4] || 0
+      },
+      perCombinazione: Object.entries(perCombinazione).map(([key, val]) => ({
+        combinazione: key,
+        giorni: val.giorni,
+        notti: val.notti,
+        atleti: val.count
+      })).sort((a, b) => b.atleti - a.atleti),
+      legenda: {
+        '2_notti': 'Solo 1 giorno gara (es. solo Speed = Sab->Lun)',
+        '3_notti': '2 giorni consecutivi (es. Classic+Battle = Gio->Dom)',
+        '4_notti': 'Tutti i giorni o Ven+Dom (Gio->Lun)'
+      },
+      dettaglio: risultati.sort((a, b) => b.notti - a.notti)
+    });
+  } catch (err) {
+    console.error('Errore statistiche permanenza:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+initDb().then(() => {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log('Server avviato su porta ' + PORT));
+});

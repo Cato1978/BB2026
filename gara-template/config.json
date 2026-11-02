@@ -1,0 +1,168 @@
+{
+  "event": {
+    "name": "Nome Gara",
+    "edition": "I",
+    "fullName": "Nome Gara I",
+    "year": 2027,
+    "tagline": "Gara Internazionale di Pattinaggio Freestyle",
+    "dates": {
+      "start": "2027-11-12",
+      "end": "2027-11-15",
+      "registration_deadline": "2027-11-10"
+    },
+    "location": {
+      "venue": "Palazzetto dello Sport",
+      "city": "Città",
+      "region": "Regione",
+      "country": "Italia",
+      "address": "Via Example 1",
+      "maps_url": "https://maps.google.com/?q=..."
+    }
+  },
+  
+  "branding": {
+    "primary_color": "#F7AF40",
+    "secondary_color": "#22C55E", 
+    "accent_color": "#6366F1",
+    "logo": "logo.png",
+    "favicon": "favicon.ico",
+    "email_from": "noreply@example.com",
+    "email_name": "Nome Gara",
+    "contact_email": "info@example.com"
+  },
+  
+  "disciplines": [
+    { "id": "speed", "name": "Speed Slalom", "stars": 1, "enabled": true },
+    { "id": "classic", "name": "Classic Slalom", "stars": 1, "enabled": true },
+    { "id": "battle", "name": "Battle", "stars": 1, "enabled": true },
+    { "id": "slides", "name": "Slides", "stars": 2, "enabled": true },
+    { "id": "pair", "name": "Pair Slalom", "stars": 2, "enabled": true },
+    { "id": "jump", "name": "Free Jump", "stars": 2, "enabled": true }
+  ],
+  
+  "categories": [
+    { "id": "junior", "name": "Junior", "min_age": null, "max_age": 14 },
+    { "id": "senior", "name": "Senior", "min_age": 15, "max_age": 34 },
+    { "id": "veteran", "name": "Veteran", "min_age": 35, "max_age": null }
+  ],
+  
+  "pricing": {
+    "currency": "EUR",
+    "registration": {
+      "base_fee": 25,
+      "per_discipline_1star": 5,
+      "per_discipline_2star": 10,
+      "late_fee": 10,
+      "late_fee_date": "2027-11-01"
+    },
+    "track_practice": {
+      "per_session": 5
+    },
+    "merchandise": {
+      "tshirt": 25,
+      "hoodie": 45,
+      "towel": 15,
+      "cap": 12
+    },
+    "dinner": {
+      "per_person": 20
+    }
+  },
+  
+  "schedule": {
+    "days": [
+      {
+        "date": "2027-11-12",
+        "name": "Giovedì",
+        "events": [
+          { "time": "14:00-20:00", "activity": "Prove Pista" },
+          { "time": "18:00-20:00", "activity": "Ritiro Pettorali" }
+        ]
+      },
+      {
+        "date": "2027-11-13",
+        "name": "Venerdì",
+        "events": [
+          { "time": "09:00-13:00", "activity": "Qualifiche Speed Slalom" },
+          { "time": "14:00-18:00", "activity": "Qualifiche Classic" },
+          { "time": "20:30", "activity": "Cena Atleti" }
+        ]
+      },
+      {
+        "date": "2027-11-14",
+        "name": "Sabato",
+        "events": [
+          { "time": "09:00-13:00", "activity": "Finali Speed Slalom" },
+          { "time": "14:00-18:00", "activity": "Battle" },
+          { "time": "20:30", "activity": "Cena Atleti" }
+        ]
+      },
+      {
+        "date": "2027-11-15",
+        "name": "Domenica", 
+        "events": [
+          { "time": "09:00-13:00", "activity": "Slides & Free Jump" },
+          { "time": "14:00-16:00", "activity": "Pair Slalom" },
+          { "time": "16:30", "activity": "Premiazioni" }
+        ]
+      }
+    ]
+  },
+  
+  "track_practice": {
+    "enabled": true,
+    "session_duration_minutes": 30,
+    "max_per_session": 20
+  },
+  
+  "hotels": [
+    {
+      "name": "Hotel Example",
+      "stars": 3,
+      "address": "Via Example 10",
+      "phone": "+39 0123 456789",
+      "email": "info@hotelexample.com",
+      "website": "https://www.hotelexample.com",
+      "distance": "500m dalla pista",
+      "discount_code": "GARA2027",
+      "discount_percent": 10
+    }
+  ],
+  
+  "payment": {
+    "bank_transfer": {
+      "enabled": true,
+      "iban": "IT00X0000000000000000000000",
+      "bic": "EXAMPLEXX",
+      "beneficiary": "ASD Example",
+      "reference_prefix": "GARA2027-"
+    },
+    "stripe": {
+      "enabled": true
+    },
+    "cash_on_site": {
+      "enabled": true
+    }
+  },
+  
+  "features": {
+    "registration": true,
+    "track_practice": true,
+    "merchandise": true,
+    "dinner_reservation": true,
+    "shuttle": false,
+    "results": true,
+    "push_notifications": true
+  },
+  
+  "social": {
+    "facebook": "https://facebook.com/example",
+    "instagram": "https://instagram.com/example",
+    "youtube": ""
+  },
+  
+  "admin": {
+    "default_username": "admin",
+    "default_password": "admin123"
+  }
+}

@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iscrizioni - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    /* Popup immagine */
+    .img-popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .img-popup.show {
+      display: flex;
+    }
+    .img-popup img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+    }
+    .img-popup .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 2rem;
+      color: #fff;
+      cursor: pointer;
+    }
+    .preview-link {
+      color: #F7AF40;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .preview-link:hover {
+      color: #ffcc66;
+    }
+    .discipline-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #222;
+      flex-wrap: wrap;
+    }
+    .discipline-row label {
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ddd;
+    }
+    .discipline-row select {
+      padding: 0.4rem;
+      background: #111;
+      color: #f0f0f0;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .discipline-row select:disabled {
+      opacity: 0.4;
+    }
+    .taglia-section {
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 6px;
+    }
+    .taglia-section h3 {
+      color: #F7AF40;
+      margin-bottom: 0.8rem;
+    }
+    .felpa-option {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #333;
+    }
+    .felpa-option label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ddd;
+    }
+    .size-select {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .size-btn {
+      padding: 0.4rem 0.8rem;
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .size-btn:hover {
+      border-color: #F7AF40;
+    }
+    .size-btn.selected {
+      background: #F7AF40;
+      color: #000;
+      border-color: #F7AF40;
+    }
+    .size-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .prove-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .prove-grid label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.8rem;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #ccc;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .prove-grid label:hover {
+      border-color: #F7AF40;
+    }
+    .prove-grid input:checked + span {
+      color: #F7AF40;
+    }
+    .prove-grid label:has(input:checked) {
+      border-color: #F7AF40;
+      background: #1a1a1a;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+    <!-- ISCRIZIONI CHIUSE -->
+    <section style="background:linear-gradient(135deg,#8B0000,#B22222);border:3px solid #F7AF40;border-radius:12px;padding:2rem;margin:1rem auto;max-width:600px;text-align:center">
+      <h2 style="color:#F7AF40;margin:0 0 1rem;font-size:2rem">🚫 ISCRIZIONI CHIUSE</h2>
+      <p style="color:#fff;font-size:1.1rem;margin:0" data-t="iscrizioniChiuseIt">Le iscrizioni alla Busto Battle XI sono chiuse.</p>
+      <p style="color:#fff;font-size:1.1rem;margin:0.5rem 0 0" data-t="iscrizioniChiuseEn"><em>Registrations for Busto Battle XI are now closed.</em></p>
+      <p style="color:#F7AF40;margin-top:1rem">📅 13-15 Novembre 2026</p>
+    </section>
+    <!-- FINE ISCRIZIONI CHIUSE -->
+
+    <section class="info" style="display:none">
+      <h2 data-t="iscrizioniTitle">📝 Iscrizione Gara</h2>
+      <p data-t="iscrizioniDescQuota">Compila il modulo per iscriverti alla Busto Battle XI.</p>
+      <p><strong style="color:#F7AF40" data-t="quotaIscrizione">Quota iscrizione: €50 prima disciplina + €30 ogni disciplina aggiuntiva</strong></p>
+    </section>
+
+    <section class="form-section" style="display:none">
+      <h2 data-t="datiPersonali">Dati Personali</h2>
+      <form id="form-iscrizione">
+        <div class="form-row">
+          <input type="text" id="nome" data-t="nomePlaceholder" placeholder="Nome *" required>
+          <input type="text" id="cognome" data-t="cognomePlaceholder" placeholder="Cognome *" required>
+        </div>
+        <div class="form-row">
+          <input type="date" id="data_nascita" required>
+          <input type="text" id="societa" data-t="societaPlaceholder" placeholder="Società / Club">
+        </div>
+        <div class="form-row">
+          <input type="email" id="email" placeholder="Email *" required>
+          <input type="tel" id="telefono" data-t="telefonoPlaceholder" placeholder="Telefono">
+        </div>
+
+        <div class="form-row" style="align-items:center">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem" data-t="genereLabel">Genere *</label>
+            <div style="display:flex;gap:1.5rem">
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="genere" value="M" required> <span data-t="genereMaschile">Maschile</span>
+              </label>
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="genere" value="F" required> <span data-t="genereFemminile">Femminile</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem" data-t="nazionalitaLabel">Nazionalità *</label>
+            <select id="nazionalita" required style="width:100%;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+              <option value="" data-t="selezionaNazionalita">-- Seleziona nazionalità --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <input type="text" id="world_skate_id" placeholder="World Skate ID">
+          <input type="text" id="skate_italia_card" placeholder="Skate Italia Card Number">
+        </div>
+        <p style="color:#888;font-size:0.8rem;margin-top:-0.5rem;margin-bottom:1rem" data-t="tesseraObbligatoria">* Almeno uno tra World Skate ID e Skate Italia Card è obbligatorio</p>
+
+        <h3 style="color:#F7AF40;margin:1.5rem 0 1rem" data-t="scegli_discipline">Scegli le Discipline</h3>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem" data-t="categoriaAutoCalc">La categoria viene calcolata automaticamente dalla data di nascita, ma puoi modificarla se necessario.</p>
+        <p style="margin-bottom:1rem">
+          <a href="#" onclick="mostraAgeCategories(); return false;" style="color:#F7AF40;font-size:0.9rem" data-t="ageCategoriesLink">📋 Categorie d'età</a>
+        </p>
+        <p style="background:#332200;border:1px solid #f59e0b;padding:0.8rem;border-radius:6px;margin-bottom:1rem;font-size:0.9rem">
+          <span style="color:#f59e0b;font-weight:bold">⚠️ ATTENZIONE:</span> 
+          <span data-t="u15Warning">Tutte le discipline U15 sono considerate ⭐</span>
+        </p>
+        
+        <div id="discipline-container">
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Speed Slalom" onchange="updateDisciplina(this)"> Speed Slalom ⭐</label>
+            <select class="cat-select" data-for="Speed Slalom" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Classic Slalom" onchange="updateDisciplina(this)"> Classic Slalom ⭐</label>
+            <select class="cat-select" data-for="Classic Slalom" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Battle" onchange="updateDisciplina(this)"> Battle ⭐</label>
+            <select class="cat-select" data-for="Battle" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Slides" onchange="updateDisciplina(this)"> Slides ⭐⭐</label>
+            <select class="cat-select" data-for="Slides" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Pair Slalom" onchange="updateDisciplina(this)"> Pair Slalom ⭐⭐</label>
+            <span class="cat-select" data-for="Pair Slalom" data-i18n="pairCategory" style="color:#888;font-size:0.85rem;padding:0.4rem">(Categoria Unica)</span>
+          </div>
+          <div class="discipline-row">
+            <label><input type="checkbox" name="cat" value="Free Jump" onchange="updateDisciplina(this)"> Free Jump ⭐⭐</label>
+            <select class="cat-select" data-for="Free Jump" disabled onchange="updateTotale()">
+              <option value="U15">U15</option>
+              <option value="U19">U19</option>
+              <option value="SENIOR">SENIOR</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="taglia-section">
+          <h3 data-t="tagliaMagliaTitle">Taglia Maglietta Gara *</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem">
+            <span data-t="magliaInclusa">La <span class="preview-link" onclick="showPreview('Maglia.jpeg', event)">maglietta ufficiale</span> è inclusa nell'iscrizione.</span>
+            <a href="#" onclick="apriGuidaTaglie(); return false;" style="color:#F7AF40;margin-left:0.5rem;font-size:0.8rem" data-t="guidaTaglie">📏 Guida Taglie</a>
+          </p>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
+          <div class="size-select" id="taglia-maglia-uomo" style="margin-bottom:0.5rem">
+            <button type="button" class="size-btn" data-size="XS Uomo">XS</button>
+            <button type="button" class="size-btn" data-size="S Uomo">S</button>
+            <button type="button" class="size-btn" data-size="M Uomo">M</button>
+            <button type="button" class="size-btn" data-size="L Uomo">L</button>
+            <button type="button" class="size-btn" data-size="XL Uomo">XL</button>
+          </div>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👗 <span data-t="taglieDonna">Donna:</span></p>
+          <div class="size-select" id="taglia-maglia-donna">
+            <button type="button" class="size-btn" data-size="XS Donna">XS</button>
+            <button type="button" class="size-btn" data-size="S Donna">S</button>
+            <button type="button" class="size-btn" data-size="M Donna">M</button>
+            <button type="button" class="size-btn" data-size="L Donna">L</button>
+            <button type="button" class="size-btn" data-size="XL Donna">XL</button>
+          </div>
+          <input type="hidden" id="taglia_maglia" required>
+
+          <div class="felpa-option">
+            <label><input type="checkbox" id="vuole_felpa" onchange="toggleFelpa()"> <span class="preview-link" onclick="showPreview('Felpa.png', event)" data-t="felpaLabel">Felpa Ufficiale</span> (+€35)</label>
+            <div id="felpa-taglia" style="display:none;margin-top:0.8rem">
+              <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem">
+                <span data-t="selezionaTagliaFelpa">Seleziona taglia felpa:</span>
+                <a href="#" onclick="apriGuidaTaglieFelpa(); return false;" style="color:#F7AF40;margin-left:0.5rem;font-size:0.8rem" data-t="guidaTaglie">📏 Guida Taglie</a>
+              </p>
+              <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👔 <span data-t="taglieUomo">Uomo:</span></p>
+              <div class="size-select" id="taglia-felpa-uomo" style="margin-bottom:0.5rem">
+                <button type="button" class="size-btn" data-size="XS Uomo">XS</button>
+                <button type="button" class="size-btn" data-size="S Uomo">S</button>
+                <button type="button" class="size-btn" data-size="M Uomo">M</button>
+                <button type="button" class="size-btn" data-size="L Uomo">L</button>
+                <button type="button" class="size-btn" data-size="XL Uomo">XL</button>
+              </div>
+              <p style="color:#888;font-size:0.8rem;margin-bottom:0.3rem">👗 <span data-t="taglieDonna">Donna:</span></p>
+              <div class="size-select" id="taglia-felpa-donna">
+                <button type="button" class="size-btn" data-size="XS Donna">XS</button>
+                <button type="button" class="size-btn" data-size="S Donna">S</button>
+                <button type="button" class="size-btn" data-size="M Donna">M</button>
+                <button type="button" class="size-btn" data-size="L Donna">L</button>
+                <button type="button" class="size-btn" data-size="XL Donna">XL</button>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="taglia_felpa">
+          
+          <div class="felpa-option" style="margin-top:1rem">
+            <label><input type="checkbox" id="vuole_cappellino" onchange="updateTotale()"> <span class="preview-link" onclick="showPreview('Cappellino.jpeg', event)" data-t="cappellinoLabel">Cappellino Busto Battle</span> (+€5)</label>
+          </div>
+          
+          <div class="felpa-option" style="margin-top:0.5rem">
+            <label><input type="checkbox" id="vuole_asciugamano" onchange="updateTotale()"> <span class="preview-link" onclick="showPreview('ASciugamano.jpeg', event)" data-t="asciugamanoLabel">Asciugamano Microfibra</span> (+€5)</label>
+          </div>
+        </div>
+
+        <div class="taglia-section">
+          <h3 data-t="proveTitle">Prenotazione Prove Pista (opzionale)</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:0.8rem" data-t="proveDesc">12-13-14 Novembre @ PalaCastiglioni</p>
+          <p style="color:#F7AF40;font-weight:600;margin-bottom:0.8rem" data-t="proveCosto">€5 per ogni slot selezionato</p>
+          <p style="color:#888;font-size:0.8rem;margin-bottom:0.8rem" data-t="proveMax">Posti limitati per sessione</p>
+          <div class="prove-grid" id="prove-container">
+            <!-- Popolato dinamicamente -->
+          </div>
+        </div>
+
+        <div id="totale-box" style="margin:1.5rem 0;padding:1rem;background:#111;border:2px solid #F7AF40;border-radius:6px;display:none">
+          <p style="margin:0;font-size:1.2rem"><span data-t="totaleDaPagare">Totale da pagare:</span> <strong id="totale" style="color:#F7AF40;font-size:1.4rem">€0</strong></p>
+          <p id="dettaglio-totale" style="margin-top:0.5rem;color:#888;font-size:0.85rem"></p>
+          <div id="commissioni-info" style="margin-top:0.8rem;padding:0.6rem;background:#1a1a1a;border-radius:4px;font-size:0.8rem;display:none">
+            <p style="margin:0;color:#f59e0b"><span data-t="commissioniAvviso">⚠️ Pagando online verranno applicate commissioni carta:</span> <strong id="commissioni-importo">€0</strong></p>
+            <p style="margin:0.3rem 0 0;color:#888"><span data-t="commissioniTotale">Totale con commissioni:</span> <strong id="totale-con-commissioni" style="color:#F7AF40">€0</strong></p>
+          </div>
+        </div>
+
+        <div id="pair-warning" style="display:none;margin-top:0.5rem;padding:0.8rem;background:#4a3000;border:1px solid #f59e0b;border-radius:6px">
+          <p style="margin:0 0 0.8rem;color:#f59e0b;font-weight:bold" data-t="pairWarning">⚠️ Indicare il nome del compagno di coppia</p>
+          <input type="text" id="compagno_pair" placeholder="Nome e Cognome compagno *" style="width:100%;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #f59e0b;border-radius:4px">
+        </div>
+
+        <div class="form-row">
+          <textarea id="note" data-t="notePlaceholder" placeholder="Note aggiuntive (opzionale)"></textarea>
+        </div>
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem">
+          <button type="button" id="btn-bonifico" onclick="submitIscrizione('bonifico')" style="flex:1;min-width:200px;background:#F7AF40;color:#000;border:2px solid #F7AF40" data-t="pagaBonifico">📄 Iscriviti e paga con Bonifico</button>
+          <button type="button" id="btn-online" onclick="confermaCommissioni()" style="flex:1;min-width:200px;background:#F7AF40;color:#000" data-t="pagaOnline">💳 Paga Online</button>
+        </div>
+        <p class="msg" id="msg"></p>
+      </form>
+    </section>
+
+    <!-- Modal conferma commissioni (disabilitato) -->
+    <div id="modal-commissioni-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:400px;margin:1rem;border:2px solid #F7AF40">
+        <h3 style="color:#F7AF40;margin:0 0 1rem" data-t="confermaCommissioniTitle">💳 Conferma Pagamento Online</h3>
+        <p data-t="confermaCommissioniDesc">Scegliendo il pagamento online verranno applicate le commissioni della carta di credito:</p>
+        <div style="background:#111;padding:1rem;border-radius:6px;margin:1rem 0">
+          <p style="margin:0"><span data-t="importoIscrizione">Importo iscrizione:</span> <strong id="modal-importo-base">€0</strong></p>
+          <p style="margin:0.5rem 0 0"><span data-t="commissioni">Commissioni (1,65% + €0,25):</span> <strong id="modal-commissioni-importo" style="color:#f59e0b">€0</strong></p>
+          <hr style="border-color:#333;margin:0.8rem 0">
+          <p style="margin:0;font-size:1.1rem"><span data-t="totaleFinale">Totale da pagare:</span> <strong id="modal-totale" style="color:#F7AF40">€0</strong></p>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:1.5rem">
+          <button onclick="chiudiModalCommissioni()" style="flex:1;background:#333;border:1px solid #555" data-t="annulla">Annulla</button>
+          <button onclick="procediPagamentoOnline()" style="flex:1;background:#F7AF40;color:#000;border:none" data-t="confermaPaga">Conferma e Paga</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Age Categories -->
+    <div id="modal-age-categories" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:450px;margin:1rem;border:2px solid #F7AF40">
+        <h3 style="color:#F7AF40;margin:0 0 1.5rem;text-align:center" data-t="ageCategoriesTitle">Categorie d'Età</h3>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="background:#9ACD32;color:#000;padding:12px 15px;text-align:center;font-weight:bold" data-t="ageCategoryHeader">CATEGORIA</th>
+              <th style="background:#9ACD32;color:#000;padding:12px 15px;text-align:center;font-weight:bold" data-t="ageHeader">ETÀ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0">Junior U15</td>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0" data-t="ageU15">10-14 anni</td>
+            </tr>
+            <tr>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0">Junior U19</td>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0" data-t="ageU19">15-18 anni</td>
+            </tr>
+            <tr>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0">Senior</td>
+              <td style="padding:15px;text-align:center;border:1px solid #333;color:#f0f0f0" data-t="ageSenior">19 anni e oltre</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="text-align:center;margin-top:1.5rem">
+          <button onclick="chiudiAgeCategories()" style="background:#F7AF40;color:#000;border:none;padding:10px 30px;border-radius:6px;cursor:pointer;font-weight:bold">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conferma BONIFICO (Sospesa) -->
+    <section class="info" id="conferma-bonifico" style="display:none;text-align:center">
+      <h2 style="color:#f59e0b">🕐 <span data-t="iscrizioneSospesa">Iscrizione Sospesa</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione-bonifico" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="riceveraiEmailBonifico">Riceverai una email con le istruzioni per completare il pagamento.</p>
+      <p style="color:#888;font-size:0.9rem;margin-top:0.5rem" data-t="controllaSpamBonifico">📧 Controlla anche le cartelle Spam e Promozioni.</p>
+      
+      <div style="margin-top:1.5rem;padding:1rem;background:#111;border:1px solid #222;border-radius:6px;text-align:left">
+        <h3 style="color:#F7AF40;margin-bottom:0.5rem" data-t="istruzioniPagamento">💳 Istruzioni per il pagamento</h3>
+        <p style="margin:0.3rem 0;color:#ccc"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong>Banca:</strong> Banca Sella</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="intestatario">Intestatario:</strong> Accademia Bustese Pattinaggio ASD</p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="causale">Causale:</strong> <span id="causale-bonifico"></span></p>
+        <p style="margin:0.3rem 0;color:#ccc"><strong data-t="importo">Importo:</strong> <span id="importo-bonifico"></span></p>
+      </div>
+      
+      <div style="margin-top:1.5rem;padding:1rem;background:#1a1a1a;border:2px solid #F7AF40;border-radius:6px">
+        <p style="margin:0;color:#F7AF40;font-weight:600" data-t="dopoIlBonifico">Dopo aver effettuato il bonifico:</p>
+        <a id="link-carica-ricevuta" href="#" class="cta-btn" style="margin-top:1rem;display:inline-block;background:#F7AF40;color:#000" data-t="caricaRicevutaBtn">📤 Carica la ricevuta del bonifico</a>
+      </div>
+    </section>
+
+    <!-- Conferma STRIPE (Confermata) -->
+    <section class="info" id="conferma-stripe" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione-stripe" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="pagamentoRicevuto">Il pagamento è stato ricevuto. Riceverai una email di conferma.</p>
+      <p style="color:#888;font-size:0.9rem;margin-top:0.5rem" data-t="controllaSpam">📧 Controlla anche le cartelle Spam e Promozioni se non trovi l'email.</p>
+      <a href="verifica.html" class="cta-btn" style="margin-top:1.5rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
+    </section>
+
+    <!-- Vecchia sezione conferma (per compatibilità) -->
+    <section class="info" id="conferma" style="display:none;text-align:center">
+      <h2 style="color:#4CAF50">✅ <span data-t="iscrizioneConfermata">Iscrizione Confermata!</span></h2>
+      <p data-t="codiceIscrizione">Il tuo codice di iscrizione è:</p>
+      <p id="codice-iscrizione" style="font-size:1.8rem;font-weight:bold;color:#F7AF40;margin:1rem 0"></p>
+      <p data-t="riceveraiEmail">Riceverai una email di conferma con le istruzioni per il pagamento.</p>
+      <p style="color:#888;font-size:0.9rem;margin-top:0.5rem" data-t="controllaSpam">📧 Controlla anche le cartelle Spam e Promozioni se non trovi l'email.</p>
+      <a href="verifica.html" class="cta-btn" style="margin-top:1.5rem;display:inline-block" data-t="verificaIscrizione">Verifica la tua iscrizione</a>
+    </section>
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const PREZZO_PRIMA = 50;
+    const PREZZO_ALTRE = 30;
+    const PREZZO_FELPA = 35;
+    const PREZZO_PROVA_ORA = 5;
+
+    // Lista nazionalità (codici ISO con nomi)
+    // Lista nazionalità - Italia prima, poi alfabetico
+    const NAZIONALITA = [
+      { code: 'IT', name: 'Italia', nameEn: 'Italy' },
+      // Europa Occidentale
+      { code: 'AL', name: 'Albania', nameEn: 'Albania' },
+      { code: 'AD', name: 'Andorra', nameEn: 'Andorra' },
+      { code: 'AT', name: 'Austria', nameEn: 'Austria' },
+      { code: 'BE', name: 'Belgio', nameEn: 'Belgium' },
+      { code: 'BY', name: 'Bielorussia', nameEn: 'Belarus' },
+      { code: 'BA', name: 'Bosnia-Erzegovina', nameEn: 'Bosnia and Herzegovina' },
+      { code: 'BG', name: 'Bulgaria', nameEn: 'Bulgaria' },
+      { code: 'CY', name: 'Cipro', nameEn: 'Cyprus' },
+      { code: 'HR', name: 'Croazia', nameEn: 'Croatia' },
+      { code: 'DK', name: 'Danimarca', nameEn: 'Denmark' },
+      { code: 'EE', name: 'Estonia', nameEn: 'Estonia' },
+      { code: 'FI', name: 'Finlandia', nameEn: 'Finland' },
+      { code: 'FR', name: 'Francia', nameEn: 'France' },
+      { code: 'DE', name: 'Germania', nameEn: 'Germany' },
+      { code: 'GR', name: 'Grecia', nameEn: 'Greece' },
+      { code: 'IE', name: 'Irlanda', nameEn: 'Ireland' },
+      { code: 'IS', name: 'Islanda', nameEn: 'Iceland' },
+      { code: 'XK', name: 'Kosovo', nameEn: 'Kosovo' },
+      { code: 'LV', name: 'Lettonia', nameEn: 'Latvia' },
+      { code: 'LI', name: 'Liechtenstein', nameEn: 'Liechtenstein' },
+      { code: 'LT', name: 'Lituania', nameEn: 'Lithuania' },
+      { code: 'LU', name: 'Lussemburgo', nameEn: 'Luxembourg' },
+      { code: 'MK', name: 'Macedonia del Nord', nameEn: 'North Macedonia' },
+      { code: 'MT', name: 'Malta', nameEn: 'Malta' },
+      { code: 'MD', name: 'Moldavia', nameEn: 'Moldova' },
+      { code: 'MC', name: 'Monaco', nameEn: 'Monaco' },
+      { code: 'ME', name: 'Montenegro', nameEn: 'Montenegro' },
+      { code: 'NO', name: 'Norvegia', nameEn: 'Norway' },
+      { code: 'NL', name: 'Paesi Bassi', nameEn: 'Netherlands' },
+      { code: 'PL', name: 'Polonia', nameEn: 'Poland' },
+      { code: 'PT', name: 'Portogallo', nameEn: 'Portugal' },
+      { code: 'GB', name: 'Regno Unito', nameEn: 'United Kingdom' },
+      { code: 'CZ', name: 'Repubblica Ceca', nameEn: 'Czech Republic' },
+      { code: 'RO', name: 'Romania', nameEn: 'Romania' },
+      { code: 'RU', name: 'Russia', nameEn: 'Russia' },
+      { code: 'SM', name: 'San Marino', nameEn: 'San Marino' },
+      { code: 'RS', name: 'Serbia', nameEn: 'Serbia' },
+      { code: 'SK', name: 'Slovacchia', nameEn: 'Slovakia' },
+      { code: 'SI', name: 'Slovenia', nameEn: 'Slovenia' },
+      { code: 'ES', name: 'Spagna', nameEn: 'Spain' },
+      { code: 'SE', name: 'Svezia', nameEn: 'Sweden' },
+      { code: 'CH', name: 'Svizzera', nameEn: 'Switzerland' },
+      { code: 'UA', name: 'Ucraina', nameEn: 'Ukraine' },
+      { code: 'HU', name: 'Ungheria', nameEn: 'Hungary' },
+      // Medio Oriente
+      { code: 'SA', name: 'Arabia Saudita', nameEn: 'Saudi Arabia' },
+      { code: 'BH', name: 'Bahrein', nameEn: 'Bahrain' },
+      { code: 'AE', name: 'Emirati Arabi Uniti', nameEn: 'United Arab Emirates' },
+      { code: 'JO', name: 'Giordania', nameEn: 'Jordan' },
+      { code: 'IR', name: 'Iran', nameEn: 'Iran' },
+      { code: 'IQ', name: 'Iraq', nameEn: 'Iraq' },
+      { code: 'IL', name: 'Israele', nameEn: 'Israel' },
+      { code: 'KW', name: 'Kuwait', nameEn: 'Kuwait' },
+      { code: 'LB', name: 'Libano', nameEn: 'Lebanon' },
+      { code: 'OM', name: 'Oman', nameEn: 'Oman' },
+      { code: 'QA', name: 'Qatar', nameEn: 'Qatar' },
+      { code: 'SY', name: 'Siria', nameEn: 'Syria' },
+      { code: 'TR', name: 'Turchia', nameEn: 'Turkey' },
+      { code: 'YE', name: 'Yemen', nameEn: 'Yemen' },
+      // Asia
+      { code: 'BN', name: 'Brunei', nameEn: 'Brunei' },
+      { code: 'KH', name: 'Cambogia', nameEn: 'Cambodia' },
+      { code: 'CN', name: 'Cina', nameEn: 'China' },
+      { code: 'KR', name: 'Corea del Sud', nameEn: 'South Korea' },
+      { code: 'PH', name: 'Filippine', nameEn: 'Philippines' },
+      { code: 'JP', name: 'Giappone', nameEn: 'Japan' },
+      { code: 'IN', name: 'India', nameEn: 'India' },
+      { code: 'ID', name: 'Indonesia', nameEn: 'Indonesia' },
+      { code: 'LA', name: 'Laos', nameEn: 'Laos' },
+      { code: 'MY', name: 'Malesia', nameEn: 'Malaysia' },
+      { code: 'MM', name: 'Myanmar', nameEn: 'Myanmar' },
+      { code: 'SG', name: 'Singapore', nameEn: 'Singapore' },
+      { code: 'TW', name: 'Taiwan', nameEn: 'Taiwan' },
+      { code: 'TH', name: 'Thailandia', nameEn: 'Thailand' },
+      { code: 'VN', name: 'Vietnam', nameEn: 'Vietnam' },
+      // Americhe
+      { code: 'AR', name: 'Argentina', nameEn: 'Argentina' },
+      { code: 'BR', name: 'Brasile', nameEn: 'Brazil' },
+      { code: 'CA', name: 'Canada', nameEn: 'Canada' },
+      { code: 'CL', name: 'Cile', nameEn: 'Chile' },
+      { code: 'CO', name: 'Colombia', nameEn: 'Colombia' },
+      { code: 'MX', name: 'Messico', nameEn: 'Mexico' },
+      { code: 'PE', name: 'Perù', nameEn: 'Peru' },
+      { code: 'US', name: 'Stati Uniti', nameEn: 'United States' },
+      // Oceania
+      { code: 'AU', name: 'Australia', nameEn: 'Australia' },
+      { code: 'NZ', name: 'Nuova Zelanda', nameEn: 'New Zealand' },
+      // Africa
+      { code: 'EG', name: 'Egitto', nameEn: 'Egypt' },
+      { code: 'MA', name: 'Marocco', nameEn: 'Morocco' },
+      { code: 'ZA', name: 'Sudafrica', nameEn: 'South Africa' },
+      { code: 'TN', name: 'Tunisia', nameEn: 'Tunisia' },
+      // Altro
+      { code: 'OTHER', name: 'Altro', nameEn: 'Other' }
+    ];
+
+    // Popola select nazionalità
+    function popolaNazionalita() {
+      const select = document.getElementById('nazionalita');
+      const lang = getLang();
+      // Mantieni solo la prima opzione
+      select.innerHTML = `<option value="">${lang === 'en' ? '-- Select nationality --' : '-- Seleziona nazionalità --'}</option>`;
+      // Italia sempre prima
+      const italia = NAZIONALITA.find(n => n.code === 'IT');
+      if (italia) {
+        select.innerHTML += `<option value="${italia.code}">${lang === 'en' ? italia.nameEn : italia.name}</option>`;
+      }
+      // Altri in ordine alfabetico
+      const altri = NAZIONALITA.filter(n => n.code !== 'IT').sort((a, b) => {
+        const nameA = lang === 'en' ? a.nameEn : a.name;
+        const nameB = lang === 'en' ? b.nameEn : b.name;
+        return nameA.localeCompare(nameB);
+      });
+      for (const n of altri) {
+        select.innerHTML += `<option value="${n.code}">${lang === 'en' ? n.nameEn : n.name}</option>`;
+      }
+    }
+
+    // Aggiorna nazionalità quando cambia lingua
+    const origSetLangIscr = typeof setLang === 'function' ? setLang : null;
+    if (origSetLangIscr) {
+      setLang = function(l) {
+        origSetLangIscr(l);
+        popolaNazionalita();
+      };
+    }
+
+    // Popola al caricamento
+    document.addEventListener('DOMContentLoaded', popolaNazionalita);
+
+    let proveDisponibilita = {};
+
+    // Carica disponibilità prove
+    async function caricaProveDisponibilita() {
+      try {
+        const res = await fetch('/api/prove/disponibilita');
+        proveDisponibilita = await res.json();
+        renderProveSlots();
+      } catch (e) {
+        console.error('Errore caricamento prove:', e);
+      }
+    }
+
+    const SPECIALITA_PROVE = ['Classic Slalom', 'Speed Slalom', 'Slides', 'Free Jump'];
+
+    function renderProveSlots() {
+      const container = document.getElementById('prove-container');
+      const entries = Object.entries(proveDisponibilita);
+      if (!entries.length) {
+        container.innerHTML = '<p style="color:#888">Nessuno slot prove disponibile</p>';
+        return;
+      }
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
+      for (const [key, data] of entries) {
+        const giorno = data.giorno || '2026-11-14';
+        const ora = data.ora || key;
+        if (!perGiorno[giorno]) perGiorno[giorno] = [];
+        perGiorno[giorno].push({ ora, ...data });
+      }
+      
+      // Formatta giorno
+      const formatGiorno = (g) => {
+        const [anno, mese, gg] = g.split('-');
+        const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const d = new Date(+anno, +mese - 1, +gg);
+        return `${giorni[d.getDay()]} ${gg}/${mese}`;
+      };
+      
+      // Ordina i giorni
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      let html = '';
+      for (const giorno of giorniOrdinati) {
+        html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40">📅 ${formatGiorno(giorno)}</strong></div>`;
+        // Ordina slot per ora
+        const slotsOrdinati = perGiorno[giorno].sort((a, b) => a.ora.localeCompare(b.ora));
+        for (const slot of slotsOrdinati) {
+          const esaurito = slot.posti <= 0;
+          const quasi = slot.posti > 0 && slot.posti <= 3;
+          const color = esaurito ? '#ef4444' : quasi ? '#f59e0b' : '#4ade80';
+          const slotId = `prova-${giorno.replace(/-/g, '')}-${slot.ora.replace(/:/g, '')}`;
+          html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:#222;border:1px solid #333;border-radius:4px;margin:0.3rem 0;flex-wrap:wrap;${esaurito ? 'opacity:0.5' : ''}">
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:${esaurito ? 'not-allowed' : 'pointer'};min-width:140px">
+              <input type="checkbox" id="${slotId}" name="prove" value="${slot.ora}" data-giorno="${giorno}" onchange="toggleProvaSlot('${slot.ora}', '${giorno}')" ${esaurito ? 'disabled' : ''}>
+              <span>${slot.ora}</span>
+              <small style="color:${color}">(${slot.posti}/${slot.posti_max})</small>
+            </label>
+            <select id="spec-${slotId}" onchange="updateTotale()" disabled style="padding:0.3rem;background:#111;color:#f0f0f0;border:1px solid #444;border-radius:4px;font-size:0.85rem">
+              <option value="">-- Disciplina --</option>
+              ${SPECIALITA_PROVE.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>`;
+        }
+      }
+      container.innerHTML = html;
+    }
+
+    function toggleProvaSlot(ora, giorno) {
+      const slotId = `prova-${giorno.replace(/-/g, '')}-${ora.replace(/:/g, '')}`;
+      const checkbox = document.getElementById(slotId);
+      const select = document.getElementById(`spec-${slotId}`);
+      select.disabled = !checkbox.checked;
+      if (!checkbox.checked) select.value = '';
+      updateTotale();
+    }
+
+    // Carica al load
+    caricaProveDisponibilita();
+
+    // Calcola categoria da data nascita (riferimento 2026)
+    function calcolaCategoria(dataNascita) {
+      if (!dataNascita) return 'SENIOR';
+      const anno = parseInt(dataNascita.split('-')[0]);
+      if (anno >= 2012 && anno <= 2016) return 'U15';
+      if (anno >= 2008 && anno <= 2011) return 'U19';
+      return 'SENIOR';
+    }
+
+    // Aggiorna categoria quando cambia data nascita
+    document.getElementById('data_nascita').addEventListener('change', function() {
+      const categoria = calcolaCategoria(this.value);
+      document.querySelectorAll('.cat-select').forEach(sel => {
+        sel.value = categoria;
+      });
+      updateTotale();
+    });
+
+    // Toggle disciplina
+    function updateDisciplina(cb) {
+      const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
+      // Pair Slalom non ha select (categoria unica)
+      if (sel && sel.tagName === 'SELECT') {
+        sel.disabled = !cb.checked;
+        if (cb.checked) {
+          const dataNascita = document.getElementById('data_nascita').value;
+          sel.value = calcolaCategoria(dataNascita);
+        }
+      }
+      updateTotale();
+      checkPairSlalom();
+    }
+    
+    // Controlla se Pair Slalom è selezionato
+    function checkPairSlalom() {
+      const pairChecked = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
+      const pairWarning = document.getElementById('pair-warning');
+      const compagnoField = document.getElementById('compagno_pair');
+      
+      if (pairChecked) {
+        pairWarning.style.display = 'block';
+        compagnoField.required = true;
+      } else {
+        pairWarning.style.display = 'none';
+        compagnoField.required = false;
+        compagnoField.value = '';
+      }
+    }
+
+    // Costanti commissioni (tariffa standard SEE)
+    const COMMISSIONE_PERCENTUALE = 0.0165; // 1.65%
+    const COMMISSIONE_FISSA = 0.25; // €0.25
+
+    // Calcolo totale
+    function updateTotale() {
+      const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const vuoleCappellino = document.getElementById('vuole_cappellino').checked;
+      const vuoleAsciugamano = document.getElementById('vuole_asciugamano').checked;
+      const oreProve = document.querySelectorAll('input[name="prove"]:checked').length;
+      
+      let totaleGare = 0;
+      if (checkedDiscipline > 0) {
+        totaleGare = PREZZO_PRIMA + (checkedDiscipline - 1) * PREZZO_ALTRE;
+      }
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleCappellino = vuoleCappellino ? 5 : 0;
+      const totaleAsciugamano = vuoleAsciugamano ? 5 : 0;
+      const totaleProve = oreProve * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleCappellino + totaleAsciugamano + totaleProve;
+
+      // Calcola commissioni
+      const commissioni = Math.round((totale * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
+      const totaleConCommissioni = totale + commissioni;
+
+      const box = document.getElementById('totale-box');
+      if (checkedDiscipline > 0 || oreProve > 0) {
+        box.style.display = 'block';
+        document.getElementById('totale').textContent = '€' + totale;
+        
+        // Dettaglio
+        let dettaglio = [];
+        if (checkedDiscipline === 1) {
+          dettaglio.push('1 disciplina: €' + PREZZO_PRIMA);
+        } else if (checkedDiscipline > 1) {
+          dettaglio.push(`${checkedDiscipline} discipline: €${PREZZO_PRIMA} + ${checkedDiscipline-1}×€${PREZZO_ALTRE} = €${totaleGare}`);
+        }
+        if (vuoleFelpa) {
+          dettaglio.push('Felpa: €' + PREZZO_FELPA);
+        }
+        if (vuoleCappellino) {
+          dettaglio.push('Cappellino: €5');
+        }
+        if (vuoleAsciugamano) {
+          dettaglio.push('Asciugamano: €5');
+        }
+        if (oreProve > 0) {
+          dettaglio.push(`Prove: ${oreProve} slot × €${PREZZO_PROVA_ORA} = €${totaleProve}`);
+        }
+        document.getElementById('dettaglio-totale').textContent = dettaglio.join(' | ');
+
+        // Mostra info commissioni
+        document.getElementById('commissioni-info').style.display = 'block';
+        document.getElementById('commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+        document.getElementById('totale-con-commissioni').textContent = '€' + totaleConCommissioni.toFixed(2);
+      } else {
+        box.style.display = 'none';
+        document.getElementById('commissioni-info').style.display = 'none';
+      }
+    }
+
+    // Calcola commissioni per un importo
+    function calcolaCommissioni(importo) {
+      return Math.round((importo * COMMISSIONE_PERCENTUALE + COMMISSIONE_FISSA) * 100) / 100;
+    }
+
+    // Mostra modal conferma commissioni
+    function confermaCommissioni() {
+      const checkedDiscipline = document.querySelectorAll('input[name="cat"]:checked').length;
+      if (checkedDiscipline === 0) {
+        document.getElementById('msg').textContent = getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina';
+        document.getElementById('msg').style.color = '#f44336';
+        return;
+      }
+
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const oreProve = document.querySelectorAll('input[name="prove"]:checked').length;
+      
+      let totaleGare = PREZZO_PRIMA + (checkedDiscipline - 1) * PREZZO_ALTRE;
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleProve = oreProve * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleProve;
+      
+      const commissioni = calcolaCommissioni(totale);
+      const totaleConCommissioni = totale + commissioni;
+
+      document.getElementById('modal-importo-base').textContent = '€' + totale;
+      document.getElementById('modal-commissioni-importo').textContent = '€' + commissioni.toFixed(2);
+      document.getElementById('modal-totale').textContent = '€' + totaleConCommissioni.toFixed(2);
+      
+      document.getElementById('modal-commissioni-overlay').style.display = 'flex';
+    }
+
+    function chiudiModalCommissioni() {
+      document.getElementById('modal-commissioni-overlay').style.display = 'none';
+    }
+
+    function procediPagamentoOnline() {
+      chiudiModalCommissioni();
+      submitIscrizione('online');
+    }
+
+    // Toggle felpa
+    function toggleFelpa() {
+      const checked = document.getElementById('vuole_felpa').checked;
+      const felpaDiv = document.getElementById('felpa-taglia');
+      felpaDiv.style.display = checked ? 'block' : 'none';
+      
+      if (!checked) {
+        document.querySelectorAll('#taglia-felpa-uomo .size-btn, #taglia-felpa-donna .size-btn').forEach(btn => {
+          btn.classList.remove('selected');
+        });
+        document.getElementById('taglia_felpa').value = '';
+      }
+      
+      updateTotale();
+    }
+
+    // Age Categories modal
+    function mostraAgeCategories() {
+      const modal = document.getElementById('modal-age-categories');
+      modal.style.display = 'flex';
+      applyLang(); // Applica traduzioni al modal
+    }
+    
+    function chiudiAgeCategories() {
+      document.getElementById('modal-age-categories').style.display = 'none';
+    }
+
+    // Guida taglie MAGLIA modal
+    function apriGuidaTaglie() {
+      const modal = document.createElement('div');
+      modal.id = 'modal-guida-taglie';
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      const lang = getLang();
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width:700px;max-height:90vh;overflow-y:auto">
+          <h3 style="color:#F7AF40;margin-bottom:1rem">📏 ${lang === 'en' ? 'T-Shirt Size Guide' : 'Guida Taglie Maglia'}</h3>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👔 ${lang === 'en' ? 'Men' : 'Uomo'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">4XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">5XL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">72</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">74</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">76</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">78</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">80</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">82</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">84</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">45</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">48</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">51</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">54</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">57</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">60</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">63</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">75</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👗 ${lang === 'en' ? 'Women' : 'Donna'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">58</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">60</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">64</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">41</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">44</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">47</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">50</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">53</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">56</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <p style="color:#888;font-size:0.8rem;margin-top:1rem">${lang === 'en' ? 'Measurements in centimeters' : 'Misure in centimetri'}</p>
+          <button onclick="this.closest('.modal').remove()" style="margin-top:1rem;background:#F7AF40;color:#000;border:none;padding:0.6rem 1.5rem;border-radius:4px;cursor:pointer">${lang === 'en' ? 'Close' : 'Chiudi'}</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    
+    // Guida taglie FELPA modal
+    function apriGuidaTaglieFelpa() {
+      const modal = document.createElement('div');
+      modal.id = 'modal-guida-taglie-felpa';
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      const lang = getLang();
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width:650px;max-height:90vh;overflow-y:auto">
+          <h3 style="color:#F7AF40;margin-bottom:1rem">📏 ${lang === 'en' ? 'Hoodie Size Guide' : 'Guida Taglie Felpa'}</h3>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👔 ${lang === 'en' ? 'Men' : 'Uomo'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+                <th style="padding:0.4rem;border:1px solid #333">3XL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">72</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">74</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">76</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">78</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">79</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">49</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">52</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">55.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <h4 style="color:#F7AF40;margin:1rem 0 0.5rem">👗 ${lang === 'en' ? 'Women' : 'Donna'}</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+            <thead>
+              <tr style="background:#222">
+                <th style="padding:0.4rem;border:1px solid #333;text-align:left">${lang === 'en' ? 'SIZE' : 'TAGLIA'}</th>
+                <th style="padding:0.4rem;border:1px solid #333">XS</th>
+                <th style="padding:0.4rem;border:1px solid #333">S</th>
+                <th style="padding:0.4rem;border:1px solid #333">M</th>
+                <th style="padding:0.4rem;border:1px solid #333">L</th>
+                <th style="padding:0.4rem;border:1px solid #333">XL</th>
+                <th style="padding:0.4rem;border:1px solid #333">XXL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'HEIGHT' : 'ALTEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">62</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">64</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">66</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">68</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">69</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">70</td>
+              </tr>
+              <tr>
+                <td style="padding:0.4rem;border:1px solid #333;font-weight:600">${lang === 'en' ? 'WIDTH' : 'LARGHEZZA'}</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">44.5</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">47</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">50</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">53</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">56</td>
+                <td style="padding:0.4rem;border:1px solid #333;text-align:center">59.5</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <p style="color:#888;font-size:0.8rem;margin-top:1rem">${lang === 'en' ? 'Measurements in centimeters' : 'Misure in centimetri'}</p>
+          <button onclick="this.closest('.modal').remove()" style="margin-top:1rem;background:#F7AF40;color:#000;border:none;padding:0.6rem 1.5rem;border-radius:4px;cursor:pointer">${lang === 'en' ? 'Close' : 'Chiudi'}</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // Size buttons maglia (uomo e donna)
+    document.querySelectorAll('#taglia-maglia-uomo .size-btn, #taglia-maglia-donna .size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#taglia-maglia-uomo .size-btn, #taglia-maglia-donna .size-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('taglia_maglia').value = this.dataset.size;
+      });
+    });
+
+    // Size buttons felpa (uomo e donna)
+    document.querySelectorAll('#taglia-felpa-uomo .size-btn, #taglia-felpa-donna .size-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Deseleziona tutti (sia uomo che donna)
+        document.querySelectorAll('#taglia-felpa-uomo .size-btn, #taglia-felpa-donna .size-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('taglia_felpa').value = this.dataset.size;
+      });
+    });
+
+    // Submit form - paymentMethod può essere 'bonifico' o 'online'
+    async function submitIscrizione(paymentMethod) {
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      msg.style.color = '';
+
+      function showError(text) {
+        msg.textContent = text;
+        msg.style.color = '#f44336';
+        msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      // Validazione genere
+      const genere = document.querySelector('input[name="genere"]:checked');
+      if (!genere) {
+        showError(getLang() === 'en' ? 'Select gender' : 'Seleziona il genere');
+        return;
+      }
+
+      // Validazione World Skate ID o Skate Italia Card
+      const worldSkateId = document.getElementById('world_skate_id').value.trim();
+      const skateItaliaCard = document.getElementById('skate_italia_card').value.trim();
+      if (!worldSkateId && !skateItaliaCard) {
+        showError(getLang() === 'en' ? 'Enter at least World Skate ID or Skate Italia Card' : 'Inserisci almeno uno tra World Skate ID e Skate Italia Card');
+        return;
+      }
+
+      // Validazioni discipline
+      const checkedBoxes = document.querySelectorAll('input[name="cat"]:checked');
+      if (checkedBoxes.length === 0) {
+        showError(getLang() === 'en' ? 'Select at least one discipline' : 'Seleziona almeno una disciplina');
+        return;
+      }
+
+      const tagliaMaglia = document.getElementById('taglia_maglia').value;
+      if (!tagliaMaglia) {
+        showError(getLang() === 'en' ? 'Select t-shirt size' : 'Seleziona la taglia della maglietta');
+        return;
+      }
+
+      const vuoleFelpa = document.getElementById('vuole_felpa').checked;
+      const tagliaFelpa = document.getElementById('taglia_felpa').value;
+      if (vuoleFelpa && !tagliaFelpa) {
+        showError(getLang() === 'en' ? 'Select hoodie size' : 'Seleziona la taglia della felpa');
+        return;
+      }
+
+      // Validazioni campi base
+      const nome = document.getElementById('nome').value.trim();
+      const cognome = document.getElementById('cognome').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const dataNascita = document.getElementById('data_nascita').value;
+      
+      if (!nome || !cognome || !email) {
+        let mancanti = [];
+        if (!nome) mancanti.push('Nome');
+        if (!cognome) mancanti.push('Cognome');
+        if (!email) mancanti.push('Email');
+        showError((getLang() === 'en' ? 'Missing required fields: ' : 'Campi obbligatori mancanti: ') + mancanti.join(', '));
+        return;
+      }
+
+      // Validazione data nascita obbligatoria
+      if (!dataNascita) {
+        showError(getLang() === 'en' ? 'Enter date of birth' : 'Inserisci la data di nascita');
+        return;
+      }
+
+      // Validazione nazionalità
+      const nazionalita = document.getElementById('nazionalita').value;
+      if (!nazionalita) {
+        showError(getLang() === 'en' ? 'Select nationality' : 'Seleziona la nazionalità');
+        return;
+      }
+
+      // Validazione età minima (nati dal 2016 o prima)
+      const annoNascita = parseInt(dataNascita.split('-')[0]);
+      if (annoNascita > 2016) {
+        showError(getLang() === 'en' ? 'Athletes must be born in 2016 or earlier' : 'Gli atleti devono essere nati nel 2016 o prima');
+        return;
+      }
+
+      // Validazione compagno Pair Slalom
+      const pairChecked = document.querySelector('input[name="cat"][value="Pair Slalom"]:checked');
+      const compagnoPair = document.getElementById('compagno_pair').value.trim();
+      if (pairChecked && !compagnoPair) {
+        showError(getLang() === 'en' ? 'Enter pair partner name for Pair Slalom' : 'Inserisci il nome del compagno per il Pair Slalom');
+        return;
+      }
+
+      // Costruisci categoria con dettaglio per ogni disciplina
+      const disciplineConCategoria = [];
+      checkedBoxes.forEach(cb => {
+        const sel = document.querySelector(`.cat-select[data-for="${cb.value}"]`);
+        // Per Pair Slalom è uno span (categoria unica), per gli altri è un select
+        const catValue = sel.tagName === 'SELECT' ? sel.value : 'UNICA';
+        disciplineConCategoria.push(`${cb.value} (${catValue})`);
+      });
+
+      // Ore prove con specialità
+      const oreProveChecked = document.querySelectorAll('input[name="prove"]:checked');
+      const oreProve = [];
+      const oreProveDettaglio = [];
+      for (const cb of oreProveChecked) {
+        const ora = cb.value;
+        const giorno = cb.dataset.giorno || null;
+        const slotId = giorno ? `prova-${giorno.replace(/-/g, '')}-${ora.replace(/:/g, '')}` : `prova-${ora.replace(/:/g, '')}`;
+        const specSelect = document.getElementById(`spec-${slotId}`);
+        const specialita = specSelect ? specSelect.value : '';
+        if (!specialita) {
+          showError(getLang() === 'en' ? `Select discipline for slot ${ora}` : `Seleziona la disciplina per lo slot ${ora}`);
+          document.getElementById('btn-bonifico').disabled = false;
+          return;
+        }
+        oreProve.push({ ora, giorno, specialita });
+        oreProveDettaglio.push(`${giorno ? giorno + ' ' : ''}${ora} (${specialita})`);
+      }
+
+      const numDiscipline = checkedBoxes.length;
+      const totaleGare = PREZZO_PRIMA + (numDiscipline - 1) * PREZZO_ALTRE;
+      const totaleFelpa = vuoleFelpa ? PREZZO_FELPA : 0;
+      const totaleProve = oreProve.length * PREZZO_PROVA_ORA;
+      const totale = totaleGare + totaleFelpa + totaleProve;
+
+      // Note con info tessere, maglia/felpa, prove
+      let noteFinali = [];
+      noteFinali.push(`Genere: ${genere.value}`);
+      noteFinali.push(`Nazionalità: ${nazionalita}`);
+      if (worldSkateId) noteFinali.push(`WS ID: ${worldSkateId}`);
+      if (skateItaliaCard) noteFinali.push(`FISR: ${skateItaliaCard}`);
+      // Compagno Pair Slalom
+      if (pairChecked && compagnoPair) {
+        noteFinali.push(`Compagno Pair: ${compagnoPair}`);
+      }
+      noteFinali.push(`Maglia: ${tagliaMaglia}`);
+      if (vuoleFelpa) {
+        noteFinali.push(`Felpa: ${tagliaFelpa}`);
+      }
+      if (document.getElementById('vuole_cappellino').checked) {
+        noteFinali.push('Cappellino: Sì');
+      }
+      if (document.getElementById('vuole_asciugamano').checked) {
+        noteFinali.push('Asciugamano: Sì');
+      }
+      if (oreProve.length > 0) {
+        noteFinali.push(`Prove: ${oreProveDettaglio.join(', ')}`);
+      }
+      const noteUtente = document.getElementById('note').value.trim();
+      if (noteUtente) {
+        noteFinali.push(noteUtente);
+      }
+
+      const data = {
+        nome: nome,
+        cognome: cognome,
+        data_nascita: document.getElementById('data_nascita').value || null,
+        societa: document.getElementById('societa').value.trim() || null,
+        email: email,
+        telefono: document.getElementById('telefono').value.trim() || null,
+        categoria: disciplineConCategoria.join(', '),
+        note: noteFinali.join(' | '),
+        prove: oreProve // Array delle ore selezionate
+      };
+
+      // Disabilita bottoni durante l'operazione
+      document.getElementById('btn-bonifico').disabled = true;
+      const btnOnline = document.getElementById('btn-online');
+      if (btnOnline) btnOnline.disabled = true;
+
+      // Aggiungi paymentMethod ai dati
+      data.paymentMethod = paymentMethod;
+
+      try {
+        // Prima registra l'iscritto
+        const res = await fetch('/api/iscritti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (!res.ok) {
+          // Supporta messaggio in lingua (errorEn per inglese, error per italiano)
+          const errorMsg = getLang() === 'en' && result.errorEn ? result.errorEn : result.error;
+          msg.textContent = errorMsg || (getLang() === 'en' ? 'Registration error' : 'Errore durante l\'iscrizione');
+          msg.style.color = '#f44336';
+          document.getElementById('btn-bonifico').disabled = false;
+          if (btnOnline) btnOnline.disabled = false;
+          return;
+        }
+
+        const codice = result.codice;
+        const iscritto_id = result.id;
+
+        if (paymentMethod === 'online') {
+          // Pagamento con Stripe - includiamo le commissioni
+          msg.textContent = getLang() === 'en' ? 'Redirecting to payment...' : 'Reindirizzamento al pagamento...';
+          msg.style.color = '#F7AF40';
+
+          // Calcola commissioni da aggiungere al totale per Stripe
+          const commissioni = calcolaCommissioni(totale);
+          const totaleConCommissioni = totale + commissioni;
+
+          const descrizione = `${data.nome} ${data.cognome} - ${disciplineConCategoria.join(', ')}`;
+          
+          console.log('Stripe checkout data:', { iscritto_id, totale, commissioni, totaleConCommissioni, descrizione });
+          
+          const stripeRes = await fetch('/api/stripe/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              iscritto_id: iscritto_id,
+              totale: totaleConCommissioni, // Invia il totale CON commissioni a Stripe
+              descrizione: descrizione,
+              from_page: 'iscrizioni.html'
+            })
+          });
+          const stripeResult = await stripeRes.json();
+          
+          console.log('Stripe response:', stripeResult);
+
+          if (stripeRes.ok && stripeResult.url) {
+            // Redirect a Stripe Checkout
+            window.location.href = stripeResult.url;
+          } else {
+            // Errore Stripe, mostra comunque conferma con info bonifico
+            console.error('Stripe error:', stripeResult.error);
+            msg.textContent = (getLang() === 'en' ? 'Online payment error. Use bank transfer.' : 'Errore pagamento online. Usa il bonifico.') + ' ' + (stripeResult.error || '');
+            msg.style.color = '#f59e0b';
+            showConferma(codice, data, totale);
+          }
+        } else {
+          // Pagamento con bonifico
+          showConferma(codice, data, totale);
+        }
+      } catch (err) {
+        msg.textContent = getLang() === 'en' ? 'Network error. Try again.' : 'Errore di rete. Riprova.';
+        msg.style.color = '#f44336';
+        document.getElementById('btn-bonifico').disabled = false;
+        if (btnOnline) btnOnline.disabled = false;
+      }
+    }
+
+    // Mostra conferma BONIFICO (stato sospesa)
+    function showConfermaBonifico(codice, data, totale) {
+      document.querySelector('.form-section').style.display = 'none';
+      document.getElementById('conferma-bonifico').style.display = 'block';
+      document.getElementById('codice-iscrizione-bonifico').textContent = codice;
+      document.getElementById('causale-bonifico').textContent = `${codice} - ${data.nome} ${data.cognome}`;
+      document.getElementById('importo-bonifico').textContent = '€' + totale;
+      document.getElementById('link-carica-ricevuta').href = `/carica-ricevuta.html?codice=${codice}`;
+    }
+
+    // Mostra conferma STRIPE (stato confermata)
+    function showConfermaStripe(codice) {
+      document.querySelector('.form-section').style.display = 'none';
+      document.getElementById('conferma-stripe').style.display = 'block';
+      document.getElementById('codice-iscrizione-stripe').textContent = codice;
+    }
+
+    // Legacy function for compatibility
+    function showConferma(codice, data, totale) {
+      showConfermaBonifico(codice, data, totale);
+    }
+
+    // Gestisce parametri URL per risultato pagamento Stripe
+    window.addEventListener('DOMContentLoaded', async function() {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get('payment');
+      const codice = params.get('codice');
+      
+      if (payment === 'success' && codice) {
+        // Segna come pagato nel database
+        try {
+          await fetch('/api/iscritti/conferma-pagamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codice })
+          });
+        } catch (e) {
+          console.error('Errore conferma pagamento:', e);
+        }
+        
+        // Mostra conferma Stripe
+        document.querySelector('.form-section').style.display = 'none';
+        document.getElementById('conferma-stripe').style.display = 'block';
+        document.getElementById('codice-iscrizione-stripe').textContent = codice;
+        
+      } else if (payment === 'cancel' && codice) {
+        // Pagamento annullato - mostra sezione bonifico
+        document.querySelector('.form-section').style.display = 'none';
+        document.getElementById('conferma-bonifico').style.display = 'block';
+        document.getElementById('codice-iscrizione-bonifico').textContent = codice;
+        document.getElementById('link-carica-ricevuta').href = `/carica-ricevuta.html?codice=${codice}`;
+        
+        // Aggiorna messaggio
+        const confH2 = document.querySelector('#conferma-bonifico h2');
+        confH2.innerHTML = '⚠️ <span>' + (getLang() === 'en' ? 'Payment cancelled' : 'Pagamento annullato') + '</span>';
+        confH2.style.color = '#f59e0b';
+      }
+    });
+  </script>
+
+  <!-- Popup anteprima immagine -->
+  <div id="img-popup" class="img-popup" onclick="hidePreview()">
+    <span class="close-btn">&times;</span>
+    <img id="popup-img" src="" alt="Anteprima">
+  </div>
+
+  <script>
+    function showPreview(imgSrc, event) {
+      event.preventDefault();
+      event.stopPropagation();
+      document.getElementById('popup-img').src = '/' + imgSrc;
+      document.getElementById('img-popup').classList.add('show');
+    }
+    
+    function hidePreview() {
+      document.getElementById('img-popup').classList.remove('show');
+    }
+    
+    // Chiudi con ESC
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') hidePreview();
+    });
+  </script>
+</body>
+</html>
+

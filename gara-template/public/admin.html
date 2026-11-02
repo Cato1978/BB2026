@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Busto Battle - Admin</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="logo-title">
+      <img src="LogoBB.jpeg" alt="Busto Battle Logo">
+      <h1>BUSTO BATTLE - Gestione</h1>
+    </div>
+    <nav>
+      <a href="index.html">Home</a>
+      <span id="admin-user" style="color:#F7AF40"></span>
+      <a href="javascript:void(0)" onclick="cambiaPassword()" style="color:#3498db">🔑 Cambia Password</a>
+      <a href="javascript:void(0)" onclick="logout()" style="color:#e74c3c">Logout</a>
+    </nav>
+  </header>
+
+  <!-- Simulate banner -->
+  <div id="simulate-banner" style="display:none;background:#F7AF40;color:#000;padding:0.6rem 1rem;text-align:center;font-weight:600">
+    👁️ Stai simulando: <span id="sim-name"></span>
+    <button onclick="stopSimulate()" style="margin-left:1rem;padding:0.3rem 0.8rem">Esci simulazione</button>
+    <a id="sim-link" href="/index.html" target="_blank" style="margin-left:1rem;color:#000;text-decoration:underline">Apri sito come utente →</a>
+  </div>
+
+  <main>
+    <div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.5rem">
+      <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn active">📋 Iscritti</button>
+      <!-- <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button> -->
+      <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">Prove Pista</button>
+      <button onclick="showTab('bilancio')" id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
+      <button onclick="showTab('merch')" id="tab-merch" class="tab-btn">🛍️ Merch</button>
+      <!-- <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button> -->
+      <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
+      <!-- <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button> -->
+      <button onclick="showTab('pagine')" id="tab-pagine" class="tab-btn">📄 Pagine</button>
+    </div>
+
+    <div id="section-iscritti">
+    <div class="stats" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
+      <span id="totale">Totale: 0</span>
+      <span id="pagati">Pagati: 0</span>
+      <span id="navette">Navette: 0</span>
+      <button onclick="apriModalNuovo()" style="margin-left:auto;background:#22c55e;border:none;padding:0.5rem 1rem;cursor:pointer">➕ Nuovo Iscritto</button>
+      <button onclick="exportExcel()" style="background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Excel</button>
+      <button onclick="exportPDF()" style="background:#dc2626;border:none;padding:0.5rem 1rem;cursor:pointer">📄 PDF</button>
+    </div>
+
+    <div class="form-row" style="margin-bottom:1rem">
+      <input type="text" id="search" placeholder="Cerca per nome, cognome o codice...">
+      <select id="filter-pagamento">
+        <option value="">Tutti</option>
+        <option value="0">Non pagati</option>
+        <option value="1">Pagati</option>
+      </select>
+      <select id="filter-navetta">
+        <option value="">Tutte navette</option>
+        <option value="1">Con navetta</option>
+      </select>
+      <select id="filter-stato">
+        <option value="">Tutti gli stati</option>
+        <option value="sospesa">Sospese</option>
+        <option value="verifica">In Verifica</option>
+        <option value="confermata">Confermate</option>
+      </select>
+    </div>
+
+    <table id="tabella">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Cognome</th>
+          <th>Nome</th>
+          <th>Discipline</th>
+          <th>Totale €</th>
+          <th>Metodo</th>
+          <th>Stato</th>
+          <th>Note Admin</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>
+
+  <div id="section-navetta" style="display:none">
+    <h3>🚐 Gestione Slot Navetta</h3>
+    <div style="margin-bottom:1.5rem;padding:1rem;background:#0a0a0a;border:2px solid #F7AF40;border-radius:6px">
+      <h4 style="color:#F7AF40;margin-bottom:0.8rem">➕ Aggiungi nuovo slot navetta</h4>
+      <form id="form-add-navetta-slot">
+        <div class="form-row">
+          <input type="date" name="giorno" required placeholder="Giorno">
+          <input type="time" name="ora" required placeholder="Ora">
+        </div>
+        <div class="form-row">
+          <input type="text" name="partenza" placeholder="Partenza (es: Stazione FS Busto)" required>
+          <input type="text" name="arrivo" placeholder="Arrivo (es: PalaCastiglioni)" required>
+        </div>
+        <div class="form-row">
+          <input type="number" name="posti_max" placeholder="Posti max" value="8" min="1">
+          <input type="number" name="costo" placeholder="Costo €" value="2" min="0" step="0.5">
+        </div>
+        <button type="submit">➕ Aggiungi Slot</button>
+      </form>
+    </div>
+    <h4 style="color:#F7AF40;margin-bottom:0.5rem">Slot configurati:</h4>
+    <div id="navetta-slots-list" style="margin-bottom:1rem"></div>
+    <hr style="border-color:#333;margin:1.5rem 0">
+    <h3>📋 Prenotazioni Navetta</h3>
+    <div class="stats">
+      <span>Prenotazioni: <strong id="nav-totale-pren">0</strong></span>
+      <span>Persone totali: <strong id="nav-totale-pers">0</strong></span>
+    </div>
+    <table id="tabella-navetta">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th>Corse</th>
+          <th>Totale €</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-prove" style="display:none">
+    <h3>Gestione Slot Prove Pista</h3>
+    <h4 style="color:#F7AF40;margin-bottom:0.5rem">📅 Slot configurati (modifica posti disponibili):</h4>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">Clicca sul numero di posti per modificarlo. Non puoi ridurre sotto le prenotazioni esistenti.</p>
+    <div id="prove-slots-list" style="margin-bottom:1rem"></div>
+    <hr style="border-color:#333;margin:1.5rem 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3>📋 Prenotazioni Prove Pista</h3>
+      <a href="admin-prove-giorno.html" style="background:#F7AF40;color:#000;padding:0.5rem 1rem;border-radius:4px;text-decoration:none;font-size:0.9rem">📅 Vedi per Giorno/Ora</a>
+    </div>
+    <div class="stats" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
+      <span>Prenotazioni: <strong id="prove-totale-pren">0</strong></span>
+      <span>Sessioni totali: <strong id="prove-totale-sess">0</strong></span>
+      <span>Incasso: <strong id="prove-totale-euro">€0</strong></span>
+      <button onclick="exportProveExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
+    </div>
+    <div class="form-row" style="margin-bottom:1rem">
+      <select id="filter-prove-stato">
+        <option value="">Tutti gli stati</option>
+        <option value="sospesa">Sospese</option>
+        <option value="verifica">In Verifica</option>
+        <option value="confermata">Confermate</option>
+      </select>
+    </div>
+    <div id="prove-disponibilita" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0"></div>
+    <table id="tabella-prove">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th>Sessioni</th>
+          <th>Totale €</th>
+          <th>Stato</th>
+          <th>Note Admin</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-bilancio" style="display:none">
+    <h3>💰 Bilancio Incassi</h3>
+    <p style="color:#888;margin-bottom:1rem">Riepilogo incassi complessivo: iscrizioni, prove pista e merchandising.</p>
+    
+    <button onclick="caricaBilancio()" style="margin-bottom:1rem">🔄 Aggiorna Bilancio</button>
+    
+    <!-- TOTALE GENERALE -->
+    <div id="bilancio-totale" style="background:#1a3a1a;border:2px solid #22c55e;padding:1.5rem;border-radius:8px;margin-bottom:2rem">
+      <h4 style="color:#22c55e;margin:0 0 0.5rem">📊 TOTALE GENERALE</h4>
+      <p style="font-size:2.5rem;color:#22c55e;margin:0" id="bilancio-totale-importo">€ 0</p>
+      <div id="bilancio-totale-dettaglio" style="margin-top:1rem;display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;font-size:0.9rem"></div>
+    </div>
+    
+    <!-- SEZIONI -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:1.5rem">
+      
+      <!-- ISCRIZIONI -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📝 Iscrizioni</h4>
+        <div id="bilancio-iscrizioni"></div>
+      </div>
+      
+      <!-- PROVE PISTA -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">Prove Pista</h4>
+        <div id="bilancio-prove"></div>
+      </div>
+      
+      <!-- MERCHANDISING -->
+      <div style="background:#111;border:1px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">🛍️ Merchandising</h4>
+        <div id="bilancio-merch"></div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div id="section-merch" style="display:none">
+    <h3>🛍️ Ordini Merchandising</h3>
+    <p style="color:#888;margin-bottom:1rem">Gestione ordini merchandising. <a href="/merch.html" target="_blank" style="color:#F7AF40">Apri pagina ordini →</a></p>
+    
+    <button onclick="caricaMerch()" style="margin-bottom:1rem">🔄 Aggiorna</button>
+    <button onclick="exportMerchExcel()" style="margin-bottom:1rem;background:#217346">📥 Esporta Excel</button>
+    <button onclick="mostraGestioneStampati()" style="margin-bottom:1rem;background:#6366F1">🖨️ Gestione Ordini Stampati</button>
+    
+    <!-- Modal Gestione Ordini Stampati -->
+    <div id="modal-stampati" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;overflow-y:auto">
+      <div style="background:#1a1a1a;max-width:900px;margin:2rem auto;padding:1.5rem;border-radius:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 style="margin:0;color:#6366F1">🖨️ Gestione Ordini Stampati</h3>
+          <button onclick="chiudiGestioneStampati()" style="background:#333;border:none;padding:0.5rem 1rem;cursor:pointer;border-radius:4px">✕ Chiudi</button>
+        </div>
+        
+        <p style="color:#888;margin-bottom:1rem">Registra qui gli ordini che fai al fornitore. Ogni ordine avrà una colonna nell'export Excel.</p>
+        
+        <!-- Ordini esistenti -->
+        <div id="lista-ordini-stampati" style="margin-bottom:1.5rem"></div>
+        
+        <!-- Form nuovo ordine -->
+        <div style="background:#222;padding:1rem;border-radius:6px">
+          <h4 style="margin:0 0 1rem;color:#F7AF40">➕ Nuovo Ordine Stampato</h4>
+          <div style="margin-bottom:1rem">
+            <label style="display:block;margin-bottom:0.3rem;color:#888">Data ordine:</label>
+            <input type="date" id="stampati-data" style="padding:0.5rem;border-radius:4px;border:1px solid #444;background:#111;color:#fff">
+          </div>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:0.8rem;margin-bottom:1rem">
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Maglie Uomo</p>
+              <div class="stampati-inputs" data-tipo="Maglia" data-genere="Uomo">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Maglia XS Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Maglia S Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Maglia M Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Maglia L Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Maglia XL Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XXL:</span><input type="number" min="0" value="0" data-art="Maglia XXL Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>3XL:</span><input type="number" min="0" value="0" data-art="Maglia 3XL Uomo" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Maglie Donna</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Maglia XS Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Maglia S Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Maglia M Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Maglia L Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Maglia XL Donna" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Felpe Uomo</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Felpa XS Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Felpa S Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Felpa M Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Felpa L Uomo" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Felpa XL Uomo" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Felpe Donna</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XS:</span><input type="number" min="0" value="0" data-art="Felpa XS Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>S:</span><input type="number" min="0" value="0" data-art="Felpa S Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>M:</span><input type="number" min="0" value="0" data-art="Felpa M Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>L:</span><input type="number" min="0" value="0" data-art="Felpa L Donna" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>XL:</span><input type="number" min="0" value="0" data-art="Felpa XL Donna" style="width:50px"></label>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;padding:0.8rem;border-radius:4px">
+              <p style="color:#F7AF40;margin:0 0 0.5rem;font-weight:bold">Accessori</p>
+              <div class="stampati-inputs">
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>Cappellino:</span><input type="number" min="0" value="0" data-art="Cappellino" style="width:50px"></label>
+                <label style="display:flex;justify-content:space-between;margin:0.2rem 0"><span>Asciugamano:</span><input type="number" min="0" value="0" data-art="Asciugamano" style="width:50px"></label>
+              </div>
+            </div>
+          </div>
+          
+          <button onclick="salvaOrdineStampato()" style="background:#22c55e;padding:0.8rem 1.5rem;font-weight:bold">💾 Salva Ordine</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="merch-stats" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:1rem;margin-bottom:1.5rem">
+      <!-- Stats cards -->
+    </div>
+    
+    <table id="tabella-merch">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Articoli</th>
+          <th>Totale</th>
+          <th>Origine</th>
+          <th>Stato</th>
+          <th>Note Admin</th>
+          <th>Data</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-risultati" style="display:none">
+    <h3>📊 Carica Risultato / Classifica</h3>
+    <form id="form-upload-risultato" enctype="multipart/form-data" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="titolo" placeholder="Titolo (es: Classifica Classic Slalom)" required>
+        <input type="text" name="categoria" placeholder="Categoria (opzionale)">
+      </div>
+      <div class="form-row">
+        <input type="file" name="pdf" accept="application/pdf" required>
+        <button type="submit">📤 Carica e Notifica</button>
+      </div>
+    </form>
+    <table id="tabella-risultati">
+      <thead>
+        <tr>
+          <th>Titolo</th>
+          <th>Categoria</th>
+          <th>File</th>
+          <th>Data</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="section-notifiche" style="display:none">
+    <h3>📢 Invia Notifica Push</h3>
+    <p style="color:#888;margin:0.5rem 0">Invia una notifica push a tutti gli utenti che hanno installato l'app.</p>
+    <form id="form-notifica" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="title" placeholder="Titolo notifica" required>
+      </div>
+      <div class="form-row">
+        <input type="text" name="body" placeholder="Messaggio" required>
+      </div>
+      <button type="submit">📨 Invia Push</button>
+    </form>
+
+    <hr style="border-color:#333;margin:2rem 0">
+
+    <h3>📧 Invia Email a tutti gli Iscritti</h3>
+    <p style="color:#888;margin:0.5rem 0">Invia un'email a tutti gli iscritti che hanno fornito un indirizzo email.</p>
+    <form id="form-email-massa" style="margin:1rem 0">
+      <div class="form-row">
+        <input type="text" name="oggetto" placeholder="Oggetto email" required>
+      </div>
+      <div class="form-row">
+        <textarea name="messaggio" placeholder="Messaggio (puoi usare {nome} e {cognome} per personalizzare)" required style="min-height:150px"></textarea>
+      </div>
+      <div class="form-row" style="align-items:center;gap:1rem">
+        <label style="color:#888;display:flex;align-items:center;gap:0.5rem">
+          <input type="checkbox" name="soloConfermati" checked onchange="previewDestinatari()">
+          Solo iscritti confermati
+        </label>
+        <button type="button" onclick="previewDestinatari()" style="background:#333;padding:0.4rem 0.8rem;font-size:0.85rem">👁️ Anteprima destinatari</button>
+      </div>
+      <div id="email-preview" style="margin:0.5rem 0;padding:0.8rem;background:#1a1a1a;border-radius:6px;display:none"></div>
+      <button type="submit">📧 Invia Email a tutti</button>
+    </form>
+    <div id="email-result" style="margin-top:1rem"></div>
+  </div>
+
+  <div id="section-simula" style="display:none">
+    <h3>👁️ Simula Utente</h3>
+    <p style="color:#888;margin:0.5rem 0">Seleziona un iscritto per vedere il sito dal suo punto di vista.</p>
+    <div class="form-row" style="margin:1rem 0">
+      <select id="simula-select" style="flex:1">
+        <option value="">-- Seleziona iscritto --</option>
+      </select>
+      <button onclick="startSimulate()">👁️ Simula</button>
+    </div>
+    <div id="simula-info" style="display:none" class="info">
+      <h4 style="color:#F7AF40">Profilo simulato:</h4>
+      <div id="simula-details"></div>
+    </div>
+  </div>
+
+  <div id="section-pagine" style="display:none">
+    <h3>📄 Gestione Pagine</h3>
+    <p style="color:#888;margin:0.5rem 0">Attiva/disattiva le pagine o nascondile dal menu di navigazione.</p>
+    <div id="pagine-list"></div>
+  </div>
+
+  <div id="modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3>Modifica Iscritto</h3>
+      <form id="form-edit">
+        <input type="hidden" name="id">
+        <div class="form-row">
+          <input type="text" name="nome" placeholder="Nome" required>
+          <input type="text" name="cognome" placeholder="Cognome" required>
+        </div>
+        <div class="form-row">
+          <input type="date" name="data_nascita">
+          <select name="cat_eta" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Categoria Età --</option>
+            <option value="U15">U15</option>
+            <option value="U19">U19</option>
+            <option value="SENIOR">SENIOR</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex-direction:column;align-items:flex-start">
+          <p style="margin:0 0 0.5rem;color:#F7AF40;font-size:0.9rem">🏆 Discipline:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem">
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_speed"> ⚡ Speed Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_classic"> 🎯 Classic Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_battle"> ⚔️ Battle
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_slides"> 🛷 Slides
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_pair"> 👫 Pair Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="disc_freejump"> 🦘 Free Jump
+            </label>
+          </div>
+          <input type="hidden" name="categoria">
+        </div>
+        <div class="form-row">
+          <input type="text" name="societa" placeholder="Società">
+          <select name="nazionalita" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nazionalità --</option>
+            <option value="IT">Italia</option>
+            <!-- Europa -->
+            <option value="AL">Albania</option>
+            <option value="AD">Andorra</option>
+            <option value="AT">Austria</option>
+            <option value="BE">Belgio</option>
+            <option value="BY">Bielorussia</option>
+            <option value="BA">Bosnia-Erzegovina</option>
+            <option value="BG">Bulgaria</option>
+            <option value="CY">Cipro</option>
+            <option value="HR">Croazia</option>
+            <option value="DK">Danimarca</option>
+            <option value="EE">Estonia</option>
+            <option value="FI">Finlandia</option>
+            <option value="FR">Francia</option>
+            <option value="DE">Germania</option>
+            <option value="GR">Grecia</option>
+            <option value="IE">Irlanda</option>
+            <option value="IS">Islanda</option>
+            <option value="XK">Kosovo</option>
+            <option value="LV">Lettonia</option>
+            <option value="LI">Liechtenstein</option>
+            <option value="LT">Lituania</option>
+            <option value="LU">Lussemburgo</option>
+            <option value="MK">Macedonia del Nord</option>
+            <option value="MT">Malta</option>
+            <option value="MD">Moldavia</option>
+            <option value="MC">Monaco</option>
+            <option value="ME">Montenegro</option>
+            <option value="NO">Norvegia</option>
+            <option value="NL">Paesi Bassi</option>
+            <option value="PL">Polonia</option>
+            <option value="PT">Portogallo</option>
+            <option value="GB">Regno Unito</option>
+            <option value="CZ">Rep. Ceca</option>
+            <option value="RO">Romania</option>
+            <option value="RU">Russia</option>
+            <option value="SM">San Marino</option>
+            <option value="RS">Serbia</option>
+            <option value="SK">Slovacchia</option>
+            <option value="SI">Slovenia</option>
+            <option value="ES">Spagna</option>
+            <option value="SE">Svezia</option>
+            <option value="CH">Svizzera</option>
+            <option value="UA">Ucraina</option>
+            <option value="HU">Ungheria</option>
+            <!-- Medio Oriente -->
+            <option value="SA">Arabia Saudita</option>
+            <option value="BH">Bahrein</option>
+            <option value="AE">Emirati Arabi</option>
+            <option value="JO">Giordania</option>
+            <option value="IR">Iran</option>
+            <option value="IQ">Iraq</option>
+            <option value="IL">Israele</option>
+            <option value="KW">Kuwait</option>
+            <option value="LB">Libano</option>
+            <option value="OM">Oman</option>
+            <option value="QA">Qatar</option>
+            <option value="SY">Siria</option>
+            <option value="TR">Turchia</option>
+            <option value="YE">Yemen</option>
+            <!-- Asia -->
+            <option value="BN">Brunei</option>
+            <option value="KH">Cambogia</option>
+            <option value="CN">Cina</option>
+            <option value="KR">Corea del Sud</option>
+            <option value="PH">Filippine</option>
+            <option value="JP">Giappone</option>
+            <option value="IN">India</option>
+            <option value="ID">Indonesia</option>
+            <option value="LA">Laos</option>
+            <option value="MY">Malesia</option>
+            <option value="MM">Myanmar</option>
+            <option value="SG">Singapore</option>
+            <option value="TW">Taiwan</option>
+            <option value="TH">Thailandia</option>
+            <option value="VN">Vietnam</option>
+            <!-- Americhe -->
+            <option value="AR">Argentina</option>
+            <option value="BR">Brasile</option>
+            <option value="CA">Canada</option>
+            <option value="CL">Cile</option>
+            <option value="CO">Colombia</option>
+            <option value="MX">Messico</option>
+            <option value="PE">Perù</option>
+            <option value="US">Stati Uniti</option>
+            <!-- Oceania -->
+            <option value="AU">Australia</option>
+            <option value="NZ">Nuova Zelanda</option>
+            <!-- Africa -->
+            <option value="EG">Egitto</option>
+            <option value="MA">Marocco</option>
+            <option value="ZA">Sudafrica</option>
+            <option value="TN">Tunisia</option>
+            <!-- Altro -->
+            <option value="OTHER">Altro</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="email" name="email" placeholder="Email">
+        </div>
+        <div class="form-row">
+          <input type="tel" name="telefono" placeholder="Telefono">
+        </div>
+        <div class="form-row checkbox-row">
+          <label><input type="checkbox" name="navetta"> Navetta</label>
+          <label><input type="checkbox" name="pagamento"> Pagato</label>
+        </div>
+        <div class="form-row">
+          <input type="text" name="navetta_dettagli" placeholder="Dettagli navetta">
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">👕 Taglia Maglia:</p>
+          <select name="taglia_maglia" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nessuna --</option>
+            <optgroup label="Uomo">
+              <option value="XS Uomo">XS Uomo</option>
+              <option value="S Uomo">S Uomo</option>
+              <option value="M Uomo">M Uomo</option>
+              <option value="L Uomo">L Uomo</option>
+              <option value="XL Uomo">XL Uomo</option>
+              <option value="XXL Uomo">XXL Uomo</option>
+            </optgroup>
+            <optgroup label="Donna">
+              <option value="XS Donna">XS Donna</option>
+              <option value="S Donna">S Donna</option>
+              <option value="M Donna">M Donna</option>
+              <option value="L Donna">L Donna</option>
+              <option value="XL Donna">XL Donna</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">🧥 Taglia Felpa (€35):</p>
+          <select name="taglia_felpa" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nessuna --</option>
+            <optgroup label="Uomo">
+              <option value="XS Uomo">XS Uomo</option>
+              <option value="S Uomo">S Uomo</option>
+              <option value="M Uomo">M Uomo</option>
+              <option value="L Uomo">L Uomo</option>
+              <option value="XL Uomo">XL Uomo</option>
+              <option value="XXL Uomo">XXL Uomo</option>
+            </optgroup>
+            <optgroup label="Donna">
+              <option value="XS Donna">XS Donna</option>
+              <option value="S Donna">S Donna</option>
+              <option value="M Donna">M Donna</option>
+              <option value="L Donna">L Donna</option>
+              <option value="XL Donna">XL Donna</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#888;font-size:0.85rem">Note iscrizione (altri dati):</p>
+          <textarea name="note" placeholder="Note iscrizione" readonly style="background:#1a1a1a;color:#888;cursor:not-allowed"></textarea>
+        </div>
+        <div class="form-row">
+          <p style="margin:0 0 0.3rem;color:#F7AF40;font-size:0.85rem">📝 Note Admin:</p>
+          <textarea name="note_admin" placeholder="Note admin (tue annotazioni personali)"></textarea>
+        </div>
+        <div class="form-row">
+          <button type="submit">Salva</button>
+          <button type="button" onclick="chiudiModal()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL NUOVO ISCRITTO -->
+  <div id="modal-nuovo" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3 style="color:#22c55e">➕ Nuovo Iscritto</h3>
+      <form id="form-nuovo">
+        <div class="form-row">
+          <input type="text" name="nome" placeholder="Nome *" required>
+          <input type="text" name="cognome" placeholder="Cognome *" required>
+        </div>
+        <div class="form-row">
+          <input type="date" name="data_nascita">
+          <select name="cat_eta" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Categoria Età --</option>
+            <option value="U15">U15</option>
+            <option value="U19">U19</option>
+            <option value="SENIOR">SENIOR</option>
+          </select>
+        </div>
+        <div class="form-row" style="flex-direction:column;align-items:flex-start">
+          <p style="margin:0 0 0.5rem;color:#22c55e;font-size:0.9rem">🏆 Discipline:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem">
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_speed"> ⚡ Speed Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_classic"> 🎯 Classic Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_battle"> ⚔️ Battle
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_slides"> 🛷 Slides
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_pair"> 👫 Pair Slalom
+            </label>
+            <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+              <input type="checkbox" name="nuovo_disc_freejump"> 🦘 Free Jump
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <input type="text" name="societa" placeholder="Società / Club">
+          <select name="nazionalita" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Nazionalità --</option>
+            <option value="IT">Italia</option>
+            <option value="FR">Francia</option>
+            <option value="DE">Germania</option>
+            <option value="ES">Spagna</option>
+            <option value="PL">Polonia</option>
+            <option value="UA">Ucraina</option>
+            <option value="RU">Russia</option>
+            <option value="CH">Svizzera</option>
+            <option value="GB">Regno Unito</option>
+            <option value="OTHER">Altro</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="email" name="email" placeholder="Email">
+          <input type="tel" name="telefono" placeholder="Telefono">
+        </div>
+        <div class="form-row">
+          <div style="flex:1">
+            <label style="color:#ddd;display:block;margin-bottom:0.4rem">Genere *</label>
+            <div style="display:flex;gap:1.5rem">
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="nuovo_genere" value="M" required> Maschile
+              </label>
+              <label style="color:#ddd;display:flex;align-items:center;gap:0.4rem">
+                <input type="radio" name="nuovo_genere" value="F" required> Femminile
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <input type="text" name="ws_id" placeholder="WS ID (es. 12345ITA...)">
+          <input type="text" name="fisr" placeholder="Tessera FISR/Skate Italia">
+        </div>
+        <div class="form-row">
+          <select name="stato" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="sospesa">⏳ Sospesa</option>
+            <option value="confermata">✅ Confermata</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <button type="submit" style="background:#22c55e">➕ Crea Iscritto</button>
+          <button type="button" onclick="chiudiModalNuovo()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-rigetto" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3 style="color:#ef4444">❌ Rigetta Ricevuta</h3>
+      <p style="color:#888;margin-bottom:1rem">L'atleta riceverà un'email con il motivo del rigetto e potrà caricare una nuova ricevuta.</p>
+      <form id="form-rigetto">
+        <input type="hidden" id="rigetto-id">
+        <div class="form-row">
+          <textarea id="rigetto-motivo" placeholder="Motivo del rigetto (es: Importo non corrispondente, Documento illeggibile, Causale errata...)" required style="min-height:100px"></textarea>
+        </div>
+        <div class="form-row">
+          <button type="submit" style="background:#ef4444">❌ Rigetta e Invia Email</button>
+          <button type="button" onclick="chiudiModalRigetto()">Annulla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Check auth
+    fetch('/api/me').then(r => {
+      if (!r.ok) window.location.href = '/login.html';
+      return r.json();
+    }).then(u => {
+      document.getElementById('admin-user').textContent = `👤 ${u.username}`;
+    });
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    async function cambiaPassword() {
+      const oldPassword = prompt('Inserisci la password attuale:');
+      if (!oldPassword) return;
+      
+      const newPassword = prompt('Inserisci la nuova password (min 8 caratteri):');
+      if (!newPassword) return;
+      
+      if (newPassword.length < 8) {
+        alert('La password deve essere almeno 8 caratteri');
+        return;
+      }
+      
+      const confirmPassword = prompt('Conferma la nuova password:');
+      if (newPassword !== confirmPassword) {
+        alert('Le password non corrispondono');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldPassword, newPassword })
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+          alert('Password aggiornata con successo!');
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
+    }
+
+    function exportExcel() {
+      window.location.href = '/api/iscritti/export';
+    }
+    
+    function exportPDF() {
+      window.location.href = '/api/iscritti/export-pdf';
+    }
+
+    let iscritti = [];
+
+    async function carica() {
+      const res = await fetch('/api/iscritti');
+      iscritti = await res.json();
+      render();
+      populateSimulaSelect();
+    }
+
+    function codice(id) { return 'BB11-' + String(id).padStart(4, '0'); }
+    function numDiscipline(cat) { return cat ? cat.split(',').length : 0; }
+
+    function getFiltered() {
+      let list = iscritti;
+      const q = document.getElementById('search').value.toLowerCase();
+      const fp = document.getElementById('filter-pagamento').value;
+      const fn = document.getElementById('filter-navetta').value;
+      const fs = document.getElementById('filter-stato').value;
+      if (q) list = list.filter(i => (i.nome + ' ' + i.cognome + ' ' + codice(i.id)).toLowerCase().includes(q));
+      if (fp !== '') list = list.filter(i => String(i.pagamento ? 1 : 0) === fp);
+      if (fn === '1') list = list.filter(i => i.navetta);
+      if (fs) list = list.filter(i => (i.stato || 'sospesa') === fs);
+      return list;
+    }
+
+    function getStatoBadge(i) {
+      const stato = i.stato || 'sospesa';
+      const badges = {
+        'sospesa': '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>',
+        'verifica': '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">🔍 In Verifica</span>',
+        'confermata': '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>',
+        'rigettata': '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">❌ Rigettata</span>'
+      };
+      return badges[stato] || stato;
+    }
+
+    function getMetodoPagamento(i) {
+      // Se c'è il campo metodo_pagamento salvato, usalo
+      if (i.metodo_pagamento === 'online') return '<span style="color:#a78bfa">💳 Carta</span>';
+      if (i.metodo_pagamento === 'bonifico') return '<span style="color:#22d3ee">🏦 Bonifico</span>';
+      
+      // Fallback per iscrizioni vecchie senza il campo
+      const stato = i.stato || 'sospesa';
+      const noteAdmin = (i.note_admin || '').toLowerCase();
+      const note = (i.note || '').toLowerCase();
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#9ca3af">💵 Contanti</span>';
+      if (i.ricevuta_bonifico || i.ricevuta_base64) return '<span style="color:#22d3ee">🏦 Bonifico</span>';
+      if (stato === 'confermata') return '<span style="color:#a78bfa">💳 Carta</span>';
+      return '<span style="color:#888">⏳ In attesa</span>';
+    }
+
+    function render() {
+      const list = getFiltered();
+      const tbody = document.querySelector('#tabella tbody');
+      tbody.innerHTML = list.map(i => {
+        const stato = i.stato || 'sospesa';
+        let azioniHtml = '';
+        
+        // Bottone conferma bonifico (solo se in verifica)
+        if (stato === 'verifica') {
+          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="rigettaBonifico(${i.id})" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
+        }
+        
+        // Bottone vedi ricevuta (se esiste, per verifica e confermata)
+        if (i.ricevuta_bonifico && (stato === 'verifica' || stato === 'confermata')) {
+          azioniHtml += `<a href="/api/iscritti/${i.id}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+        }
+        
+        // Bottone segna pagato (solo se sospesa)
+        if (stato === 'sospesa') {
+          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Segna pagato">💰</button>`;
+          azioniHtml += `<button onclick="inviaSollecitoIscrizione(${i.id})" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
+        }
+        
+        azioniHtml += `<button onclick="modifica(${i.id})">✏️</button>`;
+        azioniHtml += `<button onclick="elimina(${i.id})">🗑️</button>`;
+        
+        // Tronca note admin se troppo lunghe
+        const noteAdmin = i.note_admin || '';
+        const noteAdminShort = noteAdmin.length > 30 ? noteAdmin.substring(0, 30) + '...' : noteAdmin;
+        
+        return `<tr>
+          <td style="white-space:nowrap"><strong>${codice(i.id)}</strong></td>
+          <td>${i.cognome}</td>
+          <td>${i.nome}</td>
+          <td style="max-width:200px;font-size:0.85rem">${i.categoria || ''}</td>
+          <td>€${calcolaTotale(i)}</td>
+          <td style="font-size:0.85rem">${getMetodoPagamento(i)}</td>
+          <td>${getStatoBadge(i)}</td>
+          <td style="max-width:150px;font-size:0.8rem;color:#888" title="${noteAdmin}">${noteAdminShort}</td>
+          <td style="white-space:nowrap">${azioniHtml}</td>
+        </tr>`;
+      }).join('');
+
+      const sospese = iscritti.filter(i => (i.stato || 'sospesa') === 'sospesa').length;
+      const verifica = iscritti.filter(i => i.stato === 'verifica').length;
+      const confermate = iscritti.filter(i => i.stato === 'confermata' || i.pagamento).length;
+      
+      document.getElementById('totale').textContent = `Totale: ${iscritti.length}`;
+      document.getElementById('pagati').textContent = `Confermate: ${confermate} | In Verifica: ${verifica}`;
+      document.getElementById('navette').textContent = `Sospese: ${sospese}`;
+    }
+
+    function calcolaTotale(i) {
+      // Calcola totale basato su discipline
+      const numDisc = numDiscipline(i.categoria);
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
+      // Aggiungi merch se presente nelle note
+      if (i.note && i.note.includes('Felpa:')) totale += 35;
+      if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
+      // Aggiungi prove pista (€5 per slot)
+      if (i.note && i.note.includes('Prove:')) {
+        // Conta gli slot - formato "Prove: 2026-11-13 22:00-22:30 (Speed), 2026-11-13 22:30-23:00 (Slides)"
+        const proveMatch = i.note.match(/Prove:\s*([^\n|]+)/);
+        if (proveMatch) {
+          // Conta le virgole + 1 per il numero di slot, o conta i pattern data/ora
+          const proveStr = proveMatch[1];
+          const slots = (proveStr.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g) || []).length;
+          totale += slots * 5;
+        }
+      }
+      return totale;
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+    document.getElementById('filter-pagamento').addEventListener('change', render);
+    document.getElementById('filter-navetta').addEventListener('change', render);
+    document.getElementById('filter-stato').addEventListener('change', render);
+
+    async function confermaBonifico(id) {
+      if (!confirm('Confermare il pagamento per questa iscrizione?')) return;
+      await fetch(`/api/iscritti/${id}/conferma-bonifico`, { method: 'POST' });
+      carica();
+    }
+
+    function rigettaBonifico(id) {
+      document.getElementById('rigetto-id').value = id;
+      document.getElementById('rigetto-motivo').value = '';
+      document.getElementById('modal-rigetto').style.display = 'flex';
+    }
+
+    function chiudiModalRigetto() {
+      document.getElementById('modal-rigetto').style.display = 'none';
+    }
+
+    document.getElementById('form-rigetto').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id = document.getElementById('rigetto-id').value;
+      const motivo = document.getElementById('rigetto-motivo').value;
+      if (!motivo.trim()) { alert('Inserisci un motivo'); return; }
+      
+      const res = await fetch(`/api/iscritti/${id}/rigetta-bonifico`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo })
+      });
+      
+      if (res.ok) {
+        alert('✅ Ricevuta rigettata. Email inviata all\'atleta.');
+        chiudiModalRigetto();
+        carica();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
+
+    async function togglePagamento(id, stato) {
+      const i = iscritti.find(x => x.id === id);
+      const data = { ...i, pagamento: stato, navetta: !!i.navetta };
+      await fetch(`/api/iscritti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      carica();
+    }
+
+    function modifica(id) {
+      const i = iscritti.find(x => x.id === id);
+      const form = document.getElementById('form-edit');
+      form.id_field = id;
+      form.nome.value = i.nome;
+      form.cognome.value = i.cognome;
+      form.data_nascita.value = i.data_nascita || '';
+      form.societa.value = i.societa || '';
+      form.nazionalita.value = i.nazionalita || '';
+      form.email.value = i.email || '';
+      form.telefono.value = i.telefono || '';
+      form.navetta.checked = !!i.navetta;
+      form.navetta_dettagli.value = i.navetta_dettagli || '';
+      form.pagamento.checked = !!i.pagamento;
+      form.note.value = i.note || '';
+      form.note_admin.value = i.note_admin || '';
+      
+      // Parsa discipline dal campo categoria
+      const cat = (i.categoria || '').toLowerCase();
+      form.disc_speed.checked = cat.includes('speed');
+      form.disc_classic.checked = cat.includes('classic');
+      form.disc_battle.checked = cat.includes('battle');
+      form.disc_slides.checked = cat.includes('slides');
+      form.disc_pair.checked = cat.includes('pair');
+      form.disc_freejump.checked = cat.includes('free jump') || cat.includes('freejump');
+      
+      // Estrai categoria età (U15, U19, SENIOR)
+      let catEta = '';
+      if (cat.includes('u15')) catEta = 'U15';
+      else if (cat.includes('u19')) catEta = 'U19';
+      else if (cat.includes('senior')) catEta = 'SENIOR';
+      form.cat_eta.value = catEta;
+      
+      // Estrai maglia e felpa dalle note
+      const note = i.note || '';
+      const magliaMatch = note.match(/Maglia:\s*([^|]+)/);
+      const felpaMatch = note.match(/Felpa:\s*([^|]+)/);
+      form.taglia_maglia.value = magliaMatch ? magliaMatch[1].trim() : '';
+      form.taglia_felpa.value = felpaMatch ? felpaMatch[1].trim() : '';
+      
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function chiudiModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    // ========== NUOVO ISCRITTO ==========
+    function apriModalNuovo() {
+      document.getElementById('form-nuovo').reset();
+      document.getElementById('modal-nuovo').style.display = 'flex';
+    }
+
+    function chiudiModalNuovo() {
+      document.getElementById('modal-nuovo').style.display = 'none';
+    }
+
+    document.getElementById('form-nuovo').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      
+      // Costruisci categoria dalle checkbox
+      const catEta = form.cat_eta.value || 'SENIOR';
+      const discipline = [];
+      if (form.nuovo_disc_speed.checked) discipline.push(`Speed Slalom (${catEta})`);
+      if (form.nuovo_disc_classic.checked) discipline.push(`Classic Slalom (${catEta})`);
+      if (form.nuovo_disc_battle.checked) discipline.push(`Battle (${catEta})`);
+      if (form.nuovo_disc_slides.checked) discipline.push(`Slides (${catEta})`);
+      if (form.nuovo_disc_pair.checked) discipline.push(`Pair Slalom (UNICA)`);
+      if (form.nuovo_disc_freejump.checked) discipline.push(`Free Jump (${catEta})`);
+      
+      if (discipline.length === 0) {
+        alert('Seleziona almeno una disciplina');
+        return;
+      }
+      
+      // Costruisci note
+      const genere = form.nuovo_genere.value;
+      const wsId = form.ws_id.value.trim();
+      const fisr = form.fisr.value.trim();
+      let noteParts = [`Genere: ${genere}`];
+      if (wsId) noteParts.push(`WS ID: ${wsId}`);
+      if (fisr) noteParts.push(`FISR: ${fisr}`);
+      
+      const data = {
+        nome: form.nome.value,
+        cognome: form.cognome.value,
+        data_nascita: form.data_nascita.value,
+        categoria: discipline.join(', '),
+        societa: form.societa.value,
+        nazionalita: form.nazionalita.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        note: noteParts.join(' | '),
+        stato: form.stato.value
+      };
+      
+      try {
+        const res = await fetch('/api/iscritti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          alert('✅ Iscritto creato con successo!');
+          chiudiModalNuovo();
+          carica();
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+      }
+    });
+
+    document.getElementById('form-edit').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const id = form.id_field;
+      
+      // Ricostruisci categoria dalle checkbox
+      const catEta = form.cat_eta.value || 'SENIOR';
+      const discipline = [];
+      if (form.disc_speed.checked) discipline.push(`Speed Slalom (${catEta})`);
+      if (form.disc_classic.checked) discipline.push(`Classic Slalom (${catEta})`);
+      if (form.disc_battle.checked) discipline.push(`Battle (${catEta})`);
+      if (form.disc_slides.checked) discipline.push(`Slides (${catEta})`);
+      if (form.disc_pair.checked) discipline.push(`Pair Slalom (UNICA)`);
+      if (form.disc_freejump.checked) discipline.push(`Free Jump (${catEta})`);
+      const categoriaFinale = discipline.join(', ');
+      
+      // Aggiorna note con nuovi valori di maglia e felpa
+      let noteOriginali = form.note.value || '';
+      const tagliaMaglia = form.taglia_maglia.value;
+      const tagliaFelpa = form.taglia_felpa.value;
+      
+      // Rimuovi vecchi valori di Maglia e Felpa dalle note
+      noteOriginali = noteOriginali.replace(/Maglia:\s*[^|]+\s*\|?\s*/g, '').replace(/Felpa:\s*[^|]+\s*\|?\s*/g, '').trim();
+      // Rimuovi eventuali | finali o iniziali
+      noteOriginali = noteOriginali.replace(/^\|\s*/, '').replace(/\s*\|$/, '').trim();
+      
+      // Ricostruisci le note
+      let noteParts = [];
+      if (noteOriginali) noteParts.push(noteOriginali);
+      if (tagliaMaglia) noteParts.push('Maglia: ' + tagliaMaglia);
+      if (tagliaFelpa) noteParts.push('Felpa: ' + tagliaFelpa);
+      const noteFinali = noteParts.join(' | ');
+      
+      const data = {
+        nome: form.nome.value,
+        cognome: form.cognome.value,
+        data_nascita: form.data_nascita.value,
+        categoria: categoriaFinale,
+        societa: form.societa.value,
+        nazionalita: form.nazionalita.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        navetta: form.navetta.checked,
+        navetta_dettagli: form.navetta_dettagli.value,
+        pagamento: form.pagamento.checked,
+        note: noteFinali,
+        note_admin: form.note_admin.value
+      };
+      await fetch(`/api/iscritti/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      chiudiModal();
+      carica();
+    });
+
+    async function elimina(id) {
+      if (!confirm('Eliminare questo iscritto?')) return;
+      await fetch(`/api/iscritti/${id}`, { method: 'DELETE' });
+      carica();
+    }
+    
+    async function inviaSollecitoIscrizione(id) {
+      if (!confirm('Inviare email sollecito a questo iscritto?')) return;
+      try {
+        const res = await fetch(`/api/iscritti/${id}/sollecito`, { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Email sollecito inviata!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    carica();
+
+    // --- TABS ---
+    function showTab(tab) {
+      ['iscritti','navetta','prove','bilancio','merch','risultati','notifiche','simula','pagine'].forEach(t => {
+        document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
+      });
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      if (tab === 'navetta') caricaNavetta();
+      if (tab === 'prove') caricaProve();
+      if (tab === 'bilancio') caricaBilancio();
+      if (tab === 'merch') caricaMerch();
+      if (tab === 'risultati') caricaRisultati();
+      if (tab === 'pagine') caricaPagine();
+    }
+
+    // --- NAVETTA ---
+    let prenotazioni = [];
+    let navettaSlots = [];
+    
+    async function caricaNavetta() {
+      const [resPren, resSlots] = await Promise.all([
+        fetch('/api/navetta/prenotazioni'),
+        fetch('/api/navetta/slots')
+      ]);
+      prenotazioni = await resPren.json();
+      navettaSlots = await resSlots.json();
+      renderNavettaSlots();
+      renderNavetta();
+    }
+
+    function renderNavettaSlots() {
+      const div = document.getElementById('navetta-slots-list');
+      if (!navettaSlots.length) {
+        div.innerHTML = '<p style="color:#888">Nessuno slot configurato</p>';
+        return;
+      }
+      // Raggruppa per giorno
+      const byDay = {};
+      navettaSlots.forEach(s => {
+        if (!byDay[s.giorno]) byDay[s.giorno] = [];
+        byDay[s.giorno].push(s);
+      });
+      let html = '';
+      for (const [giorno, slots] of Object.entries(byDay)) {
+        const date = new Date(giorno).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+        html += `<div style="margin-bottom:1rem"><h4 style="color:#F7AF40;margin-bottom:0.5rem">📅 ${date}</h4>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem">`;
+        for (const s of slots) {
+          html += `<div style="padding:0.5rem;background:#111;border:1px solid #333;border-radius:4px;font-size:0.85rem">
+            <strong>${s.ora}</strong><br>
+            <small style="color:#888">${s.partenza} → ${s.arrivo}</small><br>
+            <small style="color:#888">${s.posti_max} posti, €${s.costo}</small>
+            <button onclick="eliminaNavettaSlot(${s.id})" style="margin-left:0.5rem;padding:0.1rem 0.3rem;font-size:0.7rem" title="Elimina">🗑️</button>
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+      div.innerHTML = html;
+    }
+
+    async function eliminaNavettaSlot(id) {
+      if (!confirm('Eliminare questo slot navetta?')) return;
+      await fetch('/api/navetta/slots/' + id, { method: 'DELETE' });
+      caricaNavetta();
+    }
+
+    document.getElementById('form-add-navetta-slot').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/navetta/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          giorno: fd.get('giorno'),
+          ora: fd.get('ora'),
+          partenza: fd.get('partenza'),
+          arrivo: fd.get('arrivo'),
+          posti_max: parseInt(fd.get('posti_max')) || 8,
+          costo: parseFloat(fd.get('costo')) || 2
+        })
+      });
+      if (res.ok) {
+        e.target.reset();
+        caricaNavetta();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
+
+    function renderNavetta() {
+      const grouped = {};
+      prenotazioni.forEach(p => {
+        if (!grouped[p.codice]) grouped[p.codice] = [];
+        grouped[p.codice].push(p);
+      });
+      const tbody = document.querySelector('#tabella-navetta tbody');
+      let html = '';
+      for (const [cod, corse] of Object.entries(grouped)) {
+        const first = corse[0];
+        const totPersone = corse.reduce((s, c) => s + c.num_persone, 0);
+        const dettagli = corse.map(c => {
+          const dirLabel = c.direzione === 'andata' ? '→' : '←';
+          return `${c.giorno} ${c.ora} ${dirLabel} (${c.num_persone}p)`;
+        }).join('<br>');
+        // Calcola totale con costi variabili
+        let totale = 0;
+        for (const c of corse) {
+          const slot = navettaSlots.find(s => s.giorno === c.giorno && s.ora === c.ora);
+          totale += c.num_persone * (slot?.costo || 2);
+        }
+        html += `<tr>
+          <td><strong>${cod}</strong></td>
+          <td>${first.cognome} ${first.nome}</td>
+          <td>${first.email || '-'}</td>
+          <td>${first.telefono || '-'}</td>
+          <td>${dettagli}</td>
+          <td>€${totale}</td>
+          <td><button onclick="eliminaNavetta('${cod}')" title="Elimina">🗑️</button></td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+      document.getElementById('nav-totale-pren').textContent = Object.keys(grouped).length;
+      document.getElementById('nav-totale-pers').textContent = prenotazioni.reduce((s, p) => s + p.num_persone, 0);
+    }
+
+    async function eliminaNavetta(codice) {
+      if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
+      await fetch('/api/navetta/prenotazioni/' + codice, { method: 'DELETE' });
+      caricaNavetta();
+    }
+
+    // --- PROVE PISTA ---
+    // --- BILANCIO ---
+    let bilancioData = null; // Dati bilancio globali per accesso da popup
+    
+    async function caricaBilancio() {
+      try {
+        const res = await fetch('/api/bilancio');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Errore server ' + res.status);
+        }
+        const data = await res.json();
+        bilancioData = data; // Salva per popup
+        
+        // Totale generale
+        const tot = data.totaleGenerale || { bonifico: 0, carta: 0, contanti: 0, totale: 0 };
+        document.getElementById('bilancio-totale-importo').textContent = '€ ' + tot.totale.toLocaleString('it-IT');
+        document.getElementById('bilancio-totale-dettaglio').innerHTML = `
+          <div style="text-align:center"><span style="color:#3b82f6">🏦 Bonifico</span><br><strong>€${tot.bonifico.toLocaleString('it-IT')}</strong></div>
+          <div style="text-align:center"><span style="color:#a855f7">💳 Carta</span><br><strong>€${tot.carta.toLocaleString('it-IT')}</strong></div>
+          <div style="text-align:center"><span style="color:#22c55e">💵 Contanti</span><br><strong>€${tot.contanti.toLocaleString('it-IT')}</strong></div>
+        `;
+        
+        // Iscrizioni - cliccabile
+        const isc = data.iscrizioni || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totIsc = isc.bonifico.totale + isc.carta.totale + isc.contanti.totale;
+        document.getElementById('bilancio-iscrizioni').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totIsc.toLocaleString('it-IT')}</strong></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div onclick="mostraDettaglioBilancio('iscrizioni','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${isc.bonifico.items.length})</span><span>€${isc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('iscrizioni','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${isc.carta.items.length})</span><span>€${isc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('iscrizioni','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${isc.contanti.items.length})</span><span>€${isc.contanti.totale.toLocaleString('it-IT')}</span></div>
+          </div>
+        `;
+        
+        // Prove Pista - cliccabile
+        const prv = data.provePista || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totPrv = prv.bonifico.totale + prv.carta.totale + (prv.contanti?.totale || 0);
+        const totSlots = prv.bonifico.items.reduce((s,p) => s + p.slots, 0) + prv.carta.items.reduce((s,p) => s + p.slots, 0) + (prv.contanti?.items || []).reduce((s,p) => s + p.slots, 0);
+        document.getElementById('bilancio-prove').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totPrv.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totSlots} slot)</span></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div onclick="mostraDettaglioBilancio('provePista','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${prv.bonifico.items.length})</span><span>€${prv.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('provePista','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${prv.carta.items.length})</span><span>€${prv.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('provePista','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${(prv.contanti?.items || []).length})</span><span>€${(prv.contanti?.totale || 0).toLocaleString('it-IT')}</span></div>
+          </div>
+        `;
+        
+        // Merchandising - cliccabile
+        const mrc = data.merch || { bonifico: { items: [], totale: 0 }, carta: { items: [], totale: 0 }, contanti: { items: [], totale: 0 } };
+        const totMrc = mrc.bonifico.totale + mrc.carta.totale + (mrc.contanti?.totale || 0);
+        const totOrdini = mrc.bonifico.items.length + mrc.carta.items.length + (mrc.contanti?.items || []).length;
+        document.getElementById('bilancio-merch').innerHTML = `
+          <p style="font-size:1.5rem;color:#22c55e;margin:0 0 1rem"><strong>€${totMrc.toLocaleString('it-IT')}</strong> <span style="font-size:0.8rem;color:#888">(${totOrdini} ordini)</span></p>
+          <div style="display:grid;gap:0.5rem;font-size:0.9rem">
+            <div onclick="mostraDettaglioBilancio('merch','bonifico')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#3b82f6">🏦 Bonifico (${mrc.bonifico.items.length})</span><span>€${mrc.bonifico.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('merch','carta')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#a855f7">💳 Carta (${mrc.carta.items.length})</span><span>€${mrc.carta.totale.toLocaleString('it-IT')}</span></div>
+            <div onclick="mostraDettaglioBilancio('merch','contanti')" style="display:flex;justify-content:space-between;cursor:pointer;padding:0.3rem;border-radius:4px;transition:background 0.2s" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'"><span style="color:#22c55e">💵 Contanti (${(mrc.contanti?.items || []).length})</span><span>€${(mrc.contanti?.totale || 0).toLocaleString('it-IT')}</span></div>
+          </div>
+        `;
+        
+      } catch (err) {
+        document.getElementById('bilancio-iscrizioni').innerHTML = '<p style="color:#ef4444">Errore: ' + err.message + '</p>';
+        console.error('Errore bilancio:', err);
+      }
+    }
+    
+    function mostraDettaglioBilancio(categoria, metodo) {
+      if (!bilancioData) return;
+      
+      const titoli = {
+        iscrizioni: { bonifico: 'Iscrizioni - Bonifico', carta: 'Iscrizioni - Carta', contanti: 'Iscrizioni - Contanti' },
+        provePista: { bonifico: 'Prove Pista - Bonifico', carta: 'Prove Pista - Carta' },
+        merch: { bonifico: 'Merchandising - Bonifico', carta: 'Merchandising - Carta' }
+      };
+      
+      const items = bilancioData[categoria]?.[metodo]?.items || [];
+      const totale = bilancioData[categoria]?.[metodo]?.totale || 0;
+      
+      let tableHtml = '';
+      if (categoria === 'iscrizioni') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(i => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">BB11-${String(i.id).padStart(4,'0')}</td>
+                <td style="padding:0.5rem">${i.cognome} ${i.nome}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${i.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } else if (categoria === 'provePista') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem">Slot</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(p => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">${p.codice}</td>
+                <td style="padding:0.5rem">${p.cognome} ${p.nome}</td>
+                <td style="padding:0.5rem">${p.slots}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${p.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } else if (categoria === 'merch') {
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+            <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #333">
+              <th style="padding:0.5rem">Codice</th><th style="padding:0.5rem">Nome</th><th style="padding:0.5rem">Articoli</th><th style="padding:0.5rem;text-align:right">Importo</th>
+            </tr></thead>
+            <tbody>
+              ${items.map(o => `<tr style="border-bottom:1px solid #222">
+                <td style="padding:0.5rem;color:#F7AF40">${o.codice}</td>
+                <td style="padding:0.5rem">${o.cognome} ${o.nome}</td>
+                <td style="padding:0.5rem;color:#888;font-size:0.8rem">${o.articoli}</td>
+                <td style="padding:0.5rem;text-align:right;color:#22c55e">€${o.totale.toLocaleString('it-IT')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      }
+      
+      if (items.length === 0) {
+        tableHtml = '<p style="color:#666;text-align:center;padding:2rem">Nessun elemento</p>';
+      }
+      
+      // Mostra popup
+      const popup = document.createElement('div');
+      popup.id = 'bilancio-popup';
+      popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999';
+      popup.innerHTML = `
+        <div style="background:#111;border:1px solid #333;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow:auto">
+          <div style="padding:1rem;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#111">
+            <h4 style="margin:0;color:#F7AF40">${titoli[categoria]?.[metodo] || 'Dettaglio'}</h4>
+            <button onclick="document.getElementById('bilancio-popup').remove()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer">&times;</button>
+          </div>
+          <div style="padding:1rem">
+            ${tableHtml}
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #333;text-align:right">
+              <strong style="color:#22c55e;font-size:1.2rem">Totale: €${totale.toLocaleString('it-IT')}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+      popup.onclick = (e) => { if (e.target === popup) popup.remove(); };
+      document.body.appendChild(popup);
+    }
+    
+    function renderBilancioTable(iscritti) {
+      if (!iscritti || iscritti.length === 0) {
+        return '<p style="color:#666;font-size:0.9rem">Nessuna iscrizione</p>';
+      }
+      return `
+        <table style="width:100%;margin-top:0.5rem;font-size:0.9rem">
+          <thead>
+            <tr style="text-align:left;color:#888">
+              <th>Codice</th>
+              <th>Nome</th>
+              <th>Discipline</th>
+              <th style="text-align:right">Importo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${iscritti.map(i => `
+              <tr>
+                <td style="color:#F7AF40">BB11-${String(i.id).padStart(4,'0')}</td>
+                <td>${i.cognome} ${i.nome}</td>
+                <td style="color:#888">${i.categoria || '-'}</td>
+                <td style="text-align:right;color:#22c55e">€${i.totale}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // --- PROVE PISTA ---
+    let provePrenotazioni = [];
+    let proveSlots = [];
+    let proveConfig = { posti_max: 20, costo_ora: 10 };
+
+    async function caricaProve() {
+      const [resPren, resDisp, resConfig, resSlots] = await Promise.all([
+        fetch('/api/prove/prenotazioni'),
+        fetch('/api/prove/disponibilita'),
+        fetch('/api/prove/config'),
+        fetch('/api/prove/slots')
+      ]);
+      provePrenotazioni = await resPren.json();
+      const disponibilita = await resDisp.json();
+      proveConfig = await resConfig.json();
+      proveSlots = await resSlots.json();
+      renderProveSlots();
+      renderProveDisponibilita(disponibilita);
+      renderProve();
+    }
+
+    function renderProveSlots() {
+      const div = document.getElementById('prove-slots-list');
+      if (!proveSlots.length) {
+        div.innerHTML = '<p style="color:#888">Nessuno slot configurato</p>';
+        return;
+      }
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
+      for (const s of proveSlots) {
+        if (!perGiorno[s.giorno]) perGiorno[s.giorno] = [];
+        perGiorno[s.giorno].push(s);
+      }
+      
+      let html = '';
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      for (const giorno of giorniOrdinati) {
+        const date = new Date(giorno).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+        html += `<div style="margin-bottom:1.5rem">
+          <h5 style="color:#F7AF40;margin-bottom:0.8rem;border-bottom:1px solid #333;padding-bottom:0.3rem">📅 ${date}</h5>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.5rem">`;
+        
+        for (const s of perGiorno[giorno]) {
+          const prenotati = s.prenotati || 0;
+          const liberi = s.posti_max - prenotati;
+          const colorePosti = liberi <= 0 ? '#ef4444' : liberi <= 3 ? '#f59e0b' : '#22c55e';
+          
+          html += `<div style="padding:0.8rem;background:#111;border:1px solid #333;border-radius:6px">
+            <div style="font-weight:bold;color:#fff;margin-bottom:0.3rem">🕐 ${s.ora_inizio} - ${s.ora_fine}</div>
+            <div style="font-size:0.85rem;color:#888;margin-bottom:0.5rem">📍 ${s.luogo}</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+              <span style="color:#888;font-size:0.85rem">Posti max:</span>
+              <input type="number" 
+                     value="${s.posti_max}" 
+                     min="${prenotati}" 
+                     style="width:60px;padding:0.3rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px;text-align:center"
+                     onchange="aggiornaPostiSlot(${s.id}, this.value, ${prenotati})"
+                     title="Minimo ${prenotati} (prenotati)">
+            </div>
+            <div style="font-size:0.8rem">
+              <span style="color:#888">Prenotati:</span> <strong style="color:#F7AF40">${prenotati}</strong>
+              <span style="margin-left:0.5rem;color:#888">Liberi:</span> <strong style="color:${colorePosti}">${liberi}</strong>
+            </div>
+          </div>`;
+        }
+        html += '</div></div>';
+      }
+      
+      div.innerHTML = html;
+    }
+    
+    async function aggiornaPostiSlot(id, nuoviPosti, prenotatiAttuali) {
+      nuoviPosti = parseInt(nuoviPosti);
+      if (nuoviPosti < prenotatiAttuali) {
+        alert(`Non puoi ridurre a ${nuoviPosti} posti!\nCi sono già ${prenotatiAttuali} prenotazioni.`);
+        caricaProve(); // Ricarica per ripristinare il valore
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/prove/slots/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posti_max: nuoviPosti })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
+          caricaProve();
+          return;
+        }
+        
+        // Aggiorna localmente senza ricaricare tutto
+        const slot = proveSlots.find(s => s.id === id);
+        if (slot) slot.posti_max = nuoviPosti;
+        
+      } catch (err) {
+        alert('Errore di rete: ' + err.message);
+        caricaProve();
+      }
+    }
+
+    async function eliminaProveSlot(id) {
+      if (!confirm('Eliminare questo slot prove?')) return;
+      await fetch('/api/prove/slots/' + id, { method: 'DELETE' });
+      caricaProve();
+    }
+
+    // Formatta data per prove pista
+    function formatGiorno(g) {
+      if (!g) return '';
+      const [anno, mese, gg] = g.split('-');
+      const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      const d = new Date(+anno, +mese - 1, +gg);
+      return `${giorni[d.getDay()]} ${gg}/${mese}`;
+    }
+
+    function renderProveDisponibilita(disponibilita) {
+      const div = document.getElementById('prove-disponibilita');
+      
+      // Raggruppa per giorno
+      const perGiorno = {};
+      for (const [key, data] of Object.entries(disponibilita)) {
+        const giorno = data.giorno || 'Sconosciuto';
+        if (!perGiorno[giorno]) perGiorno[giorno] = [];
+        perGiorno[giorno].push(data);
+      }
+      
+      // Ordina i giorni
+      const giorniOrdinati = Object.keys(perGiorno).sort();
+      
+      let html = '';
+      for (const giorno of giorniOrdinati) {
+        html += `<div style="width:100%;margin-top:0.8rem;margin-bottom:0.3rem"><strong style="color:#F7AF40;font-size:1.1rem">📅 ${formatGiorno(giorno)}</strong></div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:0.5rem">`;
+        
+        // Ordina gli slot per ora
+        const slots = perGiorno[giorno].sort((a, b) => a.ora.localeCompare(b.ora));
+        
+        for (const data of slots) {
+          const posti = data.posti;
+          const postiMax = data.posti_max;
+          const luogo = data.luogo || '';
+          const color = posti === 0 ? '#ef4444' : posti < 5 ? '#f59e0b' : '#4ade80';
+          html += `<div style="padding:0.5rem 1rem;background:#111;border:1px solid #333;border-radius:4px">
+            <strong style="color:#F7AF40">${data.ora}</strong><br>
+            ${luogo ? `<small style="color:#888">📍 ${luogo}</small><br>` : ''}
+            <span style="color:${color}">${posti}/${postiMax} posti</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      
+      div.innerHTML = html || '<p style="color:#888">Nessuno slot configurato</p>';
+    }
+
+    function renderProve() {
+      const filtroStato = document.getElementById('filter-prove-stato').value;
+      const grouped = {};
+      provePrenotazioni.forEach(p => {
+        if (!grouped[p.codice]) grouped[p.codice] = [];
+        grouped[p.codice].push(p);
+      });
+      
+      // Filtra per stato
+      const filteredGroups = {};
+      for (const [cod, sessioni] of Object.entries(grouped)) {
+        const stato = sessioni[0].stato || 'sospesa';
+        if (!filtroStato || stato === filtroStato) {
+          filteredGroups[cod] = sessioni;
+        }
+      }
+      
+      const tbody = document.querySelector('#tabella-prove tbody');
+      let html = '';
+      for (const [cod, sessioni] of Object.entries(filteredGroups)) {
+        const first = sessioni[0];
+        const oreList = sessioni.map(s => {
+          const giorno = s.giorno ? formatGiorno(s.giorno) + ' ' : '';
+          const dettaglio = s.note ? ` (${s.note.split(s.ora + ': ')[1]?.split(',')[0] || ''})` : '';
+          return giorno + s.ora + dettaglio;
+        }).join('<br>');
+        const totale = sessioni.length * 5; // €5 per slot
+        const stato = first.stato || 'sospesa';
+        
+        // Badge stato
+        let statoBadge = '';
+        if (stato === 'sospesa') {
+          statoBadge = '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:4px;font-size:0.8rem">🕐 Sospesa</span>';
+        } else if (stato === 'verifica') {
+          statoBadge = '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">🔍 In Verifica</span>';
+        } else if (stato === 'confermata') {
+          statoBadge = '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">✅ Confermata</span>';
+        }
+        
+        // Bottoni azione
+        let azioniHtml = '';
+        
+        // Mostra ricevuta se presente (per qualsiasi stato)
+        if (first.ricevuta_bonifico) {
+          azioniHtml += `<a href="/api/prove/prenotazioni/${cod}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px">📄</a>`;
+        }
+        
+        // Se in verifica: conferma bonifico, rigetta
+        if (stato === 'verifica') {
+          azioniHtml += `<button onclick="confermaBonificoProva('${cod}')" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
+        }
+        
+        // Se sospesa: conferma manuale + sollecito
+        if (stato === 'sospesa') {
+          azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma manuale" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button onclick="inviaSollecitoProve('${cod}')" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
+        }
+        
+        // Sempre: modifica giorno + annulla/elimina
+        azioniHtml += `<button onclick="modificaProva('${cod}')" title="Modifica giorno/disciplina" style="background:#3b82f6">✏️</button>`;
+        azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
+        
+        html += `<tr>
+          <td><strong>${cod}</strong></td>
+          <td>${first.cognome} ${first.nome}</td>
+          <td>${first.email || '-'}</td>
+          <td>${first.telefono || '-'}</td>
+          <td style="font-size:0.85rem">${oreList}</td>
+          <td>€${totale}</td>
+          <td>${statoBadge}</td>
+          <td><input type="text" value="${first.note_admin || ''}" onchange="salvaNoteAdminProve('${cod}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
+          <td>${azioniHtml}</td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+      
+      const numPrenotazioni = Object.keys(grouped).length;
+      const totSessioni = provePrenotazioni.length;
+      const sospeseCount = Object.values(grouped).filter(s => (s[0].stato || 'sospesa') === 'sospesa').length;
+      const verificaCount = Object.values(grouped).filter(s => s[0].stato === 'verifica').length;
+      const confermateCount = Object.values(grouped).filter(s => s[0].stato === 'confermata').length;
+      
+      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${verificaCount} verifica, ${confermateCount} confermate)`;
+      document.getElementById('prove-totale-sess').textContent = totSessioni;
+      document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * 5);
+    }
+    
+    // Event listener per filtro stato prove
+    document.getElementById('filter-prove-stato')?.addEventListener('change', renderProve);
+
+    async function confermaProva(codice) {
+      if (!confirm('Confermare questa prenotazione? Verrà inviata email di conferma.')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/conferma`, { method: 'POST' });
+      if (res.ok) {
+        alert('✅ Prenotazione confermata! Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function confermaBonificoProva(codice) {
+      if (!confirm('Confermare il pagamento bonifico per questa prenotazione?')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/conferma-bonifico`, { method: 'POST' });
+      if (res.ok) {
+        alert('✅ Bonifico confermato! Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function rigettaProva(codice) {
+      const motivo = prompt('Motivo del rigetto (es: Importo errato, Causale mancante, ecc.):');
+      if (!motivo) return;
+      
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/rigetta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo })
+      });
+      if (res.ok) {
+        alert('❌ Ricevuta rigettata. Email inviata all\'utente.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function annullaProva(codice) {
+      if (!confirm('Annullare questa prenotazione? Gli slot saranno liberati e verrà inviata email di annullamento.')) return;
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/annulla`, { method: 'PUT' });
+      if (res.ok) {
+        alert('❌ Prenotazione annullata. Email inviata.');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+    
+    async function salvaNoteAdminProve(codice, note) {
+      try {
+        await fetch(`/api/prove/prenotazioni/${codice}/aggiorna`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_admin: note })
+        });
+      } catch (err) {
+        alert('Errore salvataggio note: ' + err.message);
+      }
+    }
+    
+    async function inviaSollecitoProve(codice) {
+      if (!confirm('Inviare email sollecito per questa prenotazione?')) return;
+      try {
+        const res = await fetch(`/api/prove/prenotazioni/${codice}/sollecito`, { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Email sollecito inviata!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    async function modificaProva(codice) {
+      // Trova la prenotazione
+      const sessioni = provePrenotazioni.filter(p => p.codice === codice);
+      if (!sessioni.length) return alert('Prenotazione non trovata');
+      
+      const first = sessioni[0];
+      const giornoAttuale = first.giorno || '';
+      
+      // Mostra modal per modificare
+      const slotAttuali = sessioni.map(s => s.ora).join(', ');
+      
+      // Prendi gli slot disponibili per il giorno dalla configurazione
+      const slotDelGiorno = proveSlots.filter(s => s.giorno === giornoAttuale).map(s => s.ora_inizio + '-' + s.ora_fine);
+      // Se non ci sono slot configurati per quel giorno, usa tutti gli slot unici
+      const tuttiGliSlot = [...new Set(proveSlots.map(s => s.ora_inizio + '-' + s.ora_fine))].sort();
+      const slotDisponibili = slotDelGiorno.length > 0 ? slotDelGiorno : tuttiGliSlot;
+      
+      // Aggiungi anche gli slot attuali se non sono nella lista (per casi particolari)
+      const slotAttualiArray = sessioni.map(s => s.ora);
+      slotAttualiArray.forEach(ora => {
+        if (!slotDisponibili.includes(ora)) {
+          slotDisponibili.push(ora);
+        }
+      });
+      slotDisponibili.sort();
+      
+      // Crea HTML per modal
+      let modalHtml = `
+        <div id="modal-modifica-prova" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999">
+          <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto">
+            <h3 style="color:#F7AF40;margin:0 0 1rem">Modifica prenotazione ${codice}</h3>
+            <p style="color:#888;margin-bottom:1rem">${first.cognome} ${first.nome}</p>
+            
+            <div style="margin-bottom:1rem">
+              <label style="color:#888;display:block;margin-bottom:0.3rem">Giorno:</label>
+              <select id="mod-prova-giorno" onchange="aggiornaSlotDisponibili('${codice}')" style="width:100%;padding:0.5rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px">
+                ${[...new Set(proveSlots.map(s => s.giorno))].sort().map(g => {
+                  const data = new Date(g);
+                  const label = data.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' });
+                  return `<option value="${g}" ${giornoAttuale === g ? 'selected' : ''}>${label}</option>`;
+                }).join('')}
+              </select>
+            </div>
+            
+            <div style="margin-bottom:1rem">
+              <label style="color:#888;display:block;margin-bottom:0.3rem">Slot attuali: <strong>${slotAttuali}</strong></label>
+              <p style="color:#666;font-size:0.85rem">Seleziona i nuovi slot (puoi aggiungerne o rimuoverne):</p>
+              <div id="mod-prova-slots" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem">
+              </div>
+            </div>
+            
+            <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+              <button onclick="document.getElementById('modal-modifica-prova').remove()" style="padding:0.5rem 1rem;background:#333;border:none;color:#fff;cursor:pointer;border-radius:4px">Annulla</button>
+              <button onclick="salvaModificaProva('${codice}')" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">Salva</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // Popola gli slot disponibili
+      aggiornaSlotModalProva(slotDisponibili, slotAttualiArray);
+    }
+    
+    function aggiornaSlotDisponibili(codice) {
+      const giornoSelezionato = document.getElementById('mod-prova-giorno').value;
+      const sessioni = provePrenotazioni.filter(p => p.codice === codice);
+      const slotAttualiArray = sessioni.map(s => s.ora);
+      
+      // Prendi slot per il giorno selezionato
+      const slotDelGiorno = proveSlots.filter(s => s.giorno === giornoSelezionato).map(s => s.ora_inizio + '-' + s.ora_fine);
+      
+      // Aggiungi slot attuali se non presenti
+      slotAttualiArray.forEach(ora => {
+        if (!slotDelGiorno.includes(ora)) {
+          slotDelGiorno.push(ora);
+        }
+      });
+      slotDelGiorno.sort();
+      
+      aggiornaSlotModalProva(slotDelGiorno, slotAttualiArray);
+    }
+    
+    function aggiornaSlotModalProva(slotDisponibili, slotSelezionati) {
+      const slotsDiv = document.getElementById('mod-prova-slots');
+      slotsDiv.innerHTML = '';
+      
+      slotDisponibili.forEach(ora => {
+        const isSelected = slotSelezionati.includes(ora);
+        slotsDiv.innerHTML += `
+          <label style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.5rem;background:${isSelected ? '#F7AF40' : '#333'};border-radius:4px;cursor:pointer;color:${isSelected ? '#000' : '#fff'}">
+            <input type="checkbox" value="${ora}" ${isSelected ? 'checked' : ''} onchange="this.parentElement.style.background=this.checked?'#F7AF40':'#333';this.parentElement.style.color=this.checked?'#000':'#fff'">
+            ${ora}
+          </label>
+        `;
+      });
+    }
+    
+    async function salvaModificaProva(codice) {
+      const giorno = document.getElementById('mod-prova-giorno').value;
+      const checkboxes = document.querySelectorAll('#mod-prova-slots input:checked');
+      const nuoviSlots = Array.from(checkboxes).map(cb => ({ ora: cb.value, note: cb.value }));
+      
+      if (nuoviSlots.length === 0) {
+        alert('Seleziona almeno uno slot');
+        return;
+      }
+      
+      const res = await fetch(`/api/prove/prenotazioni/${codice}/aggiorna`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giorno, slots: nuoviSlots })
+      });
+      
+      document.getElementById('modal-modifica-prova').remove();
+      
+      if (res.ok) {
+        alert('✅ Prenotazione aggiornata!');
+        caricaProve();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    }
+
+    async function eliminaProva(codice) {
+      if (!confirm('Eliminare prenotazione ' + codice + '?')) return;
+      await fetch('/api/prove/prenotazioni/' + codice, { method: 'DELETE' });
+      caricaProve();
+    }
+
+    function exportProveExcel() {
+      // Usa fetch per mantenere le credenziali di sessione
+      fetch('/api/prove/export', { credentials: 'include' })
+        .then(res => {
+          if (!res.ok) throw new Error('Accesso negato');
+          return res.blob();
+        })
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'prove_pista_export.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          a.remove();
+        })
+        .catch(err => alert('Errore export: ' + err.message));
+    }
+
+    // --- RISULTATI ---
+    let risultati = [];
+    async function caricaRisultati() {
+      const res = await fetch('/api/risultati');
+      risultati = await res.json();
+      renderRisultati();
+    }
+
+    function renderRisultati() {
+      const tbody = document.querySelector('#tabella-risultati tbody');
+      tbody.innerHTML = risultati.map(r => `<tr>
+        <td>${r.titolo}</td>
+        <td>${r.categoria || '-'}</td>
+        <td><a href="/uploads/${r.filename}" target="_blank" style="color:#F7AF40">📄 ${r.filename}</a></td>
+        <td>${new Date(r.created_at).toLocaleString('it-IT')}</td>
+        <td><button onclick="eliminaRisultato(${r.id})">🗑️</button></td>
+      </tr>`).join('');
+    }
+
+    document.getElementById('form-upload-risultato').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/risultati', { method: 'POST', body: fd });
+      if (res.ok) {
+        alert('✅ Risultato caricato e notifica inviata!');
+        e.target.reset();
+        caricaRisultati();
+      } else {
+        const err = await res.json();
+        alert('Errore: ' + err.error);
+      }
+    });
+
+    async function eliminaRisultato(id) {
+      if (!confirm('Eliminare questo risultato?')) return;
+      await fetch('/api/risultati/' + id, { method: 'DELETE' });
+      caricaRisultati();
+    }
+
+    // --- NOTIFICHE ---
+    document.getElementById('form-notifica').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Invio in corso...';
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: fd.get('title'), body: fd.get('body') })
+        });
+        
+        // Se la risposta non è JSON (es: redirect a login)
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          if (res.status === 401 || res.status === 403) {
+            alert('❌ Sessione scaduta. Effettua di nuovo il login.');
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Risposta non valida dal server');
+        }
+        
+        const result = await res.json();
+        if (res.ok) {
+          if (result.sent > 0) {
+            alert(`✅ Notifica inviata con successo a ${result.sent} utenti!`);
+          } else {
+            alert('⚠️ Nessun utente ha installato l\'app. La notifica non è stata inviata a nessuno.');
+          }
+          e.target.reset();
+        } else {
+          alert('❌ Errore: ' + (result.error || 'Invio fallito'));
+        }
+      } catch (err) {
+        alert('❌ Errore: ' + err.message);
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    // --- EMAIL DI MASSA ---
+    async function previewDestinatari() {
+      const checkbox = document.querySelector('[name="soloConfermati"]');
+      const soloConfermati = checkbox.checked;
+      const previewDiv = document.getElementById('email-preview');
+      
+      previewDiv.style.display = 'block';
+      previewDiv.innerHTML = '<p style="color:#888">⏳ Caricamento...</p>';
+      
+      try {
+        const res = await fetch(`/api/email/preview?soloConfermati=${soloConfermati}`);
+        const data = await res.json();
+        
+        if (data.count === 0) {
+          previewDiv.innerHTML = '<p style="color:#ef4444">⚠️ Nessun destinatario trovato con i criteri selezionati</p>';
+        } else {
+          const emails = data.destinatari.map(d => `<span style="color:#888">${d.nome} ${d.cognome}</span> &lt;${d.email}&gt;`).join('<br>');
+          previewDiv.innerHTML = `
+            <p style="color:#22c55e;margin:0 0 0.5rem"><strong>✅ ${data.count} destinatari:</strong></p>
+            <div style="max-height:150px;overflow-y:auto;font-size:0.85rem;line-height:1.6">${emails}</div>
+          `;
+        }
+      } catch (err) {
+        previewDiv.innerHTML = '<p style="color:#ef4444">❌ Errore caricamento anteprima</p>';
+      }
+    }
+    
+    document.getElementById('form-email-massa').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+      const resultDiv = document.getElementById('email-result');
+      
+      if (!confirm('Sei sicuro di voler inviare questa email a tutti gli iscritti?')) return;
+      
+      btn.textContent = '⏳ Invio in corso...';
+      btn.disabled = true;
+      resultDiv.innerHTML = '<p style="color:#F7AF40">⏳ Invio email in corso, attendere...</p>';
+      
+      try {
+        const res = await fetch('/api/email/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oggetto: fd.get('oggetto'),
+            messaggio: fd.get('messaggio'),
+            soloConfermati: fd.get('soloConfermati') === 'on'
+          })
+        });
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          if (res.status === 401 || res.status === 403) {
+            alert('❌ Sessione scaduta. Effettua di nuovo il login.');
+            window.location.href = '/login.html';
+            return;
+          }
+          throw new Error('Risposta non valida dal server');
+        }
+        
+        const result = await res.json();
+        if (res.ok) {
+          resultDiv.innerHTML = `<p style="color:#22c55e">✅ Email inviate con successo a ${result.sent} iscritti!</p>`;
+          if (result.errors > 0) {
+            resultDiv.innerHTML += `<p style="color:#f59e0b">⚠️ ${result.errors} email non inviate (errori)</p>`;
+          }
+          e.target.reset();
+          e.target.querySelector('[name="soloConfermati"]').checked = true;
+        } else {
+          resultDiv.innerHTML = `<p style="color:#ef4444">❌ Errore: ${result.error || 'Invio fallito'}</p>`;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<p style="color:#ef4444">❌ Errore: ${err.message}</p>`;
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    // --- SIMULA UTENTE ---
+    function populateSimulaSelect() {
+      const sel = document.getElementById('simula-select');
+      sel.innerHTML = '<option value="">-- Seleziona iscritto --</option>' +
+        iscritti.map(i => `<option value="${i.id}">${i.cognome} ${i.nome} (${codice(i.id)}) - ${i.email || 'no email'}</option>`).join('');
+    }
+
+    async function startSimulate() {
+      const id = document.getElementById('simula-select').value;
+      if (!id) return alert('Seleziona un iscritto');
+      const res = await fetch('/api/admin/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iscritto_id: id })
+      });
+      if (res.ok) {
+        const { iscritto } = await res.json();
+        showSimulateBanner(iscritto);
+        showSimulaDetails(iscritto);
+      }
+    }
+
+    async function stopSimulate() {
+      await fetch('/api/admin/stop-simulate', { method: 'POST' });
+      document.getElementById('simulate-banner').style.display = 'none';
+      document.getElementById('simula-info').style.display = 'none';
+    }
+
+    function showSimulateBanner(i) {
+      document.getElementById('sim-name').textContent = `${i.nome} ${i.cognome} (${codice(i.id)})`;
+      document.getElementById('simulate-banner').style.display = 'block';
+    }
+
+    function showSimulaDetails(i) {
+      const div = document.getElementById('simula-details');
+      div.innerHTML = `
+        <p><strong>Nome:</strong> ${i.nome} ${i.cognome}</p>
+        <p><strong>Codice:</strong> ${codice(i.id)}</p>
+        <p><strong>Email:</strong> ${i.email || '-'}</p>
+        <p><strong>Telefono:</strong> ${i.telefono || '-'}</p>
+        <p><strong>Discipline:</strong> ${i.categoria || '-'}</p>
+        <p><strong>Società:</strong> ${i.societa || '-'}</p>
+        <p><strong>Pagamento:</strong> ${i.pagamento ? '✅ Pagato' : '❌ Non pagato'}</p>
+        <p><strong>Navetta:</strong> ${i.navetta ? '✅ ' + (i.navetta_dettagli || '') : '❌'}</p>
+        <p style="margin-top:0.8rem;color:#888">Questo utente vedrebbe il sito esattamente come un visitatore normale, con la possibilità di verificare la propria iscrizione cercando "${i.cognome}".</p>
+      `;
+      document.getElementById('simula-info').style.display = 'block';
+    }
+
+    // Check if already simulating
+    fetch('/api/admin/simulating').then(r => r.json()).then(data => {
+      if (data.simulating) {
+        showSimulateBanner(data.simulating);
+      }
+    });
+
+    // --- PAGINE ---
+    // Pagine realmente esistenti nel sito
+    const pageNames = {
+      iscrizioni: 'Iscrizioni',
+      verifica: 'Verifica Iscrizione',
+      programma: 'Programma',
+      hotel: 'Hotel',
+      travel: 'Travel Suggestions',
+      risultati: 'Risultati',
+      contact: 'Contatti',
+      faq: 'FAQ'
+    };
+    
+    // Pagine valide (quelle che esistono realmente)
+    const validPages = Object.keys(pageNames);
+
+    // --- MERCH ---
+    let merchOrdini = [];
+    
+    async function caricaMerch() {
+      try {
+        const res = await fetch('/api/merch/ordini');
+        if (!res.ok) throw new Error('Errore caricamento');
+        merchOrdini = await res.json();
+        renderMerchStats();
+        renderMerch();
+      } catch (err) {
+        console.error('Errore caricamento merch:', err);
+      }
+    }
+    
+    function renderMerchStats() {
+      const stats = { felpa: 0, maglia: 0, cappellino: 0, asciugamano: 0, totale: 0, confermati: 0, inAttesa: 0 };
+      
+      for (const o of merchOrdini) {
+        if (o.stato === 'confermata') stats.confermati++;
+        else stats.inAttesa++;
+        
+        for (const item of (o.items || [])) {
+          const qty = item.quantita || 1;
+          const prezzo = item.prezzo_unitario || (item.articolo === 'Felpa' ? 35 : (item.articolo === 'Maglia' ? 15 : 5));
+          stats.totale += prezzo * qty;
+          
+          if (item.articolo === 'Felpa') stats.felpa += qty;
+          else if (item.articolo === 'Maglia') stats.maglia += qty;
+          else if (item.articolo === 'Cappellino') stats.cappellino += qty;
+          else if (item.articolo === 'Asciugamano') stats.asciugamano += qty;
+        }
+      }
+      
+      document.getElementById('merch-stats').innerHTML = `
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">Felpe</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.felpa}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">Maglie</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.maglia}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">Cappellini</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.cappellino}</p>
+        </div>
+        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
+          <p style="color:#888;margin:0;font-size:0.85rem">Asciugamani</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.asciugamano}</p>
+        </div>
+        <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
+          <p style="color:#888;margin:0;font-size:0.85rem">Confermati</p>
+          <p style="font-size:1.5rem;color:#22c55e;margin:0">${stats.confermati}</p>
+        </div>
+        <div style="background:#3a2a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #f59e0b">
+          <p style="color:#888;margin:0;font-size:0.85rem">In Attesa</p>
+          <p style="font-size:1.5rem;color:#f59e0b;margin:0">${stats.inAttesa}</p>
+        </div>
+        <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
+          <p style="color:#888;margin:0;font-size:0.85rem">Totale €</p>
+          <p style="font-size:1.5rem;color:#22c55e;margin:0">€${stats.totale}</p>
+        </div>
+      `;
+    }
+    
+    function renderMerch() {
+      const tbody = document.querySelector('#tabella-merch tbody');
+      if (!merchOrdini.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888">Nessun ordine</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = merchOrdini.map(o => {
+        const itemsStr = (o.items || []).map(i => {
+          const taglia = i.taglia ? ` (${i.taglia})` : '';
+          return `${i.quantita}x ${i.articolo}${taglia}`;
+        }).join(', ');
+        
+        const totale = (o.items || []).reduce((sum, i) => {
+          const prezzo = i.prezzo_unitario || (i.articolo === 'Felpa' ? 35 : (i.articolo === 'Maglia' ? 15 : 5));
+          return sum + prezzo * (i.quantita || 1);
+        }, 0);
+        
+        const data = o.created_at ? new Date(o.created_at).toLocaleDateString('it-IT') : '-';
+        
+        // Badge origine
+        const origineLabel = o.origine === 'iscrizione' ? '📝 Iscrizione' : '🛒 Pagina Merch';
+        const origineBg = o.origine === 'iscrizione' ? '#3b82f6' : '#8b5cf6';
+        
+        // Badge stato
+        const stato = o.stato || 'sospesa';
+        let statoLabel, statoBg;
+        if (stato === 'confermata') {
+          statoLabel = '✅ Confermato';
+          statoBg = '#22c55e';
+        } else if (stato === 'verifica') {
+          statoLabel = '🔍 In Verifica';
+          statoBg = '#3b82f6';
+        } else {
+          statoLabel = '⏳ Sospeso';
+          statoBg = '#f59e0b';
+        }
+        
+        // Costruisco i bottoni azioni
+        let btns = '';
+        
+        // Bottone vedi ricevuta (se esiste)
+        if (o.ricevuta_bonifico) {
+          btns += `<a href="/api/merch/ordini/${o.codice}/ricevuta" target="_blank" title="Vedi ricevuta" style="padding:4px 8px;background:#3b82f6;color:#fff;border-radius:4px;text-decoration:none;margin:0 2px;display:inline-block">📄</a>`;
+        }
+        
+        // Bottoni in base allo stato
+        if (stato === 'sospesa') {
+          btns += `<button onclick="inviaSollecitoMerch('${o.codice}')" style="background:#f59e0b" title="Invia sollecito email">📧</button>`;
+          btns += `<button onclick="confermaMerch('${o.codice}')" style="background:#22c55e" title="Conferma pagamento">✅</button>`;
+        } else if (stato === 'verifica') {
+          btns += `<button onclick="confermaBonificoMerch('${o.codice}')" style="background:#22c55e" title="Conferma bonifico">✅</button>`;
+          btns += `<button onclick="rigettaBonificoMerch('${o.codice}')" style="background:#ef4444" title="Rigetta ricevuta">❌</button>`;
+        }
+        
+        btns += `<button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>`;
+        
+        return `
+          <tr>
+            <td style="color:#F7AF40">${o.codice}</td>
+            <td>${o.cognome} ${o.nome}</td>
+            <td>${o.email || '-'}</td>
+            <td style="font-size:0.85rem">${itemsStr || '-'}</td>
+            <td style="color:#22c55e">€${totale}</td>
+            <td><span style="background:${origineBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${origineLabel}</span></td>
+            <td><span style="background:${statoBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${statoLabel}</span></td>
+            <td><input type="text" value="${o.note_admin || ''}" onchange="salvaNoteAdminMerch('${o.codice}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
+            <td>${data}</td>
+            <td>${btns}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    async function confermaMerch(codice) {
+      if (!confirm('Confermare ordine ' + codice + '?')) return;
+      try {
+        await fetch('/api/merch/ordini/' + codice + '/conferma', { method: 'POST' });
+        caricaMerch();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function eliminaMerch(codice) {
+      if (!confirm('Eliminare ordine ' + codice + '?')) return;
+      try {
+        await fetch('/api/merch/ordini/' + codice, { method: 'DELETE' });
+        caricaMerch();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function salvaNoteAdminMerch(codice, note) {
+      try {
+        await fetch('/api/merch/ordini/' + codice + '/aggiorna', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note_admin: note })
+        });
+      } catch (err) {
+        alert('Errore salvataggio note: ' + err.message);
+      }
+    }
+    
+    async function inviaSollecitoMerch(codice) {
+      if (!confirm('Inviare email di sollecito per ordine ' + codice + '?')) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/sollecito', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Sollecito inviato con successo!');
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function confermaBonificoMerch(codice) {
+      if (!confirm('Confermare il bonifico per ordine ' + codice + '?')) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/conferma-bonifico', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Bonifico confermato!');
+          caricaMerch();
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function rigettaBonificoMerch(codice) {
+      const motivo = prompt('Motivo del rigetto:');
+      if (!motivo) return;
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/rigetta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motivo })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Ricevuta rigettata. Email inviata.');
+          caricaMerch();
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    function exportMerchExcel() {
+      window.location.href = '/api/merch/export';
+    }
+    
+    // --- GESTIONE ORDINI STAMPATI ---
+    async function mostraGestioneStampati() {
+      document.getElementById('modal-stampati').style.display = 'block';
+      await caricaOrdiniStampati();
+    }
+    
+    function chiudiGestioneStampati() {
+      document.getElementById('modal-stampati').style.display = 'none';
+    }
+    
+    async function caricaOrdiniStampati() {
+      try {
+        const res = await fetch('/api/merch/stampati/date');
+        const date = await res.json();
+        
+        const container = document.getElementById('lista-ordini-stampati');
+        
+        if (date.length === 0) {
+          container.innerHTML = '<p style="color:#888;text-align:center;padding:1rem">Nessun ordine stampato registrato</p>';
+          return;
+        }
+        
+        let html = '<h4 style="color:#22c55e;margin-bottom:0.8rem">📋 Ordini Registrati</h4>';
+        
+        for (const data of date) {
+          const detRes = await fetch('/api/merch/stampati/' + encodeURIComponent(data));
+          const items = await detRes.json();
+          
+          const totale = items.reduce((sum, i) => sum + i.quantita, 0);
+          const articoliStr = items.map(i => `${i.quantita}x ${i.articolo}`).join(', ');
+          
+          html += `
+            <div style="background:#222;padding:0.8rem;border-radius:4px;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong style="color:#F7AF40">${data}</strong>
+                <span style="color:#888;margin-left:1rem">${totale} pezzi</span>
+                <p style="color:#666;font-size:0.8rem;margin:0.3rem 0 0">${articoliStr}</p>
+              </div>
+              <button onclick="eliminaOrdineStampato('${data}')" style="background:#dc2626;padding:0.4rem 0.8rem;font-size:0.8rem">🗑️ Elimina</button>
+            </div>
+          `;
+        }
+        
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Errore caricamento ordini stampati:', err);
+      }
+    }
+    
+    async function salvaOrdineStampato() {
+      const dataInput = document.getElementById('stampati-data').value;
+      if (!dataInput) {
+        alert('Seleziona una data');
+        return;
+      }
+      
+      // Converti da YYYY-MM-DD a DD/MM/YYYY
+      const [y, m, d] = dataInput.split('-');
+      const data_ordine = `${d}/${m}/${y}`;
+      
+      // Raccogli tutti i valori
+      const articoli = {};
+      document.querySelectorAll('#modal-stampati input[data-art]').forEach(input => {
+        const qty = parseInt(input.value) || 0;
+        if (qty > 0) {
+          articoli[input.dataset.art] = qty;
+        }
+      });
+      
+      if (Object.keys(articoli).length === 0) {
+        alert('Inserisci almeno un articolo');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/merch/stampati', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data_ordine, articoli })
+        });
+        
+        if (res.ok) {
+          // Reset form
+          document.getElementById('stampati-data').value = '';
+          document.querySelectorAll('#modal-stampati input[data-art]').forEach(input => input.value = 0);
+          
+          await caricaOrdiniStampati();
+          alert('Ordine salvato!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + err.error);
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function eliminaOrdineStampato(data) {
+      if (!confirm(`Eliminare l'ordine del ${data}?`)) return;
+      
+      try {
+        const res = await fetch('/api/merch/stampati/' + encodeURIComponent(data), { method: 'DELETE' });
+        if (res.ok) {
+          await caricaOrdiniStampati();
+        }
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+
+    async function caricaPagine() {
+      const div = document.getElementById('pagine-list');
+      div.innerHTML = 'Caricamento...';
+      const res = await fetch('/api/pages');
+      let pages = await res.json();
+      // Filtra solo le pagine realmente esistenti
+      pages = pages.filter(p => validPages.includes(p.page));
+      if (!pages.length) { div.innerHTML = '<p>Nessuna pagina trovata</p>'; return; }
+      div.innerHTML = '';
+      pages.forEach(p => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.8rem;margin-bottom:0.5rem;background:#111;border:1px solid #222;border-radius:6px;flex-wrap:wrap;gap:0.5rem';
+        const visible = p.visible !== undefined ? p.visible : 1;
+        
+        // Messaggio speciale per iscrizioni disattivate
+        let extraInfo = '';
+        if (p.page === 'iscrizioni' && !p.enabled) {
+          extraInfo = '<div style="width:100%;margin-top:0.5rem;padding:0.5rem;background:#1a1a1a;border:1px solid #f59e0b;border-radius:4px;color:#f59e0b;font-size:0.85rem">📅 Messaggio mostrato: "Le iscrizioni apriranno il 21 Luglio 2026"</div>';
+        }
+        
+        row.innerHTML = `
+          <span style="color:#f0f0f0;font-weight:600;min-width:140px">${pageNames[p.page] || p.page}</span>
+          <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+            <span style="color:${p.enabled ? '#4ade80' : '#ef4444'};font-size:0.85rem">${p.enabled ? '✅ Attiva' : '❌ Disattivata'}</span>
+            <button class="btn-toggle-enabled" data-page="${p.page}" data-enabled="${p.enabled}" style="padding:0.3rem 0.6rem;font-size:0.8rem">
+              ${p.enabled ? '🚫 Disattiva' : '✅ Attiva'}
+            </button>
+            <span style="color:${visible ? '#60a5fa' : '#888'};font-size:0.85rem">${visible ? '👁️ Menu' : '🙈 Nascosta'}</span>
+            <button class="btn-toggle-visible" data-page="${p.page}" data-visible="${visible}" style="padding:0.3rem 0.6rem;font-size:0.8rem">
+              ${visible ? '🙈 Nascondi' : '👁️ Mostra'}
+            </button>
+          </div>
+          ${extraInfo}
+        `;
+        row.querySelector('.btn-toggle-enabled').addEventListener('click', function() {
+          togglePage(this.dataset.page, this.dataset.enabled === '1' ? false : true);
+        });
+        row.querySelector('.btn-toggle-visible').addEventListener('click', function() {
+          toggleVisible(this.dataset.page, this.dataset.visible === '1' ? false : true);
+        });
+        div.appendChild(row);
+      });
+    }
+
+    async function togglePage(page, enabled) {
+      await fetch('/api/pages/' + page, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      caricaPagine();
+    }
+
+    async function toggleVisible(page, visible) {
+      await fetch('/api/pages/' + page, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible })
+      });
+      caricaPagine();
+    }
+
+    // Carica pagine subito
+    setTimeout(caricaPagine, 500);
+  </script>
+  </main>
+</body>
+</html>
+

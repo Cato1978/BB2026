@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotels & Info Utili - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+</head>
+<body>
+  <header>
+    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+  <main class="page-content">
+
+    <!-- LUOGHI DELL'EVENTO -->
+    <section class="info">
+      <h2 data-t="travelVenuesTitle">📍 Luoghi dell'Evento</h2>
+      
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.5rem">PalaCastiglioni</h3>
+        <p style="color:#ccc;margin:0">
+          <a href="https://www.google.com/maps/search/?api=1&query=Via+Ariosto+3+Busto+Arsizio" target="_blank" style="color:#ccc;text-decoration:underline">
+            📍 Via Ariosto 3, Busto Arsizio (VA)
+          </a>
+        </p>
+        <p style="color:#888;margin:0.5rem 0 0;font-size:0.9rem">Speed Slalom • Classic Slalom • Battle • Slides • Pair Slalom • Free Jump</p>
+        <p style="color:#888;margin:0.5rem 0;font-size:0.9rem" data-t="travelPalaCastiglioniDesc">🚶 A 200m dalla Stazione FN Busto Arsizio, dagli hotel e dal centro città</p>
+      </div>
+    </section>
+
+    <!-- COME ARRIVARE -->
+    <section class="info" style="margin-top:2rem">
+      <h2 data-t="travelHowToGetHere">🚆 Come Arrivare</h2>
+      <p style="color:#ccc;margin-bottom:1rem" data-t="travelHowToGetHereDesc">Busto Arsizio è facilmente raggiungibile con le Ferrovie Nord Milano.</p>
+      
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.8rem" data-t="travelFromMalpensa">✈️ Da Milano Malpensa</h3>
+        <p style="color:#ccc;margin:0" data-t="travelFromMalpensaDesc1">Prendi il treno Malpensa Express direzione Milano.</p>
+        <p style="color:#ccc;margin:0.3rem 0" data-t="travelFromMalpensaDesc2">Scendi a Busto Arsizio FN (circa 15 minuti).</p>
+      </div>
+      
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.8rem" data-t="travelFromMilan">🏙️ Da Milano</h3>
+        <p style="color:#ccc;margin:0" data-t="travelFromMilanCadorna">Da Milano Cadorna: Treno diretto Ferrovie Nord per Busto Arsizio FN (~35 min)</p>
+        <p style="color:#ccc;margin:0.3rem 0" data-t="travelFromMilanCentrale">Da Milano Centrale: Treno Ferrovie Nord per Busto Arsizio FN (~35 min)</p>
+      </div>
+      
+      <div style="margin-top:1.5rem;padding:1rem;background:#222;border-radius:6px;border-left:4px solid #F7AF40">
+        <p style="margin:0;color:#F7AF40;font-weight:600" data-t="travelStationName">📍 Stazione Busto Arsizio Ferrovie Nord</p>
+        <p style="margin:0.3rem 0 0;color:#ccc">Piazza Vittorio Emanuele II, 21052 Busto Arsizio (VA)</p>
+        <p style="margin:0.5rem 0 0"><a href="https://maps.google.com/?q=Stazione+Busto+Arsizio+FN" target="_blank" style="color:#F7AF40;font-size:0.9rem">📍 Google Maps →</a></p>
+      </div>
+    </section>
+
+    <!-- HOTEL CONSIGLIATI -->
+    <section class="info" style="margin-top:2rem">
+      <h2 data-t="travelHotelTitle">🏨 Hotel Convenzionati</h2>
+      <p style="color:#ccc;margin-bottom:0.5rem" data-t="travelHotelDesc">Strutture convenzionate con tariffe speciali per i partecipanti.</p>
+      <p style="color:#888;margin-bottom:1rem;font-size:0.9rem" data-t="travelHotelDistances">📍 A 200m dalla Stazione Ferrovie Nord e ~500m dal PalaCastiglioni</p>
+      
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.5rem">Hotel Ristorante Mazzini</h3>
+        <p style="color:#ccc;margin:0 0 0.8rem">📍 Piazza Manzoni 1, Busto Arsizio</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.8rem;margin-bottom:1rem">
+          <span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🛏️ <span data-t="travelSingle">Singola</span>: <strong style="color:#F7AF40">€50</strong></span>
+          <span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🛏️🛏️ <span data-t="travelDouble">Doppia</span>: <strong style="color:#F7AF40">€70</strong></span>
+          <span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🛏️🛏️➕ <span data-t="travelTriple">Tripla</span>: <strong style="color:#F7AF40">€90</strong></span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center">
+          <a href="https://wa.me/393299835000" target="_blank" style="color:#25D366;text-decoration:none;display:flex;align-items:center;gap:0.3rem">
+            <span style="font-size:1.2rem">💬</span> WhatsApp: 329 983 5000
+          </a>
+          <a href="tel:+390331631715" style="color:#F7AF40;text-decoration:none;display:flex;align-items:center;gap:0.3rem">
+            <span style="font-size:1.2rem">📞</span> Tel: 0331 631715
+          </a>
+        </div>
+      </div>
+      
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.5rem">Tower Hotel</h3>
+        <p style="color:#ccc;margin:0 0 0.8rem">📍 Busto Arsizio</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.8rem;margin-bottom:0.8rem">
+          <span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🛏️ <span data-t="travelSingle">Singola</span>: <strong style="color:#F7AF40">€90</strong></span>
+          <span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🛏️🛏️ <span data-t="travelDouble">Doppia</span>: <strong style="color:#F7AF40">€120</strong></span>
+        </div>
+        <p style="color:#ccc;margin:0 0 0.8rem;font-size:0.9rem">✅ <span data-t="travelBreakfast">Colazione inclusa</span> | 🚗 <span data-t="travelGarage">Garage incluso</span></p>
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center">
+          <a href="tel:+390331602600" style="color:#F7AF40;text-decoration:none;display:flex;align-items:center;gap:0.3rem">
+            <span style="font-size:1.2rem">📞</span> Tel: 0331 1602600
+          </a>
+          <a href="https://www.towerhotelbustoarsizio.it/" target="_blank" style="color:#F7AF40;text-decoration:none;display:flex;align-items:center;gap:0.3rem">
+            <span style="font-size:1.2rem">🌐</span> <span data-t="travelWebsite">Sito web</span>
+          </a>
+        </div>
+      </div>
+      
+      <p style="color:#F7AF40;margin-top:1.2rem;font-weight:600">💡 Per prenotare con la convenzione, indica "Busto Battle XI" o usa il codice <span style="background:#222;padding:0.3rem 0.6rem;border-radius:4px">BUSTOBATTLE2026</span></p>
+    </section>
+
+    <!-- CENA ATLETI -->
+    <section class="info" style="margin-top:2rem">
+      <h2 data-t="travelDinnerTitle">🍽️ Cena Atleti</h2>
+      <p style="color:#ccc;margin-bottom:1rem" data-t="travelDinnerDesc">Cena sociale per atleti e accompagnatori nelle serate del 13 e 14 Novembre.</p>
+      <div class="travel-card" style="margin-top:1rem;padding:1.2rem;background:#1a1a1a;border:1px solid #333;border-radius:8px">
+        <h3 style="color:#F7AF40;margin:0 0 0.5rem">Ristorante Albergo Mazzini</h3>
+        <p style="color:#ccc;margin:0.3rem 0">📍 Piazza Manzoni 1, Busto Arsizio</p>
+        <p style="margin:0.8rem 0 0"><span style="background:#222;padding:0.4rem 0.8rem;border-radius:4px;font-size:0.9rem">🍽️ <span data-t="travelFullMenu">Menu completo</span>: <strong style="color:#F7AF40">€18</strong></span></p>
+      </div>
+    </section>
+
+  </main>
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+  <script src="translations.js"></script>
+  <script src="page-guard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
