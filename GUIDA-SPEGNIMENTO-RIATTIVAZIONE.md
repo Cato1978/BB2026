@@ -281,7 +281,95 @@ DELETE FROM iscritti WHERE id = 123;
 
 ---
 
-## 🔑 CREDENZIALI DA CONSERVARE
+## 🔍 COME TROVARE LE CREDENZIALI ATTUALI
+
+### Connection String Database (da Render)
+
+1. Vai su https://dashboard.render.com
+2. Nel menu a sinistra vedrai i tuoi servizi. Cerca quello con icona di database (cilindro)
+3. Clicca sul database
+4. Nella pagina del database, sezione "Connections":
+   - **Internal Database URL**: usata dal server (inizia con `postgres://`)
+   - **External Database URL**: usata per connettersi da fuori (es. pgAdmin)
+   - **PSQL Command**: comando già pronto per terminale
+5. Clicca "Show" per vedere la password
+
+**IMPORTANTE**: La External URL è quella che ti serve per pgAdmin!
+
+### Variabili d'Ambiente (da Render)
+
+1. Vai su https://dashboard.render.com
+2. Clicca sul tuo **Web Service** (non il database)
+3. Vai su "Environment" nel menu a sinistra
+4. Qui trovi tutte le variabili configurate:
+   - `DATABASE_URL`
+   - `STRIPE_SECRET_KEY`
+   - `BREVO_API_KEY`
+   - `VAPID_PUBLIC` / `VAPID_PRIVATE`
+   - ecc.
+5. Clicca sull'icona occhio per vedere i valori nascosti
+6. **COPIA TUTTO** in un file sicuro prima di spegnere!
+
+### Chiave API Brevo
+
+1. Vai su https://app.brevo.com
+2. Clicca sul tuo nome in alto a destra → "SMTP & API"
+3. Tab "API Keys"
+4. Vedrai la tua chiave (inizia con `xkeysib-`)
+5. Se non la vedi completa, creane una nuova
+
+### Chiavi Stripe
+
+1. Vai su https://dashboard.stripe.com
+2. In alto a destra assicurati di essere in modalità "Live" (non "Test")
+3. Clicca "Developers" → "API keys"
+4. Vedrai:
+   - **Publishable key**: `pk_live_...` (pubblica, usata nel frontend)
+   - **Secret key**: `sk_live_...` (segreta, usata nel server)
+5. Clicca "Reveal" per vedere la secret key completa
+
+### Chiavi VAPID (Push Notifications)
+
+Le chiavi VAPID attuali sono nelle variabili d'ambiente su Render.
+Se devi generarne di nuove:
+```bash
+npx web-push generate-vapid-keys
+```
+
+---
+
+## 📋 CHECKLIST PRE-SPEGNIMENTO
+
+Prima di spegnere, assicurati di aver fatto tutto:
+
+- [ ] Esportato Excel iscritti
+- [ ] Esportato Excel prove pista
+- [ ] Esportato Excel merchandising
+- [ ] Fatto backup database (almeno struttura)
+- [ ] Copiato TUTTE le variabili d'ambiente da Render
+- [ ] Salvato le credenziali in un posto sicuro
+- [ ] Verificato di avere accesso a GitHub
+- [ ] Verificato di avere accesso al registrar del dominio
+
+---
+
+## 📋 CHECKLIST RIATTIVAZIONE
+
+Quando riattivi l'anno prossimo:
+
+- [ ] Creato nuovo Web Service su Render
+- [ ] Creato nuovo Database PostgreSQL su Render
+- [ ] Copiato Internal Database URL
+- [ ] Configurato TUTTE le variabili d'ambiente
+- [ ] Aspettato che il deploy sia completo
+- [ ] Configurato dominio (DNS)
+- [ ] Testato che il sito carichi
+- [ ] Testato login admin
+- [ ] Cambiato password admin
+- [ ] Testato invio email (form contatto)
+- [ ] Testato pagamento Stripe (in modalità test prima!)
+
+---
 
 Salva queste credenziali in un posto sicuro (es: password manager):
 
