@@ -49,16 +49,56 @@ Salva questi file Excel in una cartella sicura (es: Google Drive, Dropbox).
 
 ### Step 2: Backup Database PostgreSQL
 
-Opzione A - Da Render Dashboard:
+#### Opzione A - Backup COMPLETO (dati + struttura)
+
 1. Vai su https://dashboard.render.com
 2. Clicca sul tuo database PostgreSQL
-3. Cerca "Backups" o "Export"
-4. Scarica un backup .sql
+3. Nella sezione "Info" trovi la **External Database URL** (inizia con `postgres://`)
+4. Copia quella URL
+5. Usa uno di questi metodi:
 
-Opzione B - Da terminale (se hai psql installato):
+**Con pgAdmin (interfaccia grafica - CONSIGLIATO):**
+1. Scarica pgAdmin: https://www.pgadmin.org/download/
+2. Installa e apri pgAdmin
+3. Click destro su "Servers" → "Register" → "Server"
+4. Nome: "Busto Battle Render"
+5. Tab "Connection":
+   - Host: [la parte dopo @ e prima di / nella URL]
+   - Port: 5432
+   - Database: [la parte dopo l'ultimo /]
+   - Username: [la parte tra // e : nella URL]
+   - Password: [la parte tra : e @ nella URL]
+6. Una volta connesso, click destro sul database → "Backup"
+7. Salva come `backup_bustobattle_2026.sql`
+
+**Con terminale (se hai psql installato):**
 ```bash
-pg_dump "la-tua-connection-string" > backup_bustobattle_2026.sql
+pg_dump "postgres://user:password@host:5432/dbname" > backup_bustobattle_2026.sql
 ```
+
+#### Opzione B - Backup SOLO STRUTTURA (senza dati)
+
+Questo è utile per l'anno prossimo - hai le tabelle vuote pronte:
+
+**Con pgAdmin:**
+1. Click destro sul database → "Backup"
+2. In "Data/Objects", seleziona solo "Schema" (non "Data")
+3. Salva come `struttura_bustobattle.sql`
+
+**Con terminale:**
+```bash
+pg_dump --schema-only "postgres://user:password@host:5432/dbname" > struttura_bustobattle.sql
+```
+
+#### Come DECODIFICARE la Connection String
+
+Esempio: `postgres://bustobattle_user:AbCd1234@dpg-abc123.frankfurt-postgres.render.com:5432/bustobattle_db`
+
+- **User**: `bustobattle_user`
+- **Password**: `AbCd1234`
+- **Host**: `dpg-abc123.frankfurt-postgres.render.com`
+- **Port**: `5432`
+- **Database**: `bustobattle_db`
 
 ### Step 3: Spegni Render
 
@@ -134,10 +174,103 @@ SESSION_SECRET = una-stringa-segreta-lunga-a-caso
 ### Step 5: Importa i dati (se necessario)
 
 Se vuoi ripristinare i dati dell'anno precedente:
-1. Connettiti al database con un client PostgreSQL
-2. Esegui il file di backup: `psql "connection-string" < backup_bustobattle_2026.sql`
 
-Oppure parti da zero (il database si crea automaticamente all'avvio).
+**Con pgAdmin:**
+1. Connettiti al nuovo database (vedi sopra come)
+2. Click destro sul database → "Restore"
+3. Seleziona il file `backup_bustobattle_2026.sql`
+4. Clicca "Restore"
+
+**Con terminale:**
+```bash
+psql "postgres://user:password@host:5432/dbname" < backup_bustobattle_2026.sql
+```
+
+**Oppure parti da zero** - il database si crea automaticamente all'avvio del server con tutte le tabelle vuote.
+
+---
+
+## 🛠️ LAVORARE SUL DATABASE "A MANO"
+
+Puoi connetterti al database PostgreSQL di Render e fare query direttamente!
+
+### Strumenti consigliati
+
+1. **pgAdmin** (gratuito, interfaccia grafica completa)
+   - Download: https://www.pgadmin.org/download/
+   - Ideale per: vedere i dati, modificarli, esportare
+
+2. **DBeaver** (gratuito, multi-database)
+   - Download: https://dbeaver.io/download/
+   - Ideale per: chi lavora con più tipi di database
+
+3. **TablePlus** (gratuito con limiti, molto semplice)
+   - Download: https://tableplus.com/
+   - Ideale per: uso occasionale, interfaccia pulita
+
+### Come connettersi
+
+1. Vai su Render Dashboard → Database PostgreSQL
+2. Copia la **External Database URL** 
+3. Nel tuo client (es. pgAdmin):
+   - Crea nuova connessione
+   - Inserisci host, porta, user, password, database (vedi sopra come decodificare la URL)
+
+### Query utili
+
+**Vedere tutti gli iscritti:**
+```sql
+SELECT * FROM iscritti ORDER BY cognome, nome;
+```
+
+**Vedere prenotazioni prove pista:**
+```sql
+SELECT * FROM prove_prenotazioni ORDER BY giorno, ora;
+```
+
+**Contare iscritti per stato:**
+```sql
+SELECT stato, COUNT(*) FROM iscritti GROUP BY stato;
+```
+
+**Svuotare TUTTI i dati (per nuovo anno):**
+```sql
+-- ATTENZIONE: cancella tutto!
+TRUNCATE TABLE iscritti CASCADE;
+TRUNCATE TABLE prove_prenotazioni CASCADE;
+TRUNCATE TABLE prove_slots CASCADE;
+TRUNCATE TABLE merch_ordini CASCADE;
+TRUNCATE TABLE cena_prenotazioni CASCADE;
+TRUNCATE TABLE navetta_prenotazioni CASCADE;
+TRUNCATE TABLE contatti CASCADE;
+TRUNCATE TABLE push_subscriptions CASCADE;
+```
+
+**Modificare un singolo iscritto:**
+```sql
+UPDATE iscritti SET stato = 'confermata' WHERE id = 123;
+```
+
+**Cancellare un iscritto:**
+```sql
+DELETE FROM iscritti WHERE id = 123;
+```
+
+### Tabelle principali
+
+| Tabella | Contenuto |
+|---------|-----------|
+| `iscritti` | Iscrizioni alla gara |
+| `prove_prenotazioni` | Prenotazioni prove pista |
+| `prove_slots` | Slot disponibili prove pista |
+| `merch_ordini` | Ordini merchandising |
+| `cena_prenotazioni` | Prenotazioni cena |
+| `navetta_prenotazioni` | Prenotazioni navetta |
+| `navetta_slots` | Slot navetta disponibili |
+| `risultati` | Link ai PDF risultati |
+| `contatti` | Messaggi dal form contatto |
+| `users` | Utenti admin |
+| `push_subscriptions` | Iscrizioni notifiche push |
 
 ### Step 6: Verifica
 
