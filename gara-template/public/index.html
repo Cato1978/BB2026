@@ -3,521 +3,379 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Busto Battle XI</title>
-  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
-  <link rel="stylesheet" href="style.css">
+  <title data-config="event.fullName">Gara Template</title>
+  <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#F7AF40">
+  
+  <!-- Config Loader - DEVE essere caricato prima di tutto -->
+  <script src="/config-loader.js"></script>
+  <script src="/translations-template.js"></script>
+  
   <style>
-    /* Header con lang-switcher vicino al logo */
+    /* CSS Variables - vengono sovrascritte dal config */
+    :root {
+      --primary-color: #F7AF40;
+      --secondary-color: #22C55E;
+      --accent-color: #6366F1;
+      --bg-dark: #111;
+      --text-light: #f0f0f0;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      min-height: 100vh;
+    }
+    
+    /* Header */
     header {
       display: flex;
       align-items: center;
       padding: 1rem 2rem;
-      border-bottom: 2px solid #F7AF40;
+      border-bottom: 2px solid var(--primary-color);
       background: #000;
     }
-    header .logo-title {
+    .logo-title {
       display: flex;
       align-items: center;
       gap: 1rem;
     }
-    header .lang-switcher {
+    .logo-title img {
+      height: 60px;
+      width: auto;
+    }
+    .logo-title h1 {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+    }
+    
+    /* Lang Switcher */
+    .lang-switcher {
       margin-left: 1rem;
+      display: flex;
+      gap: 0.5rem;
     }
-    header nav {
+    .lang-btn {
+      background: transparent;
+      border: 1px solid var(--primary-color);
+      color: var(--text-light);
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .lang-btn.active {
+      background: var(--primary-color);
+      color: #000;
+    }
+    
+    /* Navigation */
+    nav {
       margin-left: auto;
+      display: flex;
+      gap: 1.5rem;
+    }
+    nav a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    nav a:hover {
+      color: var(--primary-color);
     }
     
-    /* Medaglia 3D */
-    .medal-container {
-      perspective: 1000px;
-      width: 220px;
-      height: 220px;
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #111 0%, #222 100%);
+    }
+    .hero h1 {
+      font-size: 3rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+    .hero .tagline {
+      font-size: 1.3rem;
+      color: #aaa;
+      margin-bottom: 2rem;
+    }
+    .hero .dates {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .hero .location {
+      font-size: 1.2rem;
+      color: #888;
+    }
+    
+    /* Countdown */
+    .countdown {
       display: flex;
       justify-content: center;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .medal {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
-      animation: spinMedal 8s linear infinite;
-    }
-    .medal-front, .medal-back {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      backface-visibility: hidden;
-      border-radius: 50%;
-      overflow: hidden;
-    }
-    .medal-front img, .medal-back img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 50%;
-    }
-    .medal-back {
-      transform: rotateY(180deg);
-    }
-    @keyframes spinMedal {
-      from { transform: rotateY(0deg); }
-      to { transform: rotateY(360deg); }
-    }
-    
-    /* Google Font per stile impattante */
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-    
-    /* Layout discipline ai lati del logo - DESKTOP */
-    .hero-content {
-      display: flex;
-      justify-content: center;
-      align-items: center;
       gap: 2rem;
       margin: 2rem 0;
     }
-    .disciplines-side {
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      min-width: 220px;
+    .countdown-item {
+      text-align: center;
     }
-    .discipline-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: 'Bebas Neue', Impact, sans-serif;
-      font-size: 1.6rem;
-      color: #f0f0f0;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      white-space: nowrap;
+    .countdown-item .number {
+      font-size: 3rem;
+      font-weight: bold;
+      color: var(--primary-color);
     }
-    .disciplines-left .discipline-item {
-      justify-content: flex-end;
-    }
-    .disciplines-right .discipline-item {
-      justify-content: flex-start;
-    }
-    .discipline-stars {
-      color: #F7AF40;
-      font-size: 1.3rem;
+    .countdown-item .label {
+      font-size: 0.9rem;
+      color: #888;
     }
     
-    /* Sezione bottom con loghi ai lati */
-    .bottom-section {
+    /* CTA Buttons */
+    .cta-buttons {
       display: flex;
       justify-content: center;
-      align-items: center;
-      gap: 2rem;
-      margin-top: 1rem;
+      gap: 1rem;
+      margin-top: 2rem;
     }
-    .sponsor-left, .sponsor-right {
+    .btn {
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+    .btn-primary {
+      background: var(--primary-color);
+      color: #000;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--primary-color);
+      color: var(--primary-color);
+    }
+    
+    /* Disciplines Section */
+    .disciplines {
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+    .disciplines h2 {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+      color: var(--primary-color);
+    }
+    .disciplines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .discipline-card {
+      background: #222;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .discipline-card .name {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .discipline-card .stars {
+      color: var(--primary-color);
+      margin-top: 0.5rem;
+    }
+    
+    /* Footer */
+    footer {
+      background: #000;
+      padding: 2rem;
+      text-align: center;
+      border-top: 2px solid var(--primary-color);
+    }
+    footer .social {
       display: flex;
-      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
-    .center-section {
-      flex: 0 1 auto;
+    footer .social a {
+      color: var(--text-light);
+      font-size: 1.5rem;
     }
-    
-    /* Desktop styles */
-    @media (min-width: 769px) {
-      .hero {
-        padding: 0.5rem 1rem;
-      }
-      .locandina {
-        padding: 1rem 2rem;
-        max-width: 1200px;
-      }
-      .mobile-disciplines {
-        display: none !important;
-      }
-      .mobile-only {
-        display: none !important;
-      }
-      .hero-content {
-        display: flex !important;
-        margin: 1rem 0;
-      }
-      .sponsors {
-        margin: 1rem 0 !important;
-      }
-      .sponsor-fr {
-        height: 100px !important;
-      }
-      .sponsor-tmc {
-        height: 70px !important;
-      }
-      .event-details {
-        margin-bottom: 0.5rem !important;
-      }
-      .event-details p {
-        font-size: 1.1rem;
-        margin: 0.3rem 0;
-      }
-      .cta-btn {
-        font-size: 1.2rem;
-        padding: 0.8rem 2.5rem;
-      }
-      .countdown {
-        margin-top: 1rem;
-        gap: 1.5rem;
-      }
-      .countdown-item .number {
-        font-size: 2.2rem;
-      }
-      .countdown-item .label {
-        font-size: 0.9rem;
-      }
-      .install-section {
-        margin-top: 1rem !important;
-      }
+    footer .copyright {
+      color: #666;
+      font-size: 0.9rem;
     }
     
-    /* Tablet */
-    @media (max-width: 768px) and (min-width: 601px) {
-      .hero-content {
+    /* Responsive */
+    @media (max-width: 768px) {
+      header {
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 1rem;
       }
-      .disciplines-side {
-        flex-direction: row;
+      nav {
+        margin-left: 0;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 1rem;
       }
-      .disciplines-left .discipline-item,
-      .disciplines-right .discipline-item {
-        flex-direction: row;
-        text-align: left;
-      }
-      .discipline-item {
-        font-size: 1rem;
-      }
-    }
-    
-    /* Mobile: compatta tutto */
-    @media (max-width: 600px) {
-      header .lang-switcher {
-        margin-left: 0.5rem;
-      }
-      .hero {
-        padding: 0.5rem !important;
-      }
-      .locandina {
-        padding: 0.5rem !important;
-      }
-      .hero-content {
-        display: none;
-      }
-      .bottom-section {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .sponsor-left, .sponsor-right {
-        display: none;
-      }
-      .mobile-sponsors {
-        display: flex !important;
-        justify-content: center;
-        gap: 1rem;
-        margin: 0.5rem 0;
-      }
-      .mobile-sponsors img {
-        height: 50px !important;
-      }
-      .mobile-disciplines {
-        display: grid !important;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.4rem;
-        margin: 0.5rem 0;
-      }
-      .mobile-discipline {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.3rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #f0f0f0;
-      }
-      .mobile-discipline .stars {
-        color: #F7AF40;
-        font-size: 0.7rem;
-      }
-      .medal-container-mobile {
-        width: 140px;
-        height: 140px;
-        margin: 0 auto 0.5rem;
-      }
-      .event-details {
-        margin-bottom: 0.3rem;
-      }
-      .event-details p {
-        margin: 0.15rem 0;
-        font-size: 0.8rem;
-      }
-      .sponsors {
-        margin: 0.5rem 0 !important;
-      }
-      .sponsors img {
-        height: 55px !important;
-      }
-      .sponsors a:last-child img {
-        height: 40px !important;
-      }
-      .cta-btn {
-        padding: 0.7rem 1.8rem;
-        font-size: 0.95rem;
-        margin-top: 0.5rem !important;
+      .hero h1 {
+        font-size: 2rem;
       }
       .countdown {
-        margin-top: 0.5rem !important;
-        gap: 0.6rem;
-      }
-      .countdown-item .number {
-        font-size: 1rem;
-      }
-      .countdown-item .label {
-        font-size: 0.55rem;
-      }
-      .install-section {
-        margin-top: 0.8rem !important;
-      }
-      .install-section p {
-        font-size: 0.75rem !important;
-        margin-bottom: 0.2rem !important;
-      }
-      .install-section a {
-        padding: 0.4rem 0.8rem !important;
-        font-size: 0.8rem !important;
-        margin-top: 0.2rem !important;
+        flex-wrap: wrap;
       }
     }
   </style>
 </head>
 <body>
+
+  <!-- HEADER -->
   <header>
     <div class="logo-title">
-      <img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px">
+      <img src="/logo.png" alt="Logo" data-config="branding.logo">
+      <h1 data-config="event.fullName">Nome Gara</h1>
     </div>
+    
     <div class="lang-switcher">
-      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn active" data-lang="it" onclick="setLang('it')">IT</button>
       <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
     </div>
-    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    
     <nav>
-      <a href="index.html" data-t="home">HOME</a>
-      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
-        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
-        <div class="dropdown-content">
-          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
-          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
-        </div>
-      </div>
-      <a href="prove.html" data-t="prove">PROVE PISTA</a>
-      <a href="programma.html" data-t="programma">PROGRAMMA</a>
-      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
-      <a href="merch.html" data-t="maglia">MERCHANDISING</a>
-      <a href="foto.html" data-t="foto">FOTO</a>
-      <a href="contact.html" data-t="contact">CONTATTI</a>
+      <a href="/" data-t="nav_home">Home</a>
+      <a href="/iscrizioni.html" data-t="nav_registration">Iscrizioni</a>
+      <a href="/programma.html" data-t="nav_program">Programma</a>
+      <a href="/hotel.html" data-t="nav_hotel">Hotel</a>
+      <a href="/travel.html" data-t="nav_travel">Come Arrivare</a>
+      <a href="/prova-pista.html" data-t="nav_track_practice" data-feature="track_practice">Prove Pista</a>
+      <a href="/maglia.html" data-t="nav_merch" data-feature="merchandise">Merchandising</a>
+      <a href="/contact.html" data-t="nav_contact">Contatti</a>
     </nav>
   </header>
 
-  <main class="hero">
-    <div class="locandina">
-      <div class="locandina-content">
-        
-        <div class="event-details" style="text-align:center;margin-bottom:0.5rem;margin-top:-0.5rem">
-          <p data-t="date">📅 13 - 14 - 15 Novembre 2026</p>
-          <p style="font-size:0.85rem;color:#F7AF40;margin-top:0.2rem" data-t="prequalifiche">12 Novembre: Qualifiche Classic Slalom</p>
-          <p>📍 <a href="https://www.google.com/maps/search/?api=1&query=Via+Ariosto+3+Busto+Arsizio" target="_blank" style="color:#ccc;text-decoration:underline">PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</a></p>
-        </div>
-        
-        <!-- DESKTOP: Discipline ai lati del logo -->
-        <div class="hero-content">
-          <div class="disciplines-side disciplines-left">
-            <div class="discipline-item">
-              <span>Speed Slalom</span>
-              <span class="discipline-stars">⭐</span>
-            </div>
-            <div class="discipline-item">
-              <span>Classic Slalom</span>
-              <span class="discipline-stars">⭐</span>
-            </div>
-            <div class="discipline-item">
-              <span>Battle</span>
-              <span class="discipline-stars">⭐</span>
-            </div>
-          </div>
-          
-          <div class="medal-container">
-            <div class="medal">
-              <div class="medal-front">
-                <img src="LogoBB.jpeg" alt="Busto Battle XI">
-              </div>
-              <div class="medal-back">
-                <img src="2019.png" alt="Busto Battle" id="back-image">
-              </div>
-            </div>
-          </div>
-          
-          <div class="disciplines-side disciplines-right">
-            <div class="discipline-item">
-              <span class="discipline-stars">⭐⭐</span>
-              <span>Slides</span>
-            </div>
-            <div class="discipline-item">
-              <span class="discipline-stars">⭐⭐</span>
-              <span>Pair Slalom</span>
-            </div>
-            <div class="discipline-item">
-              <span class="discipline-stars">⭐⭐</span>
-              <span>Free Jump</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- MOBILE: Logo grande -->
-        <div class="mobile-only" style="display:none">
-          <div class="medal-container medal-container-mobile" style="perspective:1000px;margin:0 auto 0.5rem">
-            <div class="medal">
-              <div class="medal-front">
-                <img src="LogoBB.jpeg" alt="Busto Battle XI">
-              </div>
-              <div class="medal-back">
-                <img src="2019.png" alt="Busto Battle" id="back-image-mobile">
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Discipline per mobile -->
-        <div class="mobile-disciplines" style="display:none">
-          <div class="mobile-discipline"><span>Speed Slalom</span><span class="stars">⭐</span></div>
-          <div class="mobile-discipline"><span>Classic Slalom</span><span class="stars">⭐</span></div>
-          <div class="mobile-discipline"><span>Battle</span><span class="stars">⭐</span></div>
-          <div class="mobile-discipline"><span>Slides</span><span class="stars">⭐⭐</span></div>
-          <div class="mobile-discipline"><span>Pair Slalom</span><span class="stars">⭐⭐</span></div>
-          <div class="mobile-discipline"><span>Free Jump</span><span class="stars">⭐⭐</span></div>
-        </div>
-        
-        <!-- Avviso U15 -->
-        <div style="background:#332200;border:1px solid #f59e0b;padding:0.5rem 1rem;border-radius:6px;margin:1rem auto;max-width:600px;text-align:center;font-size:0.85rem">
-          <span style="color:#f59e0b;font-weight:bold">⚠️</span> 
-          <span data-t="u15Warning">Tutte le discipline U15 sono considerate ⭐</span>
-        </div>
-        
-        <!-- Sezione con loghi ai lati -->
-        <div class="bottom-section">
-          <!-- FR a sinistra -->
-          <div class="sponsor-left">
-            <a href="https://www.fr-skates.com" target="_blank">
-              <img src="Fr.webp" alt="FR Skates" style="height:180px;filter:brightness(1.1)">
-            </a>
-          </div>
-          
-          <!-- Centro: ISCRIVITI, countdown, app -->
-          <div class="center-section">
-            <div style="text-align:center">
-              <a href="iscrizioni.html" class="cta-btn" data-t="cta">ISCRIVITI ORA</a>
-            </div>
-            <div class="countdown" id="countdown"></div>
-            
-            <div class="install-section" style="margin-top:1rem;text-align:center">
-              <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap">
-                <a href="#" onclick="installApp()" style="display:inline-block;background:#F7AF40;color:#000;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="installBtn">Installa App</a>
-                <a href="https://t.me/+Y8_uaVRMkgthZDFk" target="_blank" style="display:inline-block;background:#0088cc;color:#fff;padding:0.5rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:700" data-t="whatsappLink">💬 Gruppo Telegram</a>
-              </div>
-            </div>
-            
-            <!-- Sponsor per mobile (sotto Telegram) -->
-            <div class="mobile-sponsors" style="display:none;margin-top:1rem">
-              <a href="https://www.fr-skates.com" target="_blank">
-                <img src="Fr.webp" alt="FR Skates" style="height:60px;filter:brightness(1.1)">
-              </a>
-              <a href="https://www.tmc.it" target="_blank">
-                <img src="tmc3.jpg" alt="TMC" style="height:45px">
-              </a>
-            </div>
-          </div>
-          
-          <!-- TMC a destra -->
-          <div class="sponsor-right" style="margin-left:2rem">
-            <a href="https://www.tmc.it" target="_blank">
-              <img src="tmc3.jpg" alt="TMC" style="height:130px">
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-  <footer>
-    <div class="footer-content">
-      <div class="social-links">
-        <a href="https://www.instagram.com/bustobattlexi/" target="_blank">📸 Instagram</a>
-      </div>
-      <p class="footer-email">✉️ bustobattle@gmail.com</p>
-      <p class="copyright">© 2026 Busto Battle XI. Tutti i diritti riservati.</p>
-    </div>
-  </footer>
-  <script src="translations.js"></script>
-  <script src="page-guard.js"></script>
-  <script>
-    // Mostra elementi mobile
-    if (window.innerWidth <= 600) {
-      document.querySelector('.mobile-only').style.display = 'block';
-      document.querySelector('.mobile-disciplines').style.display = 'grid';
-      document.querySelector('.mobile-sponsors').style.display = 'flex';
-    }
-    window.addEventListener('resize', () => {
-      const mobile = window.innerWidth <= 600;
-      document.querySelector('.mobile-only').style.display = mobile ? 'block' : 'none';
-      document.querySelector('.mobile-disciplines').style.display = mobile ? 'grid' : 'none';
-      document.querySelector('.mobile-sponsors').style.display = mobile ? 'flex' : 'none';
-    });
-
-    function updateCountdown() {
-      const event = new Date('2026-11-13T08:00:00');
-      const now = new Date();
-      const diff = event - now;
-      if (diff <= 0) { document.getElementById('countdown').innerHTML = ''; return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      document.getElementById('countdown').innerHTML = `
-        <div class="countdown-item"><div class="number">${d}</div><div class="label">giorni</div></div>
-        <div class="countdown-item"><div class="number">${h}</div><div class="label">ore</div></div>
-        <div class="countdown-item"><div class="number">${m}</div><div class="label">min</div></div>
-        <div class="countdown-item"><div class="number">${s}</div><div class="label">sec</div></div>`;
-    }
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-
-    const oldEditions = [
-      { img: '2019.png', year: '2019' },
-      { img: '2016.jpg', year: '2016' },
-      { img: '2015.jpg', year: '2015' },
-      { img: '2014.png', year: '2014' },
-      { img: '2013.png', year: '2013' },
-      { img: '2012.jfif', year: '2012' },
-      { img: '2011.png', year: '2011' }
-    ];
-    let currentEdition = 0;
+  <!-- HERO -->
+  <section class="hero">
+    <h1 data-t="hero_title">Nome Gara</h1>
+    <p class="tagline" data-t="hero_subtitle">Gara Internazionale di Pattinaggio Freestyle</p>
     
-    setInterval(() => {
-      currentEdition = (currentEdition + 1) % oldEditions.length;
-      const backImg = document.getElementById('back-image');
-      const backImgMobile = document.getElementById('back-image-mobile');
-      if (backImg) backImg.src = oldEditions[currentEdition].img;
-      if (backImgMobile) backImgMobile.src = oldEditions[currentEdition].img;
-    }, 8000);
+    <!-- Countdown -->
+    <div class="countdown" id="countdown">
+      <div class="countdown-item">
+        <div class="number" id="days">--</div>
+        <div class="label" data-t="countdown_days">Giorni</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="hours">--</div>
+        <div class="label" data-t="countdown_hours">Ore</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="minutes">--</div>
+        <div class="label" data-t="countdown_minutes">Minuti</div>
+      </div>
+      <div class="countdown-item">
+        <div class="number" id="seconds">--</div>
+        <div class="label" data-t="countdown_seconds">Secondi</div>
+      </div>
+    </div>
+    
+    <p class="dates" data-t="hero_dates">12-15 Novembre 2027</p>
+    <p class="location" data-t="hero_location">Città, Italia</p>
+    
+    <div class="cta-buttons">
+      <a href="/iscrizioni.html" class="btn btn-primary" data-t="cta_register">Iscriviti Ora</a>
+      <a href="/programma.html" class="btn btn-secondary" data-t="cta_program">Vedi Programma</a>
+    </div>
+  </section>
+
+  <!-- DISCIPLINES -->
+  <section class="disciplines">
+    <h2>Discipline</h2>
+    <div class="disciplines-grid" id="disciplines-container">
+      <!-- Popolato da JavaScript -->
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="social" id="social-links">
+      <!-- Popolato da JavaScript -->
+    </div>
+    <p class="copyright">
+      © <span id="year">2027</span> <span data-config="event.fullName">Nome Gara</span>
+    </p>
+  </footer>
+
+  <script>
+    // Countdown
+    function updateCountdown() {
+      if (!window.GARA_CONFIG) return;
+      
+      const eventDate = new Date(window.GARA_CONFIG.event.dates.start + 'T09:00:00');
+      const now = new Date();
+      const diff = eventDate - now;
+      
+      if (diff <= 0) {
+        document.getElementById('countdown').innerHTML = '<h2 style="color: var(--secondary-color)">La gara è iniziata!</h2>';
+        return;
+      }
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      document.getElementById('days').textContent = days;
+      document.getElementById('hours').textContent = hours;
+      document.getElementById('minutes').textContent = minutes;
+      document.getElementById('seconds').textContent = seconds;
+    }
+    
+    // Popola discipline
+    function populateDisciplines() {
+      if (!window.GARA_CONFIG) return;
+      
+      const container = document.getElementById('disciplines-container');
+      container.innerHTML = window.GARA_CONFIG.disciplines
+        .filter(d => d.enabled)
+        .map(d => `
+          <div class="discipline-card">
+            <div class="name">${d.name}</div>
+            <div class="stars">${'⭐'.repeat(d.stars)}</div>
+          </div>
+        `).join('');
+    }
+    
+    // Popola social links
+    function populateSocial() {
+      if (!window.GARA_CONFIG || !window.GARA_CONFIG.social) return;
+      
+      const container = document.getElementById('social-links');
+      const social = window.GARA_CONFIG.social;
+      let html = '';
+      
+      if (social.facebook) html += `<a href="${social.facebook}" target="_blank">📘 Facebook</a>`;
+      if (social.instagram) html += `<a href="${social.instagram}" target="_blank">📷 Instagram</a>`;
+      if (social.youtube) html += `<a href="${social.youtube}" target="_blank">📺 YouTube</a>`;
+      
+      container.innerHTML = html;
+    }
+    
+    // Inizializza quando il config è caricato
+    document.addEventListener('configLoaded', () => {
+      updateCountdown();
+      setInterval(updateCountdown, 1000);
+      populateDisciplines();
+      populateSocial();
+      document.getElementById('year').textContent = window.GARA_CONFIG.event.year;
+    });
   </script>
-  <script src="app.js"></script>
+
 </body>
 </html>
-

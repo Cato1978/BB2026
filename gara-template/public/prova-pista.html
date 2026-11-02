@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prove Pista - Gara Template</title>
+  <link rel="icon" href="/favicon.ico">
+  <script src="/config-loader.js"></script>
+  <script src="/translations-template.js"></script>
+  <style>
+    :root { --primary-color: #F7AF40; --secondary-color: #22C55E; --bg-dark: #111; --text-light: #f0f0f0; --error-color: #EF4444; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-dark); color: var(--text-light); min-height: 100vh; }
+    
+    header { display: flex; align-items: center; padding: 1rem 2rem; border-bottom: 2px solid var(--primary-color); background: #000; flex-wrap: wrap; gap: 1rem; }
+    .logo-title { display: flex; align-items: center; gap: 1rem; }
+    .logo-title img { height: 50px; }
+    .logo-title h1 { font-size: 1.3rem; color: var(--primary-color); }
+    .lang-switcher { display: flex; gap: 0.5rem; }
+    .lang-btn { background: transparent; border: 1px solid var(--primary-color); color: var(--text-light); padding: 0.3rem 0.6rem; cursor: pointer; }
+    .lang-btn.active { background: var(--primary-color); color: #000; }
+    nav { margin-left: auto; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    nav a { color: var(--text-light); text-decoration: none; }
+    nav a:hover { color: var(--primary-color); }
+    
+    main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h2 { color: var(--primary-color); margin-bottom: 0.5rem; font-size: 2rem; text-align: center; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 2rem; }
+    
+    .info-box { background: #1a1a1a; padding: 1.5rem; border-radius: 12px; border: 1px solid #333; margin-bottom: 2rem; text-align: center; }
+    .info-box h3 { color: var(--primary-color); margin-bottom: 0.5rem; }
+    .price-tag { font-size: 2rem; font-weight: bold; color: var(--secondary-color); }
+    
+    .slots-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .day-card { background: #1a1a1a; border-radius: 12px; overflow: hidden; border: 1px solid #333; }
+    .day-header { background: linear-gradient(135deg, var(--primary-color), #d4940a); padding: 1rem; color: #000; font-weight: bold; }
+    .day-slots { padding: 1rem; }
+    .slot-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background: #222; border-radius: 6px; }
+    .slot-time { font-weight: bold; }
+    .slot-available { color: var(--secondary-color); font-size: 0.9rem; }
+    .slot-full { color: var(--error-color); font-size: 0.9rem; }
+    .slot-btn { padding: 0.4rem 0.8rem; background: var(--primary-color); color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .slot-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .form-section { background: #1a1a1a; padding: 2rem; border-radius: 12px; border: 1px solid #333; }
+    .form-section h3 { color: var(--primary-color); margin-bottom: 1rem; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-weight: 500; color: #ccc; }
+    input, select { padding: 0.8rem; border: 1px solid #444; border-radius: 6px; background: #222; color: var(--text-light); font-size: 1rem; }
+    input:focus, select:focus { outline: none; border-color: var(--primary-color); }
+    
+    .selected-slots { margin: 1rem 0; padding: 1rem; background: #222; border-radius: 8px; }
+    .selected-slots h4 { margin-bottom: 0.5rem; }
+    .selected-slot-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #333; }
+    .remove-slot { color: var(--error-color); cursor: pointer; }
+    
+    .btn { padding: 1rem 2rem; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 1rem; }
+    .btn-primary { background: var(--primary-color); color: #000; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+    .alert-success { background: rgba(34, 197, 94, 0.2); border: 1px solid var(--secondary-color); color: var(--secondary-color); }
+    .alert-error { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--error-color); color: var(--error-color); }
+    
+    .feature-disabled { text-align: center; padding: 3rem; }
+    .feature-disabled h3 { color: #888; margin-bottom: 1rem; }
+    
+    @media (max-width: 768px) {
+      header { flex-direction: column; }
+      nav { margin-left: 0; justify-content: center; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-title">
+    <img src="/logo.png" alt="Logo">
+    <h1 data-config="event.fullName">Gara Template</h1>
+  </div>
+  <div class="lang-switcher">
+    <button class="lang-btn active" data-lang="it" onclick="setLang('it')">IT</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  </div>
+  <nav>
+    <a href="/" data-t="nav_home">Home</a>
+    <a href="/iscrizioni.html" data-t="nav_registration">Iscrizioni</a>
+    <a href="/programma.html" data-t="nav_program">Programma</a>
+    <a href="/contact.html" data-t="nav_contact">Contatti</a>
+  </nav>
+</header>
+
+<main>
+  <div id="content">
+    <p style="text-align:center;color:#888;">Caricamento...</p>
+  </div>
+</main>
+
+<script>
+let selectedSlots = [];
+let slots = [];
+let pricePerSession = 5;
+
+document.addEventListener('configLoaded', async () => {
+  const cfg = window.GARA_CONFIG;
+  document.title = `Prove Pista - ${cfg.event.fullName}`;
+  
+  // Check if feature is enabled
+  if (!cfg.features.track_practice) {
+    document.getElementById('content').innerHTML = `
+      <div class="feature-disabled">
+        <h3>🚫 Prove Pista non disponibili</h3>
+        <p>Le prove pista non sono attive per questa gara.</p>
+        <a href="/" style="color:var(--primary-color);">← Torna alla home</a>
+      </div>
+    `;
+    return;
+  }
+  
+  pricePerSession = cfg.pricing.track_practice.per_session;
+  
+  // Load slots
+  await loadSlots();
+  renderPage();
+});
+
+async function loadSlots() {
+  try {
+    const res = await fetch('/api/prove/slots');
+    slots = await res.json();
+  } catch (err) {
+    slots = [];
+  }
+}
+
+function renderPage() {
+  const cfg = window.GARA_CONFIG;
+  
+  // Group slots by day
+  const slotsByDay = {};
+  slots.forEach(s => {
+    const day = s.giorno || 'non-specificato';
+    if (!slotsByDay[day]) slotsByDay[day] = [];
+    slotsByDay[day].push(s);
+  });
+  
+  let slotsHtml = '';
+  Object.keys(slotsByDay).sort().forEach(day => {
+    const daySlots = slotsByDay[day];
+    const dayDate = new Date(day);
+    const dayName = dayDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+    
+    slotsHtml += `
+      <div class="day-card">
+        <div class="day-header">${dayName}</div>
+        <div class="day-slots">
+          ${daySlots.map(s => {
+            const available = s.posti_max - (s.prenotati || 0);
+            const isFull = available <= 0;
+            return `
+              <div class="slot-item">
+                <span class="slot-time">${s.ora_inizio}-${s.ora_fine}</span>
+                ${isFull 
+                  ? '<span class="slot-full">Esaurito</span>'
+                  : `<span class="slot-available">${available} posti</span>`
+                }
+                <button class="slot-btn" ${isFull ? 'disabled' : ''} 
+                  onclick="toggleSlot('${s.id}', '${day}', '${s.ora_inizio}-${s.ora_fine}')">
+                  ${selectedSlots.find(ss => ss.id === s.id) ? '✓' : '+'}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById('content').innerHTML = `
+    <h2 data-t="track_title">Prove Pista</h2>
+    <p class="subtitle" data-t="track_subtitle">Prenota la tua sessione di prova</p>
+    
+    <div class="info-box">
+      <h3>💰 Costo per sessione</h3>
+      <div class="price-tag">€${pricePerSession}</div>
+      <p style="color:#888;margin-top:0.5rem;">Durata: 30 minuti</p>
+    </div>
+    
+    <div id="alert-container"></div>
+    
+    <h3 style="margin-bottom:1rem;">📅 Slot Disponibili</h3>
+    <div class="slots-container">
+      ${slotsHtml || '<p style="color:#888;text-align:center;">Nessuno slot disponibile al momento</p>'}
+    </div>
+    
+    <div id="selected-slots-container" style="display:${selectedSlots.length ? 'block' : 'none'};">
+      <div class="selected-slots">
+        <h4>🎯 Slot Selezionati</h4>
+        <div id="selected-slots-list"></div>
+        <div style="margin-top:1rem;font-weight:bold;">
+          Totale: €<span id="total-price">0</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-section" id="booking-form" style="display:${selectedSlots.length ? 'block' : 'none'};">
+      <h3>📝 I tuoi dati</h3>
+      <form id="prova-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="nome" name="nome" required>
+          </div>
+          <div class="form-group">
+            <label>Cognome *</label>
+            <input type="text" id="cognome" name="cognome" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="email" name="email" required>
+          </div>
+          <div class="form-group">
+            <label>Telefono</label>
+            <input type="tel" id="telefono" name="telefono">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Prenota Sessioni</button>
+      </form>
+    </div>
+  `;
+  
+  updateSelectedSlots();
+  
+  // Form handler
+  document.getElementById('prova-form')?.addEventListener('submit', handleSubmit);
+}
+
+function toggleSlot(id, day, time) {
+  const idx = selectedSlots.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    selectedSlots.splice(idx, 1);
+  } else {
+    selectedSlots.push({ id, day, time });
+  }
+  renderPage();
+}
+
+function updateSelectedSlots() {
+  const container = document.getElementById('selected-slots-container');
+  const list = document.getElementById('selected-slots-list');
+  const total = document.getElementById('total-price');
+  const form = document.getElementById('booking-form');
+  
+  if (!container) return;
+  
+  if (selectedSlots.length === 0) {
+    container.style.display = 'none';
+    form.style.display = 'none';
+    return;
+  }
+  
+  container.style.display = 'block';
+  form.style.display = 'block';
+  
+  list.innerHTML = selectedSlots.map(s => {
+    const dayDate = new Date(s.day);
+    const dayName = dayDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' });
+    return `
+      <div class="selected-slot-item">
+        <span>${dayName} - ${s.time}</span>
+        <span class="remove-slot" onclick="toggleSlot('${s.id}', '${s.day}', '${s.time}')">✕</span>
+      </div>
+    `;
+  }).join('');
+  
+  total.textContent = selectedSlots.length * pricePerSession;
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const data = {
+    nome: formData.get('nome'),
+    cognome: formData.get('cognome'),
+    email: formData.get('email'),
+    telefono: formData.get('telefono'),
+    sessioni: selectedSlots.map(s => ({ slot_id: s.id, giorno: s.day, ora: s.time }))
+  };
+  
+  try {
+    const res = await fetch('/api/prove/prenota', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    
+    if (res.ok) {
+      document.getElementById('alert-container').innerHTML = `
+        <div class="alert alert-success">
+          Prenotazione completata! Codice: ${result.codice}. Controlla la tua email.
+        </div>
+      `;
+      selectedSlots = [];
+      e.target.reset();
+      await loadSlots();
+      renderPage();
+    } else {
+      document.getElementById('alert-container').innerHTML = `
+        <div class="alert alert-error">${result.error || 'Errore durante la prenotazione'}</div>
+      `;
+    }
+  } catch (err) {
+    document.getElementById('alert-container').innerHTML = `
+      <div class="alert alert-error">Errore di connessione</div>
+    `;
+  }
+}
+</script>
+
+</body>
+</html>

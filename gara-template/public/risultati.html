@@ -3,80 +3,104 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Risultati - Busto Battle XI</title>
-  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#F7AF40">
-  <!-- REDIRECT TEMPORANEO - DA RIMUOVERE -->
-  <script>window.location.href = '/notifiche.html';</script>
+  <title>Risultati - Gara Template</title>
+  <link rel="icon" href="/favicon.ico">
+  <script src="/config-loader.js"></script>
+  <style>
+    :root { --primary-color: #F7AF40; --secondary-color: #22C55E; --bg-dark: #111; --text-light: #f0f0f0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-dark); color: var(--text-light); min-height: 100vh; }
+    
+    header { display: flex; align-items: center; padding: 1rem 2rem; border-bottom: 2px solid var(--primary-color); background: #000; flex-wrap: wrap; gap: 1rem; }
+    .logo-title { display: flex; align-items: center; gap: 1rem; }
+    .logo-title img { height: 50px; }
+    .logo-title h1 { font-size: 1.3rem; color: var(--primary-color); }
+    nav { margin-left: auto; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    nav a { color: var(--text-light); text-decoration: none; }
+    nav a:hover { color: var(--primary-color); }
+    
+    main { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    h2 { color: var(--primary-color); margin-bottom: 0.5rem; font-size: 2rem; text-align: center; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 2rem; }
+    
+    .results-grid { display: grid; gap: 1rem; }
+    .result-card { background: #1a1a1a; border-radius: 12px; padding: 1.5rem; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .result-card h3 { color: var(--text-light); }
+    .result-card .category { color: #888; font-size: 0.9rem; }
+    .download-btn { padding: 0.6rem 1.2rem; background: var(--primary-color); color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; }
+    .download-btn:hover { opacity: 0.9; }
+    
+    .no-results { text-align: center; padding: 3rem; color: #888; }
+    .no-results h3 { margin-bottom: 1rem; }
+  </style>
 </head>
 <body>
-  <header>
-    <h1><img src="LogoBB.jpeg" alt="Busto Battle" style="height:40px;border-radius:4px"></h1>
-    <div class="lang-switcher">
-      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
-      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
-    </div>
-    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
-    <nav>
-      <a href="index.html" data-t="home">HOME</a>
-      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
-        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
-        <div class="dropdown-content">
-          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
-          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+
+<header>
+  <div class="logo-title">
+    <img src="/logo.png" alt="Logo">
+    <h1 data-config="event.fullName">Gara Template</h1>
+  </div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/iscrizioni.html">Iscrizioni</a>
+    <a href="/programma.html">Programma</a>
+    <a href="/contact.html">Contatti</a>
+  </nav>
+</header>
+
+<main>
+  <h2>🏆 Risultati</h2>
+  <p class="subtitle">Classifiche ufficiali delle discipline</p>
+  
+  <div id="results-container">
+    <p style="text-align:center;color:#888;">Caricamento risultati...</p>
+  </div>
+</main>
+
+<script>
+document.addEventListener('configLoaded', async () => {
+  const cfg = window.GARA_CONFIG;
+  document.title = `Risultati - ${cfg.event.fullName}`;
+  
+  try {
+    const res = await fetch('/api/risultati');
+    const results = await res.json();
+    
+    const container = document.getElementById('results-container');
+    
+    if (!results.length) {
+      container.innerHTML = `
+        <div class="no-results">
+          <h3>📋 Nessun risultato disponibile</h3>
+          <p>I risultati saranno pubblicati al termine delle competizioni.</p>
         </div>
-      </div>
-      <a href="prove.html" data-t="prove">PROVE PISTA</a>
-      <a href="programma.html" data-t="programma">PROGRAMMA</a>
-      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
-      <a href="foto.html" data-t="foto">FOTO</a>
-      <a href="contact.html" data-t="contact">CONTATTI</a>
-    </nav>
-  </header>
-  <main class="page-content">
-    <section class="info">
-      <h2 data-t="risultatiTitle">📊 Risultati e Classifiche</h2>
-      <p data-t="risultatiText" id="risultati-desc">Qui trovi le classifiche aggiornate della gara.</p>
-      <div id="risultati-list"></div>
-    </section>
-  </main>
-  <footer>
-    <div class="footer-content">
-      <div class="social-links">
-        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
-        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
-      </div>
-      <p class="footer-email">✉️ bustobattle@gmail.com</p>
-      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
-    </div>
-  </footer>
-  <script src="translations.js"></script>
-  <script src="page-guard.js"></script>
-  <script>
-    async function loadRisultati() {
-      const res = await fetch('/api/risultati');
-      const list = await res.json();
-      const div = document.getElementById('risultati-list');
-      if (!list.length) {
-        div.innerHTML = '<p style="color:#888;margin-top:1rem" data-t="risultatiEmpty">Nessun risultato pubblicato ancora.</p>';
-        applyLang();
-        return;
-      }
-      div.innerHTML = list.map(r => `
-        <div class="risultato-card">
-          <div class="risultato-info">
-            <div class="risultato-row"><strong>📄 ${r.titolo}</strong>${r.categoria ? `<span class="risultato-cat">${r.categoria}</span>` : ''}</div>
-            <small>${new Date(r.created_at).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</small>
-          </div>
-          <a href="/uploads/${r.filename}" target="_blank" class="btn-download">⬇️ PDF</a>
-        </div>
-      `).join('');
+      `;
+      return;
     }
-    loadRisultati();
-  </script>
-  <script src="app.js"></script>
+    
+    container.innerHTML = `
+      <div class="results-grid">
+        ${results.map(r => `
+          <div class="result-card">
+            <div>
+              <h3>${r.disciplina}</h3>
+              <span class="category">${r.categoria || ''}</span>
+            </div>
+            <a href="${r.file_url}" target="_blank" class="download-btn">📄 PDF</a>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('results-container').innerHTML = `
+      <div class="no-results">
+        <h3>Errore caricamento risultati</h3>
+      </div>
+    `;
+  }
+});
+</script>
+
 </body>
 </html>
-
