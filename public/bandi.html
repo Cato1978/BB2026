@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bandi Sport - Busto Battle XI</title>
+  <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F7AF40">
+  <style>
+    .bandi-intro {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .bandi-intro p {
+      color: #ccc;
+      margin-top: 0.5rem;
+    }
+    
+    .bandi-filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .bandi-filters input,
+    .bandi-filters select {
+      padding: 0.6rem 1rem;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #111;
+      color: #f0f0f0;
+      font-size: 0.9rem;
+    }
+    .bandi-filters input:focus,
+    .bandi-filters select:focus {
+      outline: none;
+      border-color: #F7AF40;
+    }
+    .bandi-filters input { flex: 1; min-width: 200px; }
+    
+    .bandi-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-box {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-box .number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #F7AF40;
+    }
+    .stat-box .label {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 0.3rem;
+    }
+    
+    .bandi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .bando-card {
+      background: #0a0a0a;
+      border: 1px solid #222;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .bando-card:hover {
+      border-color: #F7AF40;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(247, 175, 64, 0.15);
+    }
+    
+    .bando-header {
+      padding: 0.8rem 1rem;
+      background: #111;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .bando-fonte {
+      font-size: 0.7rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      background: #333;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .bando-fonte.lombardia { background: #2e7d32; }
+    .bando-fonte.governo { background: #1565c0; }
+    .bando-fonte.eu { background: #F7AF40; color: #000; }
+    
+    .status-badge {
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .status-open { background: #4caf50; color: white; }
+    .status-soon { background: #ffc107; color: #000; }
+    .status-urgent { background: #ff5722; color: white; animation: pulse 1s infinite; }
+    .status-closed { background: #555; color: #aaa; }
+    .status-unknown { background: #2196f3; color: white; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .bando-body {
+      padding: 1.2rem;
+    }
+    .bando-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f0f0f0;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+    .bando-info {
+      font-size: 0.85rem;
+      color: #999;
+      margin-bottom: 0.5rem;
+    }
+    .bando-info span {
+      color: #F7AF40;
+    }
+    .bando-info .days {
+      font-weight: bold;
+    }
+    .bando-info .days.urgent { color: #ff5722; }
+    .bando-info .days.soon { color: #ffc107; }
+    
+    .bando-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #222;
+    }
+    .bando-actions a,
+    .bando-actions button {
+      flex: 1;
+      padding: 0.6rem;
+      text-align: center;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+    .bando-actions a {
+      background: #F7AF40;
+      color: #000;
+    }
+    .bando-actions a:hover { background: #ffc560; }
+    .bando-actions button {
+      background: #222;
+      color: #f0f0f0;
+      border: 1px solid #333;
+    }
+    .bando-actions button:hover { background: #333; }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #888;
+    }
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #333;
+      border-top-color: #F7AF40;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 0.8rem;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .error-msg {
+      text-align: center;
+      padding: 2rem;
+      color: #ff6b6b;
+      background: rgba(255,107,107,0.1);
+      border-radius: 8px;
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: 2rem;
+      color: #888;
+      grid-column: 1 / -1;
+    }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .modal.active { display: flex; justify-content: center; padding: 1rem; }
+    .modal-content {
+      background: #0a0a0a;
+      border: 1px solid #F7AF40;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      margin: auto;
+    }
+    .modal-header {
+      padding: 1rem 1.5rem;
+      background: #111;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid #222;
+    }
+    .modal-header h3 {
+      color: #F7AF40;
+      font-size: 1rem;
+      flex: 1;
+      margin-right: 1rem;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+    }
+    .modal-close:hover { color: #F7AF40; }
+    .modal-body {
+      padding: 1.5rem;
+    }
+    .report-text {
+      background: #111;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      color: #ddd;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .modal-actions button {
+      flex: 1;
+      padding: 0.7rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-copy { background: #F7AF40; color: #000; }
+    .btn-copy:hover { background: #ffc560; }
+    .btn-download { background: #333; color: #f0f0f0; }
+    .btn-download:hover { background: #444; }
+    
+    @media (max-width: 768px) {
+      .bandi-grid { grid-template-columns: 1fr; }
+      .bandi-filters { flex-direction: column; }
+      .bandi-filters input,
+      .bandi-filters select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏆 BUSTO BATTLE XI</h1>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="hamburger" onclick="document.querySelector('nav').classList.toggle('open')">☰</button>
+    <nav>
+      <a href="index.html" data-t="home">HOME</a>
+      <div class="nav-dropdown" onclick="this.classList.toggle('open')">
+        <span data-t="iscrizioni">ISCRIZIONI <span class="dropdown-arrow">▼</span></span>
+        <div class="dropdown-content">
+          <a href="iscrizioni.html" data-t="nuovaIscrizione">Nuova Iscrizione</a>
+          <a href="verifica.html" data-t="verificaIscrizione2">Verifica Iscrizione</a>
+        </div>
+      </div>
+      <a href="prove.html" data-t="prove">PROVE PISTA</a>
+      <a href="programma.html" data-t="programma">PROGRAMMA</a>
+      <a href="travel.html" data-t="travel">HOTELS & INFO UTILI</a>
+      <a href="foto.html" data-t="foto">FOTO</a>
+      <a href="contact.html" data-t="contact">CONTATTI</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="info bandi-intro">
+      <h2 data-t="bandiTitle">💰 Bandi e Finanziamenti Sport</h2>
+      <p data-t="bandiDesc">Opportunità di finanziamento per associazioni e società sportive</p>
+    </section>
+
+    <div class="bandi-stats" id="stats">
+      <div class="stat-box">
+        <div class="number" id="statTotal">-</div>
+        <div class="label" data-t="bandiTotali">Bandi Totali</div>
+      </div>
+      <div class="stat-box">
+        <div class="number" id="statLombardia">-</div>
+        <div class="label">Lombardia</div>
+      </div>
+      <div class="stat-box">
+        <div class="number" id="statGoverno">-</div>
+        <div class="label" data-t="bandiGoverno">Dip. Sport</div>
+      </div>
+      <div class="stat-box">
+        <div class="number" id="statAttivi">-</div>
+        <div class="label" data-t="bandiAttivi">Attivi</div>
+      </div>
+    </div>
+
+    <div class="bandi-filters">
+      <input type="text" id="searchInput" data-t-placeholder="bandiCerca" placeholder="🔍 Cerca nei bandi...">
+      <select id="fonteFilter">
+        <option value="" data-t="tutteFonti">Tutte le fonti</option>
+        <option value="lombardia">Regione Lombardia</option>
+        <option value="governo">Dipartimento Sport</option>
+        <option value="eu">EU Funding</option>
+      </select>
+      <select id="statoFilter">
+        <option value="tutti" data-t="tuttiBandi">Tutti i bandi</option>
+        <option value="attivi" data-t="soloAttivi">Solo attivi</option>
+        <option value="scaduti" data-t="soloScaduti">Solo scaduti</option>
+      </select>
+      <select id="ordinaFilter">
+        <option value="scadenza_asc" data-t="scadenzaVicina">📅 Scadenza vicina</option>
+        <option value="scadenza_desc" data-t="scadenzaLontana">📅 Scadenza lontana</option>
+        <option value="pubblicazione_desc" data-t="piuRecenti">📰 Più recenti</option>
+      </select>
+    </div>
+
+    <div class="bandi-grid" id="bandiContainer">
+      <div class="loading" data-t="caricamento">Caricamento bandi...</div>
+    </div>
+  </main>
+
+  <!-- Modal Report -->
+  <div class="modal" id="reportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Report Bando</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <div class="loading">Generazione report...</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="social-links">
+        <a href="https://www.instagram.com/bustobattle/" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/bustobattle/" target="_blank">👍 Facebook</a>
+      </div>
+      <p class="footer-email">✉️ bustobattle@gmail.com</p>
+      <p class="copyright">© 2025 Busto Battle XI. Tutti i diritti riservati.</p>
+    </div>
+  </footer>
+
+  <script src="translations.js"></script>
+  <script>
+    // Configurazione API
+    // Prova prima il file locale, poi fallback all'API esterna
+    const API_BASE = '';  // Stesso dominio
+    
+    let allBandi = [];
+    
+    // Carica i bandi dal file JSON statico o API
+    async function loadBandi() {
+      const container = document.getElementById('bandiContainer');
+      
+      try {
+        // Prima prova il file JSON statico locale
+        let response = await fetch('/data/bandi.json');
+        
+        if (!response.ok) {
+          // Fallback: prova API esterna se configurata
+          const externalApi = 'https://sport-bandi-monitor.onrender.com';
+          response = await fetch(`${externalApi}/api/bandi`);
+        }
+        
+        if (!response.ok) throw new Error('Errore caricamento dati');
+        
+        const data = await response.json();
+        allBandi = data.bandi || data;
+        updateStats();
+        filterBandi();
+      } catch (error) {
+        console.error('Errore:', error);
+        container.innerHTML = `
+          <div class="error-msg">
+            <p>⚠️ Impossibile caricare i bandi</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.7;">
+              Dati non disponibili al momento. Riprova più tardi.
+            </p>
+          </div>
+        `;
+      }
+    }
+    
+    function updateStats() {
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      
+      let attivi = 0;
+      allBandi.forEach(b => {
+        const date = parseDate(b.scadenza);
+        if (!date || date >= oggi) attivi++;
+      });
+      
+      document.getElementById('statTotal').textContent = allBandi.length;
+      document.getElementById('statLombardia').textContent = 
+        allBandi.filter(b => b.fonte && b.fonte.includes('Lombardia')).length;
+      document.getElementById('statGoverno').textContent = 
+        allBandi.filter(b => b.fonte && (b.fonte.includes('Dipartimento') || b.fonte.includes('Governo'))).length;
+      document.getElementById('statAttivi').textContent = attivi;
+    }
+    
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+      
+      const mesi = {
+        'gennaio': 0, 'febbraio': 1, 'marzo': 2, 'aprile': 3,
+        'maggio': 4, 'giugno': 5, 'luglio': 6, 'agosto': 7,
+        'settembre': 8, 'ottobre': 9, 'novembre': 10, 'dicembre': 11
+      };
+      
+      // Pattern: "9 giugno 2026"
+      let match = dateStr.toLowerCase().match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+      if (match && mesi[match[2]] !== undefined) {
+        return new Date(parseInt(match[3]), mesi[match[2]], parseInt(match[1]));
+      }
+      
+      // Pattern: dd/mm/yyyy
+      match = dateStr.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+      if (match) {
+        let year = parseInt(match[3]);
+        if (year < 100) year += 2000;
+        return new Date(year, parseInt(match[2]) - 1, parseInt(match[1]));
+      }
+      return null;
+    }
+    
+    function getScadenzaInfo(dateStr) {
+      if (!dateStr) {
+        return { badge: '<span class="status-badge status-unknown">📋 Aperto</span>', days: '' };
+      }
+      
+      const date = parseDate(dateStr);
+      if (!date) {
+        return { badge: '<span class="status-badge status-unknown">📋 Aperto</span>', days: '' };
+      }
+      
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      date.setHours(0, 0, 0, 0);
+      
+      const diffDays = Math.ceil((date - oggi) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) {
+        return { badge: '<span class="status-badge status-closed">❌ Scaduto</span>', days: '' };
+      } else if (diffDays === 0) {
+        return { badge: '<span class="status-badge status-urgent">⚠️ Oggi!</span>', days: '<span class="days urgent">(ULTIMO GIORNO)</span>' };
+      } else if (diffDays <= 7) {
+        return { badge: '<span class="status-badge status-urgent">⏰ Urgente</span>', days: `<span class="days urgent">(${diffDays} giorni)</span>` };
+      } else if (diffDays <= 30) {
+        return { badge: '<span class="status-badge status-soon">📅 In scadenza</span>', days: `<span class="days soon">(${diffDays} giorni)</span>` };
+      } else {
+        return { badge: '<span class="status-badge status-open">✅ Aperto</span>', days: `<span class="days">(${diffDays} giorni)</span>` };
+      }
+    }
+    
+    function getFonteClass(fonte) {
+      if (!fonte) return '';
+      if (fonte.includes('Lombardia')) return 'lombardia';
+      if (fonte.includes('Dipartimento') || fonte.includes('Governo')) return 'governo';
+      if (fonte.includes('EU')) return 'eu';
+      return '';
+    }
+    
+    function filterBandi() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const fonte = document.getElementById('fonteFilter').value;
+      const stato = document.getElementById('statoFilter').value;
+      const ordina = document.getElementById('ordinaFilter').value;
+      
+      let filtered = [...allBandi];
+      
+      // Filtro ricerca
+      if (search) {
+        filtered = filtered.filter(b => 
+          (b.titolo && b.titolo.toLowerCase().includes(search)) ||
+          (b.ente && b.ente.toLowerCase().includes(search)) ||
+          (b.fonte && b.fonte.toLowerCase().includes(search))
+        );
+      }
+      
+      // Filtro fonte
+      if (fonte) {
+        filtered = filtered.filter(b => getFonteClass(b.fonte) === fonte);
+      }
+      
+      // Filtro stato
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      
+      if (stato === 'attivi') {
+        filtered = filtered.filter(b => {
+          if (!b.scadenza) return true;
+          const date = parseDate(b.scadenza);
+          return !date || date >= oggi;
+        });
+      } else if (stato === 'scaduti') {
+        filtered = filtered.filter(b => {
+          if (!b.scadenza) return false;
+          const date = parseDate(b.scadenza);
+          return date && date < oggi;
+        });
+      }
+      
+      // Ordinamento
+      filtered.sort((a, b) => {
+        let dateA, dateB;
+        
+        if (ordina.startsWith('scadenza')) {
+          dateA = parseDate(a.scadenza);
+          dateB = parseDate(b.scadenza);
+        } else {
+          dateA = parseDate(a.data_pubblicazione);
+          dateB = parseDate(b.data_pubblicazione);
+        }
+        
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        
+        return ordina.endsWith('_asc') ? dateA - dateB : dateB - dateA;
+      });
+      
+      renderBandi(filtered);
+    }
+    
+    function renderBandi(bandi) {
+      const container = document.getElementById('bandiContainer');
+      const lang = getLang();
+      
+      if (bandi.length === 0) {
+        const noResultsText = lang === 'en' ? 'No grants found' : 'Nessun bando trovato';
+        container.innerHTML = `<div class="no-results">${noResultsText}</div>`;
+        return;
+      }
+      
+      const reportText = lang === 'en' ? 'Report' : 'Report';
+      const viewText = lang === 'en' ? 'View' : 'Vai al bando';
+      
+      container.innerHTML = bandi.map(bando => {
+        const scadInfo = getScadenzaInfo(bando.scadenza);
+        const scadenzaLabel = lang === 'en' ? 'Deadline' : 'Scadenza';
+        const importoLabel = lang === 'en' ? 'Amount' : 'Importo';
+        
+        return `
+          <div class="bando-card">
+            <div class="bando-header">
+              <span class="bando-fonte ${getFonteClass(bando.fonte)}">${bando.fonte || 'N/D'}</span>
+              ${scadInfo.badge}
+            </div>
+            <div class="bando-body">
+              <div class="bando-title">${bando.titolo || 'Titolo non disponibile'}</div>
+              <div class="bando-info">📅 ${scadenzaLabel}: <span>${bando.scadenza || 'Non specificata'}</span> ${scadInfo.days}</div>
+              ${bando.data_pubblicazione ? `<div class="bando-info">📰 Pubblicato: <span>${bando.data_pubblicazione}</span></div>` : ''}
+              ${bando.importo ? `<div class="bando-info">💰 ${importoLabel}: <span>${bando.importo}</span></div>` : ''}
+              <div class="bando-actions">
+                <a href="${bando.link}" target="_blank">🔗 ${viewText}</a>
+                <button onclick="showReport('${encodeURIComponent(bando.link)}', '${encodeURIComponent(bando.titolo)}')">📊 ${reportText}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    async function showReport(encodedUrl, encodedTitle) {
+      const url = decodeURIComponent(encodedUrl);
+      const title = decodeURIComponent(encodedTitle);
+      
+      document.getElementById('reportModal').classList.add('active');
+      document.getElementById('modalTitle').textContent = title;
+      
+      const lang = getLang();
+      
+      // Cerca il bando nei dati caricati per mostrare info disponibili
+      const bando = allBandi.find(b => b.link === url || encodeURIComponent(b.link) === encodedUrl);
+      
+      let reportText = `
+======================================================================
+📋 REPORT BANDO
+======================================================================
+
+📌 TITOLO: ${title}
+
+🔗 LINK: ${url}
+
+----------------------------------------------------------------------
+📅 SCADENZA
+----------------------------------------------------------------------
+  ${bando?.scadenza || 'Non specificata'}
+
+----------------------------------------------------------------------
+📰 DATA PUBBLICAZIONE
+----------------------------------------------------------------------
+  ${bando?.data_pubblicazione || 'Non disponibile'}
+
+----------------------------------------------------------------------
+💰 IMPORTO
+----------------------------------------------------------------------
+  ${bando?.importo || 'Consultare il bando'}
+
+----------------------------------------------------------------------
+🏛️ ENTE
+----------------------------------------------------------------------
+  ${bando?.ente || bando?.fonte || 'N/D'}
+
+----------------------------------------------------------------------
+📝 DESCRIZIONE
+----------------------------------------------------------------------
+  ${bando?.descrizione || 'Consultare il bando per maggiori dettagli'}
+
+======================================================================
+⚠️ Per informazioni complete, consultare il bando ufficiale al link sopra.
+======================================================================
+      `.trim();
+      
+      const copyText = lang === 'en' ? '📋 Copy' : '📋 Copia';
+      const downloadText = lang === 'en' ? '💾 Download' : '💾 Scarica';
+      const viewBandoText = lang === 'en' ? '🔗 View Official Grant' : '🔗 Vai al Bando Ufficiale';
+      
+      document.getElementById('modalBody').innerHTML = `
+        <div class="report-text">${reportText}</div>
+        <div class="modal-actions">
+          <button class="btn-copy" onclick="copyReport()">${copyText}</button>
+          <button class="btn-download" onclick="downloadReport('${encodeURIComponent(title)}')">${downloadText}</button>
+        </div>
+        <div style="margin-top: 1rem; text-align: center;">
+          <a href="${url}" target="_blank" style="color: #F7AF40; font-weight: 600;">${viewBandoText}</a>
+        </div>
+        <textarea id="reportTextarea" style="position: absolute; left: -9999px;">${reportText}</textarea>
+      `;
+    }
+    
+    function copyReport() {
+      const text = document.getElementById('reportTextarea').value;
+      navigator.clipboard.writeText(text).then(() => {
+        const msg = getLang() === 'en' ? 'Report copied!' : 'Report copiato!';
+        alert(msg);
+      });
+    }
+    
+    function downloadReport(encodedTitle) {
+      const title = decodeURIComponent(encodedTitle);
+      const text = document.getElementById('reportTextarea').value;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'report_' + title.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '_') + '.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    function closeModal() {
+      document.getElementById('reportModal').classList.remove('active');
+    }
+    
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', filterBandi);
+    document.getElementById('fonteFilter').addEventListener('change', filterBandi);
+    document.getElementById('statoFilter').addEventListener('change', filterBandi);
+    document.getElementById('ordinaFilter').addEventListener('change', filterBandi);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    
+    // Init
+    document.addEventListener('DOMContentLoaded', loadBandi);
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -258,7 +258,22 @@ const T = {
     commissioni: "Commissioni (1,65% + €0,25):",
     totaleFinale: "Totale da pagare:",
     annulla: "Annulla",
-    confermaPaga: "Conferma e Paga"
+    confermaPaga: "Conferma e Paga",
+    // Bandi page
+    bandiTitle: "Bandi e Finanziamenti Sport",
+    bandiDesc: "Opportunità di finanziamento per associazioni e società sportive",
+    bandiTotali: "Bandi Totali",
+    bandiGoverno: "Dip. Sport",
+    bandiAttivi: "Attivi",
+    bandiCerca: "🔍 Cerca nei bandi...",
+    tutteFonti: "Tutte le fonti",
+    tuttiBandi: "Tutti i bandi",
+    soloAttivi: "Solo attivi",
+    soloScaduti: "Solo scaduti",
+    scadenzaVicina: "📅 Scadenza vicina",
+    scadenzaLontana: "📅 Scadenza lontana",
+    piuRecenti: "📰 Più recenti",
+    caricamento: "Caricamento bandi..."
   },
 
   en: {
@@ -521,7 +536,22 @@ const T = {
     commissioni: "Fees (1.65% + €0.25):",
     totaleFinale: "Total to pay:",
     annulla: "Cancel",
-    confermaPaga: "Confirm and Pay"
+    confermaPaga: "Confirm and Pay",
+    // Bandi page
+    bandiTitle: "Sport Grants & Funding",
+    bandiDesc: "Funding opportunities for sports clubs and associations",
+    bandiTotali: "Total Grants",
+    bandiGoverno: "Sport Dept.",
+    bandiAttivi: "Active",
+    bandiCerca: "🔍 Search grants...",
+    tutteFonti: "All sources",
+    tuttiBandi: "All grants",
+    soloAttivi: "Active only",
+    soloScaduti: "Expired only",
+    scadenzaVicina: "📅 Deadline (nearest)",
+    scadenzaLontana: "📅 Deadline (farthest)",
+    piuRecenti: "📰 Most recent",
+    caricamento: "Loading grants..."
   },
 
 };
