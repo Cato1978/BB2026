@@ -515,6 +515,17 @@
     async function submitPrenotazione(paymentMethod = 'bonifico') {
       const msg = document.getElementById('msg');
       msg.textContent = '';
+      
+      // Previeni doppio click - disabilita bottoni
+      const btnBonifico = document.getElementById('btn-bonifico');
+      const btnOnline = document.getElementById('btn-online');
+      if (btnBonifico.disabled) return; // Già in corso
+      btnBonifico.disabled = true;
+      btnOnline.disabled = true;
+      btnBonifico.style.opacity = '0.5';
+      btnOnline.style.opacity = '0.5';
+      msg.textContent = getLang() === 'en' ? 'Processing...' : 'Elaborazione in corso...';
+      msg.style.color = '#F7AF40';
 
       const email = document.getElementById('email-contatto').value.trim();
       const telefono = document.getElementById('telefono-contatto').value.trim();
@@ -522,6 +533,10 @@
       if (!email) {
         msg.textContent = getLang() === 'en' ? 'Enter a contact email' : 'Inserisci una email di contatto';
         msg.style.color = '#f44336';
+        btnBonifico.disabled = false;
+        btnOnline.disabled = false;
+        btnBonifico.style.opacity = '1';
+        btnOnline.style.opacity = '1';
         return;
       }
 
@@ -529,6 +544,10 @@
       if (atletiValidi.length === 0) {
         msg.textContent = getLang() === 'en' ? 'Select at least one slot for at least one athlete' : 'Seleziona almeno uno slot per almeno un atleta';
         msg.style.color = '#f44336';
+        btnBonifico.disabled = false;
+        btnOnline.disabled = false;
+        btnBonifico.style.opacity = '1';
+        btnOnline.style.opacity = '1';
         return;
       }
 
@@ -536,6 +555,10 @@
         if (!a.nome || !a.cognome) {
           msg.textContent = getLang() === 'en' ? 'Enter name and surname for all athletes with selected slots' : 'Inserisci nome e cognome per tutti gli atleti con slot selezionati';
           msg.style.color = '#f44336';
+          btnBonifico.disabled = false;
+          btnOnline.disabled = false;
+          btnBonifico.style.opacity = '1';
+          btnOnline.style.opacity = '1';
           return;
         }
         // Verifica disciplina
@@ -543,6 +566,10 @@
           if (!s.specialita) {
             msg.textContent = getLang() === 'en' ? `Select discipline for all slots of ${a.nome} ${a.cognome}` : `Seleziona la disciplina per tutti gli slot di ${a.nome} ${a.cognome}`;
             msg.style.color = '#f44336';
+            btnBonifico.disabled = false;
+            btnOnline.disabled = false;
+            btnBonifico.style.opacity = '1';
+            btnOnline.style.opacity = '1';
             return;
           }
         }
@@ -576,6 +603,10 @@
           if (!res.ok) {
             msg.textContent = data.error || 'Errore nella prenotazione';
             msg.style.color = '#f44336';
+            btnBonifico.disabled = false;
+            btnOnline.disabled = false;
+            btnBonifico.style.opacity = '1';
+            btnOnline.style.opacity = '1';
             return;
           }
           
@@ -669,6 +700,10 @@
       } catch (err) {
         msg.textContent = 'Errore di connessione';
         msg.style.color = '#f44336';
+        btnBonifico.disabled = false;
+        btnOnline.disabled = false;
+        btnBonifico.style.opacity = '1';
+        btnOnline.style.opacity = '1';
       }
     }
 
