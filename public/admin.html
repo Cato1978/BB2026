@@ -1769,7 +1769,7 @@
     }
 
     async function annullaProva(codice) {
-      if (!confirm('Annullare questa prenotazione? Gli slot saranno liberati e verrà inviata email di annullamento.')) return;
+      if (!confirm('Annullare questa prenotazione? Gli slot saranno liberati.')) return;
       const res = await fetch(`/api/prove/prenotazioni/${codice}/annulla`, { method: 'PUT' });
       if (res.ok) {
         alert('❌ Prenotazione annullata. Email inviata.');
