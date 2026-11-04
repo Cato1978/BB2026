@@ -552,6 +552,9 @@
         const codici = [];
         let totale = 0;
         
+        // Per bonifico, skippiamo le email individuali e mandiamo un riepilogo alla fine
+        const skipEmailIndividuali = (paymentMethod !== 'online');
+        
         for (const a of atletiValidi) {
           const sessioni = a.slots.map(s => `${s.ora} (${s.specialita})`);
           const res = await fetch('/api/prove/prenota', {
@@ -564,7 +567,8 @@
               telefono,
               sessioni: a.slots.map(s => ({ ora: s.ora, giorno: s.giorno })),
               note: a.slots.map(s => `${s.giorno} ${s.ora}: ${s.specialita}`).join(', '),
-              paymentMethod: paymentMethod
+              paymentMethod: paymentMethod,
+              skipEmail: skipEmailIndividuali // Skip email individuali per bonifico
             })
           });
 
@@ -601,6 +605,29 @@
           });
         } catch (notifErr) {
           console.error('Errore notifica admin:', notifErr);
+        }
+        
+        // Per bonifico, invia UNA SOLA email riepilogativa all'utente
+        if (paymentMethod !== 'online' && email) {
+          try {
+            await fetch('/api/prove/email-riepilogo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email,
+                atleti: codici.map(c => ({
+                  nome: c.nome,
+                  cognome: c.cognome,
+                  codice: c.codice,
+                  sessioni: c.slots.map(s => `${s.giorno || ''} ${s.ora} - ${s.specialita}`),
+                  totale: c.totale
+                })),
+                totaleComplessivo: totale
+              })
+            });
+          } catch (emailErr) {
+            console.error('Errore email riepilogo:', emailErr);
+          }
         }
 
         // Se pagamento online, vai a Stripe

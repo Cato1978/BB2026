@@ -4890,7 +4890,7 @@ app.get('/api/prove/disponibilita', async (req, res) => {
 });
 
 app.post('/api/prove/prenota', async (req, res) => {
-  const { nome, cognome, email, telefono, sessioni, note, paymentMethod } = req.body;
+  const { nome, cognome, email, telefono, sessioni, note, paymentMethod, skipEmail } = req.body;
   if (!nome || !cognome) return res.status(400).json({ error: 'Nome e cognome richiesti' });
   if (!sessioni || !sessioni.length) return res.status(400).json({ error: 'Seleziona almeno una sessione' });
 
@@ -4943,8 +4943,9 @@ app.post('/api/prove/prenota', async (req, res) => {
         [nome, cognome, email || null, telefono || null, sess.ora, giorno, codice, 'sospesa', note || null]);
     }
 
-    // Invia email di prenotazione in attesa SOLO per bonifico (non per pagamento online)
-    if (email && paymentMethod !== 'online') {
+    // Invia email SOLO se non è in modalità batch (skipEmail=true significa che l'email verrà inviata dopo)
+    // E solo per bonifico (non per pagamento online)
+    if (email && paymentMethod !== 'online' && !skipEmail) {
       const sessioniForEmail = sessioniNormalizzate.map(s => (s.giorno ? s.giorno + ' ' : '') + s.ora);
       await sendProveEmail(email, {
         nome, cognome, codice, stato: 'sospesa',
@@ -5043,6 +5044,133 @@ app.post('/api/prove/notifica-admin', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore notifica admin prove:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint per inviare email riepilogativa utente (per prenotazioni batch)
+app.post('/api/prove/email-riepilogo', async (req, res) => {
+  try {
+    const { email, atleti, totaleComplessivo } = req.body;
+    
+    if (!email || !atleti || !atleti.length) {
+      return res.status(400).json({ error: 'Dati mancanti' });
+    }
+    
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (!brevoApiKey) {
+      console.log('Email riepilogo utente non inviata (BREVO_API_KEY non configurata)');
+      return res.json({ ok: true, warning: 'Email non inviata - API key mancante' });
+    }
+    
+    // Header comune con logo
+    const emailHeader = `
+      <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+        <img src="https://bb2026.onrender.com/LogoBB.jpeg" alt="Busto Battle XI" style="height:80px;border-radius:8px">
+        <h1 style="color:#F7AF40;margin:15px 0 0;font-family:Arial,sans-serif">BUSTO BATTLE XI</h1>
+        <p style="color:#888;margin:5px 0 0;font-family:Arial,sans-serif">Prove Pista / Track Practice</p>
+      </div>
+    `;
+    
+    // Footer comune
+    const emailFooter = `
+      <div style="background:#1a1a1a;padding:20px;text-align:center;border-radius:0 0 8px 8px;margin-top:20px">
+        <p style="color:#888;margin:0 0 15px;font-family:Arial,sans-serif">📅 13-15 Novembre / November 2026 | 📍 PalaCastiglioni, Busto Arsizio (VA)</p>
+        <p style="color:#666;margin:0;font-size:12px;font-family:Arial,sans-serif">
+          <a href="https://bb2026.onrender.com" style="color:#F7AF40">www.bustobattle.it</a> | 
+          <a href="mailto:bustobattle@gmail.com" style="color:#F7AF40">bustobattle@gmail.com</a>
+        </p>
+      </div>
+    `;
+    
+    // Costruisci riepilogo atleti HTML
+    const atletiHtml = atleti.map(a => {
+      const sessioni = a.sessioni || [];
+      const sessioniList = sessioni.map(s => `<li>${s}</li>`).join('');
+      const linkRicevuta = 'https://bustobattle.com/carica-ricevuta-prove.html?codice=' + a.codice;
+      
+      return `
+        <div style="background:#222;padding:15px;border-radius:6px;margin-bottom:15px">
+          <p style="margin:0 0 5px"><strong style="color:#F7AF40">👤 ${a.nome} ${a.cognome}</strong></p>
+          <p style="margin:0 0 5px"><strong>Codice / Code:</strong> ${a.codice}</p>
+          <p style="margin:0 0 5px"><strong>Slot:</strong></p>
+          <ul style="margin:5px 0">${sessioniList}</ul>
+          <p style="margin:5px 0 0;color:#4ade80"><strong>€${a.totale}</strong></p>
+          <p style="margin:10px 0 0;text-align:center">
+            <a href="${linkRicevuta}" style="background:#F7AF40;color:#000;padding:8px 16px;text-decoration:none;border-radius:4px;font-size:0.9em">📤 Carica Ricevuta / Upload Receipt</a>
+          </p>
+        </div>
+      `;
+    }).join('');
+    
+    const primoCodice = atleti[0].codice;
+    
+    const html = `
+      <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#111;border-radius:8px">
+        ${emailHeader}
+        <div style="padding:30px;color:#f0f0f0">
+          <div style="background:#f59e0b;color:#000;padding:15px;border-radius:6px;text-align:center;margin-bottom:20px">
+            <h2 style="margin:0">🕐 Prenotazione in Attesa / Booking Pending</h2>
+            <p style="margin:5px 0 0">${atleti.length} atleta/i · €${totaleComplessivo}</p>
+          </div>
+          
+          <p>Ciao / Hello,</p>
+          <p>La tua prenotazione prove pista è stata registrata!<br><em style="color:#888">Your track practice booking has been registered!</em></p>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">👥 Riepilogo Prenotazioni / Booking Summary</h3>
+          ${atletiHtml}
+          
+          <div style="background:#333;padding:15px;border-radius:6px;margin:20px 0;text-align:center">
+            <p style="margin:0;font-size:1.3em"><strong>💰 Totale da pagare / Total to pay: <span style="color:#F7AF40">€${totaleComplessivo}</span></strong></p>
+          </div>
+          
+          <h3 style="color:#F7AF40;border-bottom:1px solid #333;padding-bottom:10px">📋 Per completare / To complete:</h3>
+          
+          <p><strong>1. Effettua il bonifico / Make a bank transfer:</strong></p>
+          <div style="background:#222;padding:15px;border-radius:6px;margin:10px 0 20px">
+            <p style="margin:5px 0"><strong>IBAN:</strong> IT54Y0326822800052416865080</p>
+            <p style="margin:5px 0"><strong>Banca:</strong> Banca Sella</p>
+            <p style="margin:5px 0"><strong>Intestatario / Account holder:</strong> Accademia Bustese Pattinaggio ASD</p>
+            <p style="margin:5px 0"><strong>Causale / Reference:</strong> Prove Pista - ${primoCodice}</p>
+          </div>
+          
+          <p><strong>2. Carica la ricevuta per ogni atleta / Upload receipt for each athlete</strong></p>
+          <p style="color:#888;font-size:0.9em">Usa i pulsanti "Carica Ricevuta" sopra per ogni atleta, oppure accedi con il codice su:<br>
+          <a href="https://bustobattle.com/carica-ricevuta-prove.html" style="color:#F7AF40">bustobattle.com/carica-ricevuta-prove.html</a></p>
+          
+          <div style="background:#222;padding:15px;border-radius:6px;margin:20px 0">
+            <p style="margin:0"><strong>📍 Luogo / Venue:</strong> PalaCastiglioni - Via Ariosto 3, Busto Arsizio (VA)</p>
+          </div>
+        </div>
+        ${emailFooter}
+      </div>
+    `;
+    
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'Busto Battle XI', email: process.env.BREVO_FROM || 'noreply@bustobattle.com' },
+        to: [{ email: email }],
+        subject: 'Busto Battle XI - Prove Pista in Attesa / Track Practice Pending - ' + primoCodice,
+        htmlContent: html
+      })
+    });
+    
+    if (response.ok) {
+      console.log('Email riepilogo utente prove batch inviata via Brevo a:', email, atleti.length, 'atleti');
+      res.json({ ok: true });
+    } else {
+      const errorData = await response.json();
+      console.error('Errore Brevo API email riepilogo utente:', errorData);
+      res.json({ ok: true, warning: 'Email non inviata' });
+    }
+  } catch (err) {
+    console.error('Errore email riepilogo prove:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -5260,23 +5388,10 @@ app.put('/api/prove/prenotazioni/:codice/annulla', async (req, res) => {
     const rows = await dbAll('SELECT * FROM prove_prenotazioni WHERE codice=?', [codice]);
     if (!rows.length) return res.status(404).json({ error: 'Prenotazione non trovata' });
     
-    const first = rows[0];
-    
     // Elimina la prenotazione (libera gli slot)
     await dbRun('DELETE FROM prove_prenotazioni WHERE codice=?', [codice]);
     
-    // Invia email di annullamento
-    if (first.email) {
-      const sessioni = rows.map(r => (r.giorno ? r.giorno + ' ' : '') + r.ora);
-      
-      await sendProveEmail(first.email, {
-        nome: first.nome,
-        cognome: first.cognome,
-        codice,
-        stato: 'annullata',
-        sessioni
-      });
-    }
+    // NON inviare email di annullamento (richiesta admin)
     
     res.json({ ok: true, message: 'Prenotazione annullata e slot liberati' });
   } catch (err) {
