@@ -244,7 +244,7 @@ async function initDb() {
     )`);
     
     // Seed pagine default
-    const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
+    const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','merch','risultati','contact','cena','prove'];
     for (const p of pages) {
       await pgPool.query('INSERT INTO page_settings (page, enabled, visible) VALUES ($1, 1, 1) ON CONFLICT (page) DO NOTHING', [p]);
     }
