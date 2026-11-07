@@ -69,8 +69,8 @@
       if (currentPage === 'merch') {
         const merchTitle = lang === 'en' ? '👕 Merchandising' : '👕 Merchandising';
         const merchText = lang === 'en' 
-          ? 'Merchandising pre-orders are currently closed. They will reopen soon!'
-          : 'Le prenotazioni del merchandising sono momentaneamente chiuse. Riapriremo presto!';
+          ? 'Merchandising pre-orders are closed.'
+          : 'Le prenotazioni del merchandising sono chiuse.';
         
         document.querySelector('main').innerHTML = `
           <div style="text-align:center;padding:3rem 1rem;max-width:600px;margin:0 auto">
