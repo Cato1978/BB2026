@@ -97,6 +97,9 @@ const authLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/api/login', authLimiter);
 
+// Trust proxy per Render/Heroku (necessario per cookie secure)
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'bustobattle-secret-2025-local-dev',
@@ -106,7 +109,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000, 
     httpOnly: true, 
     secure: isProduction,
-    sameSite: 'strict' 
+    sameSite: isProduction ? 'none' : 'strict'
   }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
