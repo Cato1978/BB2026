@@ -464,28 +464,17 @@
     let athletes = [];
     let currentAthleteId = null;
     
-    // Verifica autenticazione admin
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/me', { credentials: 'include' });
-        if (!res.ok) {
-          window.location.href = '/login.html';
-          return false;
-        }
-        return true;
-      } catch (err) {
-        window.location.href = '/login.html';
-        return false;
-      }
-    }
-    
     // Carica tutti gli atleti
     async function loadAthletes() {
       try {
         const res = await fetch('/api/checkin', { credentials: 'include' });
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {
+          alert('Sessione scaduta. Effettua il login.');
           window.location.href = '/login.html';
           return;
+        }
+        if (!res.ok) {
+          throw new Error('Errore API: ' + res.status);
         }
         const data = await res.json();
         athletes = data;
@@ -504,7 +493,7 @@
         renderAthletes(athletes);
       } catch (err) {
         console.error('Errore caricamento atleti:', err);
-        alert('Errore caricamento atleti');
+        alert('Errore caricamento atleti: ' + err.message);
       }
     }
     
@@ -749,8 +738,8 @@
       if (e.target.id === 'athlete-modal') closeModal();
     });
     
-    // Carica all'avvio (dopo verifica auth)
-    checkAuth().then(() => loadAthletes());
+    // Carica all'avvio
+    loadAthletes();
     
     // Cerca con invio
     document.getElementById('search').addEventListener('keypress', (e) => {
