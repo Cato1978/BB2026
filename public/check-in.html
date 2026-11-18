@@ -588,7 +588,13 @@
     }
     
     async function saveAndClose() {
-      if (!currentAthlete) return;
+      if (!currentAthlete) {
+        alert('Errore: nessun atleta selezionato');
+        return;
+      }
+      
+      const athleteId = currentAthlete.id;
+      const metodoPagamento = currentAthlete.metodo_pagamento || '';
       
       try {
         // Salva check-in fatto
@@ -597,7 +603,7 @@
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            athleteId: currentAthlete.id,
+            athleteId: athleteId,
             field: 'checkin_fatto',
             value: true
           })
@@ -609,9 +615,9 @@
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            athleteId: currentAthlete.id,
+            athleteId: athleteId,
             field: 'prove_pagato',
-            value: pendingChanges.prove_pagato
+            value: pendingChanges.prove_pagato || false
           })
         });
         
@@ -621,20 +627,20 @@
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            athleteId: currentAthlete.id,
+            athleteId: athleteId,
             field: 'merch_pagato',
-            value: pendingChanges.merch_pagato
+            value: pendingChanges.merch_pagato || false
           })
         });
         
         // Se contanti e pagato, conferma iscrizione
-        if (currentAthlete.metodo_pagamento === 'contanti' && pendingChanges.iscrizione_pagato) {
+        if (metodoPagamento === 'contanti' && pendingChanges.iscrizione_pagato) {
           await fetch('/api/checkin/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-              athleteId: currentAthlete.id,
+              athleteId: athleteId,
               field: 'iscrizione_pagato',
               value: true
             })
