@@ -209,7 +209,11 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN metodo_pagamento TEXT'); } catch(e) {}
-    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
+    // Migrazioni per check-in
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN checkin_fatto INTEGER DEFAULT 0'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN prove_pagato INTEGER DEFAULT 0'); } catch(e) {}
+    try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN merch_pagato INTEGER DEFAULT 0'); } catch(e) {}
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (`
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       cognome TEXT NOT NULL,
@@ -448,7 +452,11 @@ async function initDb() {
   try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
-  db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
+  // Migrazioni per check-in
+  try { db.run('ALTER TABLE iscritti ADD COLUMN checkin_fatto INTEGER DEFAULT 0'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN prove_pagato INTEGER DEFAULT 0'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN merch_pagato INTEGER DEFAULT 0'); } catch(e) {}
+  db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     cognome TEXT NOT NULL,
@@ -2593,9 +2601,9 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
         disciplines: discipline,
         prove: proveParsed,
         merch: merchParsed,
-        checkin_fatto: false, // Sar� aggiornato al momento del check-in
-        prove_pagato: proveParsed.every(p => p.pagato),
-        merch_pagato: merchParsed.every(m => m.pagato),
+        checkin_fatto: isc.checkin_fatto === 1 || isc.checkin_fatto === true,
+        prove_pagato: isc.prove_pagato === 1 || isc.prove_pagato === true,
+        merch_pagato: isc.merch_pagato === 1 || isc.merch_pagato === true,
         num_discipline: discipline.length,
         num_prove: proveParsed.length,
         num_merch: merchParsed.length
@@ -2623,17 +2631,25 @@ app.post('/api/checkin/update', requireAdmin, async (req, res) => {
     const { athleteId, field, value } = req.body;
     
     if (!athleteId || !field) {
-      return res.status(400).json({ error: ' athleteId e field richiesti' });
+      return res.status(400).json({ error: 'athleteId e field richiesti' });
     }
     
-    // Aggiorna solo i campi specifici
-    if (field === 'checkin_fatto' || field === 'prove_pagato' || field === 'merch_pagato') {
-      // Questi sono campi booleani, non servono aggiornamenti nel DB
-      // Li gestiamo in-memory solo per la sessione
-      res.json({ success: true, field, value });
-    } else {
-      res.status(400).json({ error: 'Campo non aggiornabile' });
+    // Aggiorna solo i campi specifici nel database
+    const allowedFields = ['checkin_fatto', 'prove_pagato', 'merch_pagato'];
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({ error: 'Campo non aggiornabile' });
     }
+    
+    const intValue = value ? 1 : 0;
+    
+    if (usePostgres) {
+      await pgPool.query(`UPDATE iscritti SET ${field} = $1 WHERE id = $2`, [intValue, athleteId]);
+    } else {
+      db.run(`UPDATE iscritti SET ${field} = ? WHERE id = ?`, [intValue, athleteId]);
+      save();
+    }
+    
+    res.json({ success: true, field, value: intValue });
   } catch (err) {
     console.error('Check-in update error:', err);
     res.status(500).json({ error: err.message });
