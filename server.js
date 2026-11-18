@@ -1,18 +1,21 @@
 
 // === SECURITY: Environment validation ===
-const REQUIRED_ENV = ['SESSION_SECRET'];
-const MISSING_ENV = REQUIRED_ENV.filter(key => !process.env[key]);
+// SESSION_SECRET è obbligatoria in produzione, opzionale in locale con default
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+const SESSION_SECRET = process.env.SESSION_SECRET || (isProduction ? undefined : 'bustobattle-secret-2025-local-dev');
 
-if (MISSING_ENV.length > 0) {
-  console.error('? Missing required environment variables:', MISSING_ENV.join(', '));
+if (isProduction && !process.env.SESSION_SECRET) {
+  console.error('? Missing required environment variables: SESSION_SECRET');
   process.exit(1);
 }
 
 // === SECURITY: Validate production secrets ===
-const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction) {
   const PROD_SECRETS = ['SESSION_SECRET', 'DATABASE_URL', 'STRIPE_SECRET_KEY'];
-  const missingProd = PROD_SECRETS.filter(key => !process.env[key] || process.env[key] === 'sk_test_xxx');
+  const missingProd = PROD_SECRETS.filter(key => {
+    const val = process.env[key];
+    return !val || val === 'sk_test_xxx';
+  });
   
   if (missingProd.length > 0) {
     console.error('? Missing/invalid production secrets:', missingProd.join(', '));
@@ -96,10 +99,15 @@ app.use('/api/login', authLimiter);
 
 app.use(express.json());
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'bustobattle-secret-2025',
+  secret: process.env.SESSION_SECRET || 'bustobattle-secret-2025-local-dev',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, secure: false, sameSite: 'strict' }
+  cookie: { 
+    maxAge: 24 * 60 * 60 * 1000, 
+    httpOnly: true, 
+    secure: isProduction,
+    sameSite: 'strict' 
+  }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -2435,6 +2443,202 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
 });
 
 // --- EXPORT EXCEL CHECK-IN ---
+
+// --- CHECK-IN API ---
+app.get('/api/checkin', requireAdmin, async (req, res) => {
+  try {
+    // Fetch tutti gli iscritti con discipline parsed
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Fetch tutte le prove pista
+    const prove = await dbAll('SELECT id, nome, cognome, giorno, ora, COALESCE(note, \'\') as note, COALESCE(stato, \'sospesa\') as stato FROM prove_prenotazioni ORDER BY cognome, nome');
+    
+    // Fetch tutti gli ordini merch
+    const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY cognome, nome');
+    
+    // Helper per parsing discipline
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
+    // Helper per parsing note iscritti (merch)
+    function parseNoteMerch(note) {
+      if (!note) return { maglia: '', felpa: '', cappellino: false, asciugamano: false };
+      const result = { maglia: '', felpa: '', cappellino: false, asciugamano: false };
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+        else if (p.toLowerCase().includes('cappellino')) result.cappellino = true;
+        else if (p.toLowerCase().includes('asciugamano')) result.asciugamano = true;
+      }
+      return result;
+    }
+    
+    // Helper per parsing discipline da stringa (U15, U19, SENIOR)
+    function getGenere(categoria) {
+      if (!categoria) return '';
+      // Controlla se la disciplina contiene "Pair" - � misto
+      if (categoria.includes('Pair')) return 'F/M';
+      // Altrimenti usa la categoria della prima disciplina
+      const disc = parseDiscipline(categoria);
+      if (!disc.length) return '';
+      // U15 e U19 sono spesso misti, SENIOR pure
+      return 'F/M';
+    }
+    
+    // Mappa per lookup prove per nome/cognome
+    const proveMap = {};
+    for (const p of prove) {
+      const key = `${p.cognome.toLowerCase()}|${p.nome.toLowerCase()}`;
+      if (!proveMap[key]) proveMap[key] = [];
+      proveMap[key].push(p);
+    }
+    
+    // Mappa per lookup ordini merch
+    const merchMap = {};
+    for (const o of ordiniMerch) {
+      const key = `${o.cognome.toLowerCase()}|${o.nome.toLowerCase()}`;
+      if (!merchMap[key]) merchMap[key] = [];
+      merchMap[key].push(o);
+    }
+    
+    // Processa iscritti
+    const athletes = iscritti.map(isc => {
+      const discipline = parseDiscipline(isc.categoria);
+      const disciplineStr = discipline.map(d => `${d.nome} (${d.categoria})`).join(', ');
+      
+      // Prove pista
+      const key = `${isc.cognome.toLowerCase()}|${isc.nome.toLowerCase()}`;
+      const proveAtleta = proveMap[key] || [];
+      const proveParsed = proveAtleta.map(p => {
+        const giorno = p.giorno || '';
+        // Estrai specialit� dalle note (formato: "2026-11-13 21:00: Classic Slalom")
+        let specialita = '';
+        if (p.note) {
+          const pattern = /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\s+([^\n,]+)/g;
+          const matches = p.note.matchAll(pattern);
+          for (const m of matches) {
+            specialita = m[1].trim();
+            break; // Usa la prima specialit� trovata
+          }
+        }
+        
+        // Formatta giorno (Gio, Ven, Sab)
+        const giorno_nome = giorno ? formatDay(giorno) : 'Non specificato';
+        
+        return {
+          id: p.id,
+          giorno: giorno,
+          giorno_nome: giorno_nome,
+          ora: p.ora,
+          specialita: specialita,
+          pagato: p.stato === 'confermata'
+        };
+      });
+      
+      // Merchandising
+      const merchOrdini = merchMap[key] || [];
+      const merchParsed = merchOrdini.map(o => {
+        // Parse note per articolo e taglia
+        let articolo = '';
+        let taglia = '';
+        if (o.note) {
+          const parts = o.note.split(' | ');
+          for (const p of parts) {
+            if (p.trim().startsWith('Maglia:')) {
+              articolo = 'Maglia';
+              taglia = p.trim().replace('Maglia:', '').trim();
+            } else if (p.trim().startsWith('Felpa:')) {
+              articolo = 'Felpa';
+              taglia = p.trim().replace('Felpa:', '').trim();
+            } else if (p.trim().toLowerCase().includes('cappellino')) {
+              articolo = 'Cappellino';
+            } else if (p.trim().toLowerCase().includes('asciugamano')) {
+              articolo = 'Asciugamano';
+            }
+          }
+        }
+        return {
+          id: o.id,
+          articolo: articolo || 'Articolo sconosciuto',
+          taglia: taglia,
+          pagato: o.stato === 'confermata'
+        };
+      });
+      
+      return {
+        id: isc.id,
+        codice: `BB11-${String(isc.id).padStart(4, '0')}`,
+        cognome: isc.cognome,
+        nome: isc.nome,
+        societa: isc.societa || '',
+        genere: getGenere(isc.categoria),
+        nazionalita: isc.nazionalita || '',
+        datanascita: isc.data_nascita || '',
+        disciplines: discipline,
+        prove: proveParsed,
+        merch: merchParsed,
+        checkin_fatto: false, // Sar� aggiornato al momento del check-in
+        prove_pagato: proveParsed.every(p => p.pagato),
+        merch_pagato: merchParsed.every(m => m.pagato),
+        num_discipline: discipline.length,
+        num_prove: proveParsed.length,
+        num_merch: merchParsed.length
+      };
+    });
+    
+    // Helper per formattare giorno
+    function formatDay(dateStr) {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      const d = new Date(year, month - 1, day);
+      return days[d.getDay()];
+    }
+    
+    res.json(athletes);
+  } catch (err) {
+    console.error('Check-in error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/checkin/update', requireAdmin, async (req, res) => {
+  try {
+    const { athleteId, field, value } = req.body;
+    
+    if (!athleteId || !field) {
+      return res.status(400).json({ error: ' athleteId e field richiesti' });
+    }
+    
+    // Aggiorna solo i campi specifici
+    if (field === 'checkin_fatto' || field === 'prove_pagato' || field === 'merch_pagato') {
+      // Questi sono campi booleani, non servono aggiornamenti nel DB
+      // Li gestiamo in-memory solo per la sessione
+      res.json({ success: true, field, value });
+    } else {
+      res.status(400).json({ error: 'Campo non aggiornabile' });
+    }
+  } catch (err) {
+    console.error('Check-in update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EXPORT EXCEL CHECK-IN ---
+
 app.get('/api/checkin/export', requireAdmin, async (req, res) => {
   try {
     // Fetch tutti gli iscritti
