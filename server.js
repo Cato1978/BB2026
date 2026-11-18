@@ -213,7 +213,7 @@ async function initDb() {
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN checkin_fatto INTEGER DEFAULT 0'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN prove_pagato INTEGER DEFAULT 0'); } catch(e) {}
     try { await pgPool.query('ALTER TABLE iscritti ADD COLUMN merch_pagato INTEGER DEFAULT 0'); } catch(e) {}
-    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (`
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       cognome TEXT NOT NULL,
@@ -456,7 +456,7 @@ async function initDb() {
   try { db.run('ALTER TABLE iscritti ADD COLUMN checkin_fatto INTEGER DEFAULT 0'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN prove_pagato INTEGER DEFAULT 0'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN merch_pagato INTEGER DEFAULT 0'); } catch(e) {}
-  db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (`
+  db.run(`CREATE TABLE IF NOT EXISTS navetta_prenotazioni (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     cognome TEXT NOT NULL,
