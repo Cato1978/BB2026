@@ -49,7 +49,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
@@ -58,7 +58,7 @@ app.use(helmet({
       frameSrc: ["'none'"],
     },
   },
-  crossOriginEmbedderPolicy: true,
+  crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: { policy: 'same-origin' },
   crossOriginResourcePolicy: { policy: 'same-origin' },
   dnsPrefetchControl: { allow: false },
