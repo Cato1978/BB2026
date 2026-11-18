@@ -109,7 +109,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000, 
     httpOnly: true, 
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'strict'
+    sameSite: 'lax'
   }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
