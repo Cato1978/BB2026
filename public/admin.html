@@ -30,7 +30,8 @@
 
   <main>
     <div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.5rem">
-      <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn active">📋 Iscritti</button>
+      <button onclick="showTab('export')" id="tab-export" class="tab-btn active">📥 Export</button>
+      <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn">📋 Iscritti</button>
       <!-- <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button> -->
       <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">Prove Pista</button>
       <button onclick="showTab('bilancio')" id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
@@ -47,8 +48,6 @@
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
       <button onclick="apriModalNuovo()" style="margin-left:auto;background:#22c55e;border:none;padding:0.5rem 1rem;cursor:pointer">➕ Nuovo Iscritto</button>
-      <button onclick="exportExcel()" style="background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Excel</button>
-      <button onclick="exportPDF()" style="background:#dc2626;border:none;padding:0.5rem 1rem;cursor:pointer">📄 PDF</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -87,6 +86,48 @@
       <tbody></tbody>
     </table>
     </div>
+
+  <div id="section-export" style="display:none">
+    <h3>📥 Export Dati</h3>
+    <p style="color:#888;margin-bottom:1.5rem">Esporta dati in formati Excel e PDF per l'organizzazione dell'evento.</p>
+    
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem">
+      
+      <!-- Export Excel Iscritti Completo -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📊 Excel Iscritti Completo</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel con fogli separati per disciplina/categoria/genere.
+        </p>
+        <button onclick="exportExcel()" style="width:100%;padding:0.8rem;background:#217346;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          📥 Scarica Excel
+        </button>
+      </div>
+      
+      <!-- Export PDF Iscritti -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📄 PDF Elenco Iscritti</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          PDF stampabile con tutti gli atleti in ordine alfabetico.
+        </p>
+        <button onclick="exportPDF()" style="width:100%;padding:0.8rem;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          📄 Scarica PDF
+        </button>
+      </div>
+      
+      <!-- Export Excel Check-in -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">🧾 Excel Check-in</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel per il check-in: nome/cognome, discipline, prove pista e merchandising prenotati.
+        </p>
+        <button onclick="exportCheckIn()" style="width:100%;padding:0.8rem;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          🧾 Scarica Excel Check-in
+        </button>
+      </div>
+      
+    </div>
+  </div>
 
   <div id="section-navetta" style="display:none">
     <h3>🚐 Gestione Slot Navetta</h3>
@@ -146,7 +187,6 @@
       <span>Prenotazioni: <strong id="prove-totale-pren">0</strong></span>
       <span>Sessioni totali: <strong id="prove-totale-sess">0</strong></span>
       <span>Incasso: <strong id="prove-totale-euro">€0</strong></span>
-      <button onclick="exportProveExcel()" style="margin-left:auto;background:#217346;border:none;padding:0.5rem 1rem;cursor:pointer">📥 Esporta Excel</button>
     </div>
     <div class="form-row" style="margin-bottom:1rem">
       <select id="filter-prove-stato">
@@ -217,7 +257,6 @@
     <p style="color:#888;margin-bottom:1rem">Gestione ordini merchandising. <a href="/merch.html" target="_blank" style="color:#F7AF40">Apri pagina ordini →</a></p>
     
     <button onclick="caricaMerch()" style="margin-bottom:1rem">🔄 Aggiorna</button>
-    <button onclick="exportMerchExcel()" style="margin-bottom:1rem;background:#217346">📥 Esporta Excel</button>
     <button onclick="mostraGestioneStampati()" style="margin-bottom:1rem;background:#6366F1">🖨️ Gestione Ordini Stampati</button>
     
     <!-- Modal Gestione Ordini Stampati -->
@@ -1166,11 +1205,12 @@
 
     // --- TABS ---
     function showTab(tab) {
-      ['iscritti','navetta','prove','bilancio','merch','risultati','notifiche','simula','pagine'].forEach(t => {
+      ['export','iscritti','navetta','prove','bilancio','merch','risultati','notifiche','simula','pagine'].forEach(t => {
         document.getElementById('section-' + t).style.display = t === tab ? 'block' : 'none';
       });
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
+      if (tab === 'export') { /* export non richiede caricamento dati */ }
       if (tab === 'navetta') caricaNavetta();
       if (tab === 'prove') caricaProve();
       if (tab === 'bilancio') caricaBilancio();
@@ -2598,6 +2638,21 @@
 
     // Carica pagine subito
     setTimeout(caricaPagine, 500);
+    showTab('export');
+    
+    // ========== FUNZIONI EXPORT ==========
+    function exportExcel() {
+      window.location.href = '/api/iscritti/export';
+    }
+    
+    function exportPDF() {
+      window.location.href = '/api/iscritti/export-pdf';
+    }
+    
+    // Export Excel Check-in: nome/cognome, discipline, prove pista, merchandising
+    function exportCheckIn() {
+      window.location.href = '/api/checkin/export';
+    }
   </script>
   </main>
 </body>

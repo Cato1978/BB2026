@@ -2328,6 +2328,153 @@ app.get('/api/iscritti/export-pdf', requireAdmin, async (req, res) => {
   }
 });
 
+// --- EXPORT EXCEL CHECK-IN ---
+app.get('/api/checkin/export', requireAdmin, async (req, res) => {
+  try {
+    // Fetch tutti gli iscritti
+    const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
+    
+    // Fetch tutte le prove pista
+    const prove = await dbAll('SELECT id, nome, cognome, COALESCE(giorno, \'\') as giorno, COALESCE(ora, \'\') as ora, COALESCE(note, \'\') as note FROM prove_prenotazioni ORDER BY cognome, nome');
+    
+    // Fetch tutti gli ordini merch
+    const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY cognome, nome');
+    
+    // Helper per parsing discipline
+    function parseDiscipline(categoria) {
+      if (!categoria) return [];
+      const disc = [];
+      const matches = categoria.match(/([^,]+\([^)]+\))/g);
+      if (matches) {
+        for (const m of matches) {
+          const match = m.trim().match(/^(.+)\s*\((\w+)\)$/);
+          if (match) {
+            disc.push({ nome: match[1].trim(), categoria: match[2].trim() });
+          }
+        }
+      }
+      return disc;
+    }
+    
+    // Helper per parsing note iscritti (merch)
+    function parseNoteMerch(note) {
+      const result = { maglia: '', felpa: '', cappellino: false, asciugamano: false };
+      if (!note) return result;
+      const parts = note.split(' | ');
+      for (const p of parts) {
+        if (p.startsWith('Maglia:')) result.maglia = p.replace('Maglia:', '').trim();
+        else if (p.startsWith('Felpa:')) result.felpa = p.replace('Felpa:', '').trim();
+        else if (p.toLowerCase().includes('cappellino')) result.cappellino = true;
+        else if (p.toLowerCase().includes('asciugamano')) result.asciugamano = true;
+      }
+      return result;
+    }
+    
+    // Helper per parsing note prove (formato: "2026-11-13 21:00: Classic Slalom")
+    function parseNoteProve(note) {
+      if (!note) return [];
+      // Trova pattern "YYYY-MM-DD HH:MM: disciplina"
+      const pattern = /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\s+([^\n,]+)/g;
+      const matches = note.matchAll(pattern);
+      const proveList = [];
+      for (const m of matches) {
+        proveList.push(m[1].trim());
+      }
+      return proveList;
+    }
+    
+    // Helper per parsing note merch ordini
+    function parseNoteMerchOrdini(note) {
+      if (!note) return '';
+      // Estrai maglia/felpa/etc dal formato "Maglia: M | Felpa: L"
+      const parts = note.split(' | ');
+      const merch = [];
+      for (const p of parts) {
+        if (p.trim().startsWith('Maglia:')) merch.push(p.trim().replace('Maglia:', 'Maglia:').trim());
+        else if (p.trim().startsWith('Felpa:')) merch.push(p.trim().replace('Felpa:', 'Felpa:').trim());
+        else if (p.trim().toLowerCase().includes('cappellino')) merch.push('Cappellino');
+        else if (p.trim().toLowerCase().includes('asciugamano')) merch.push('Asciugamano');
+      }
+      return merch.join(', ');
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Busto Battle XI';
+    workbook.created = new Date();
+    
+    // ========== FOGLIO: CHECK-IN ==========
+    const sheetCheckIn = workbook.addWorksheet('Check-In');
+    sheetCheckIn.columns = [
+      { header: 'N°', key: 'num', width: 5 },
+      { header: 'Cognome', key: 'cognome', width: 18 },
+      { header: 'Nome', key: 'nome', width: 15 },
+      { header: 'Discipline', key: 'discipline', width: 40 },
+      { header: 'Prove Pista', key: 'prove', width: 40 },
+      { header: 'Merchandising', key: 'merch', width: 30 }
+    ];
+    
+    // Stile header
+    sheetCheckIn.getRow(1).font = { bold: true };
+    sheetCheckIn.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7AF40' } };
+    
+    // Itera sugli iscritti
+    iscritti.forEach((isc, idx) => {
+      // Discipline
+      const discipline = parseDiscipline(isc.categoria);
+      const disciplineStr = discipline.map(d => `${d.nome} (${d.categoria})`).join(', ');
+      
+      // Prove pista - cerca prove per nome/cognome
+      const proveAtleta = prove.filter(p => 
+        p.cognome.toLowerCase() === isc.cognome.toLowerCase() && 
+        p.nome.toLowerCase() === isc.nome.toLowerCase()
+      );
+      const proveStr = proveAtleta.map(p => {
+        const giorno = p.giorno || '';
+        const ora = p.ora || '';
+        const proveList = parseNoteProve(p.note);
+        return `${giorno} ${ora}: ${proveList.join(', ')}`;
+      }).join('; ');
+      
+      // Merchandising
+      const merch = parseNoteMerch(isc.note);
+      const merchStr = [];
+      if (merch.maglia) merchStr.push(`Maglia: ${merch.maglia}`);
+      if (merch.felpa) merchStr.push(`Felpa: ${merch.felpa}`);
+      if (merch.cappellino) merchStr.push('Cappellino');
+      if (merch.asciugamano) merchStr.push('Asciugamano');
+      
+      // Aggiungi anche merch dagli ordini separati
+      const merchOrdini = ordiniMerch.filter(o => 
+        o.cognome.toLowerCase() === isc.cognome.toLowerCase() && 
+        o.nome.toLowerCase() === isc.nome.toLowerCase()
+      );
+      if (merchOrdini.length > 0) {
+        const merchDaOrdini = merchOrdini.map(o => parseNoteMerchOrdini(o.note)).join(', ');
+        if (merchDaOrdini) merchStr.push(merchDaOrdini);
+      }
+      
+      sheetCheckIn.addRow({
+        num: idx + 1,
+        cognome: isc.cognome,
+        nome: isc.nome,
+        discipline: disciplineStr,
+        prove: proveStr,
+        merch: merchStr.join(', ')
+      });
+    });
+
+    // Genera file Excel
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=BustoBattle_CheckIn.xlsx');
+    res.send(buffer);
+    
+  } catch (err) {
+    console.error('Check-in export error:', err);
+    res.status(500).json({ error: 'Errore generazione Excel Check-in: ' + err.message });
+  }
+});
+
 // --- AUTH API ---
 app.post('/api/login', async (req, res) => {
   try {

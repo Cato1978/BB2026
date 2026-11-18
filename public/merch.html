@@ -163,6 +163,13 @@
   <main>
     <h2 style="color:#F7AF40;text-align:center" data-t="merchPageTitle">Merchandising Ufficiale</h2>
     <p style="text-align:center;color:#888" data-t="merchPageDesc">Prenota il merchandising ufficiale Busto Battle XI</p>
+    
+    <div style="background:#1a3a1a;border:1px solid #22c55e;border-radius:6px;padding:0.8rem 1.2rem;margin:1rem auto;max-width:600px;text-align:center">
+      <p style="margin:0;color:#22c55e;font-weight:600">
+        <span data-t="merchSoloPrenotazione">✅ Solo prenotazione - Pagamento al ritiro</span>
+      </p>
+      <p style="margin:0.5rem 0 0;color:#ccc;font-size:0.9rem" data-t="merchSoloPrenotazioneDesc">Il merchandising è disponibile esclusivamente con prenotazione anticipata. Pagherai al momento del ritiro durante l'evento.</p>
+    </div>
 
     <div id="msg" style="display:none;padding:1rem;border-radius:6px;margin:1rem 0;text-align:center"></div>
 
@@ -280,14 +287,14 @@
       <h3 data-t="merchMetodoPagamento">Metodo di Pagamento</h3>
       
       <div style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1rem">
-        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a1a1a;border:2px solid #333;border-radius:8px;cursor:pointer;transition:border-color 0.2s">
-          <input type="radio" name="metodoPagamento" value="online" style="width:20px;height:20px;accent-color:#F7AF40">
+        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a1a1a;border:2px solid #F7AF40;border-radius:8px;cursor:pointer;transition:border-color 0.2s;opacity:0.6" title="Il pagamento online è disabilitato per il momento">
+          <input type="radio" name="metodoPagamento" value="online" disabled style="width:20px;height:20px;accent-color:#F7AF40;opacity:0.5">
           <div>
-            <span style="font-weight:bold;color:#F7AF40" data-t="merchPagaOnline">💳 Paga Online</span>
-            <p style="margin:0.3rem 0 0;font-size:0.85rem;color:#888" data-t="merchPagaOnlineDesc">Paga subito con carta di credito/debito</p>
+            <span style="font-weight:bold;color:#888" data-t="merchPagaOnline">💳 Paga Online</span>
+            <p style="margin:0.3rem 0 0;font-size:0.85rem;color:#666" data-t="merchPagaOnlineDesc">Disabilitato - paga al ritiro</p>
           </div>
         </label>
-        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a1a1a;border:2px solid #333;border-radius:8px;cursor:pointer;transition:border-color 0.2s">
+        <label style="display:flex;align-items:center;gap:0.8rem;padding:1rem;background:#1a3a1a;border:2px solid #22c55e;border-radius:8px;cursor:pointer;transition:border-color 0.2s">
           <input type="radio" name="metodoPagamento" value="prenotazione" checked style="width:20px;height:20px;accent-color:#F7AF40">
           <div>
             <span style="font-weight:bold;color:#22c55e" data-t="merchPrenotaSulPosto">📦 Prenota e paga sul posto</span>
@@ -429,64 +436,26 @@
       btnConferma.textContent = 'Invio in corso...';
 
       try {
-        if (metodoPagamento === 'online') {
-          // Pagamento online con Stripe
-          const res = await fetch('/api/merch/ordina', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, cognome, email, telefono, items, note, metodo: 'carta' })
-          });
-          const data = await res.json();
+        // Prenotazione senza pagamento (pagamento sul posto) - pagamento online disabilitato
+        const res = await fetch('/api/merch/prenota', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cognome, email, telefono, items, note })
+        });
+        const data = await res.json();
 
-          if (data.codice) {
-            // Calcola totale per checkout
-            let totale = 0;
-            for (const item of items) {
-              totale += PREZZI[item.articolo.toLowerCase()] * item.quantita;
-            }
-            
-            // Avvia checkout Stripe
-            const checkoutRes = await fetch('/api/merch/create-checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ codice: data.codice, totale })
-            });
-            const checkoutData = await checkoutRes.json();
-            
-            if (checkoutData.url) {
-              window.location.href = checkoutData.url;
-            } else {
-              showMsg('Errore pagamento: ' + (checkoutData.error || 'Sconosciuto'), true);
-              btnConferma.disabled = false;
-              btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
-            }
-          } else {
-            showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
-            btnConferma.disabled = false;
-            btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
-          }
+        if (data.codice) {
+          // Mostra conferma prenotazione
+          document.getElementById('codice-ordine').textContent = data.codice;
+          document.getElementById('conferma').style.display = 'block';
+          document.querySelector('.merch-grid').style.display = 'none';
+          document.querySelector('.totale-box').style.display = 'none';
+          document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
+          document.getElementById('msg').style.display = 'none';
         } else {
-          // Prenotazione senza pagamento (pagamento sul posto)
-          const res = await fetch('/api/merch/prenota', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, cognome, email, telefono, items, note })
-          });
-          const data = await res.json();
-
-          if (data.codice) {
-            // Mostra conferma prenotazione
-            document.getElementById('codice-ordine').textContent = data.codice;
-            document.getElementById('conferma').style.display = 'block';
-            document.querySelector('.merch-grid').style.display = 'none';
-            document.querySelector('.totale-box').style.display = 'none';
-            document.querySelectorAll('.form-section').forEach(el => el.style.display = 'none');
-            document.getElementById('msg').style.display = 'none';
-          } else {
-            showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
-            btnConferma.disabled = false;
-            btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
-          }
+          showMsg('Errore: ' + (data.error || 'Sconosciuto'), true);
+          btnConferma.disabled = false;
+          btnConferma.textContent = T[getLang()].merchConferma || 'Conferma Ordine';
         }
       } catch (err) {
         showMsg('Errore di rete: ' + err.message, true);
