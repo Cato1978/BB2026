@@ -1,4 +1,30 @@
+
+// === SECURITY: Environment validation ===
+const REQUIRED_ENV = ['SESSION_SECRET'];
+const MISSING_ENV = REQUIRED_ENV.filter(key => !process.env[key]);
+
+if (MISSING_ENV.length > 0) {
+  console.error('? Missing required environment variables:', MISSING_ENV.join(', '));
+  process.exit(1);
+}
+
+// === SECURITY: Validate production secrets ===
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction) {
+  const PROD_SECRETS = ['SESSION_SECRET', 'DATABASE_URL', 'STRIPE_SECRET_KEY'];
+  const missingProd = PROD_SECRETS.filter(key => !process.env[key] || process.env[key] === 'sk_test_xxx');
+  
+  if (missingProd.length > 0) {
+    console.error('? Missing/invalid production secrets:', missingProd.join(', '));
+    process.exit(1);
+  }
+}
+
+console.log('[Security] Environment validation passed');
+
 const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
@@ -10,6 +36,72 @@ const session = require('express-session');
 const Stripe = require('stripe');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const hpp = require('hpp');
+
+const app = express();
+
+// === SECURITY: Helmet middleware per HTTP security headers ===
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: 'deny' },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  ieNoOpen: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xssFilter: true,
+}));
+
+// === SECURITY: Rate limiting per prevenire attacchi brute force ===
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Troppi tentativi. Riprova tra 15 minuti.',
+      retryAfter: Math.ceil(req.rateLimit.resetTime / 1000),
+    });
+  },
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/login', authLimiter);
+
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'bustobattle-secret-2025',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, secure: false, sameSite: 'strict' }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Memory optimization: force garbage collection periodically
 if (global.gc) {
@@ -18,18 +110,13 @@ if (global.gc) {
   }, 60000); // Every minute
 }
 
+// === SECURITY: Limita dimensione body per prevenire DoS ===
+app.use(hpp());
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
 // Stripe config - imposta la chiave segreta nelle variabili d'ambiente
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_xxx');
-
-const app = express();
-app.use(express.json());
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'bustobattle-secret-2025',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
-}));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Upload config
 const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
@@ -40,6 +127,25 @@ const upload = multer({
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'))
   }),
   fileFilter: (req, file, cb) => cb(null, file.mimetype === 'application/pdf')
+});
+
+// === SECURITY: Path traversal protection middleware ===
+app.use((req, res, next) => {
+  // Prevent path traversal in query params
+  for (const [key, value] of Object.entries(req.query)) {
+    if (value && (value.includes('..') || value.includes('\0'))) {
+      return res.status(400).json({ error: 'Invalid parameter: path traversal detected' });
+    }
+  }
+  // Prevent path traversal in body
+  if (req.body && typeof req.body === 'object') {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (value && (typeof value === 'string') && (value.includes('..') || value.includes('\0'))) {
+        return res.status(400).json({ error: 'Invalid parameter: path traversal detected' });
+      }
+    }
+  }
+  next();
 });
 
 // Web Push config - genera le tue chiavi con: npx web-push generate-vapid-keys
@@ -292,7 +398,7 @@ async function initDb() {
     // Seed admin user
     const admins = await pgPool.query('SELECT * FROM users WHERE username=$1', ['admin']);
     if (admins.rows.length === 0) {
-      const hash = bcrypt.hashSync('admin123', 10);
+      const hash = bcrypt.hashSync('admin123', 12);
       await pgPool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hash, 'admin']);
     }
     
@@ -508,7 +614,7 @@ async function initDb() {
   }
   const admins = all('SELECT * FROM users WHERE username=?', ['admin']);
   if (!admins.length) {
-    const hash = bcrypt.hashSync('admin123', 10);
+    const hash = bcrypt.hashSync('admin123', 12);
     db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hash, 'admin']);
   }
   // Seed utenti demo se tabella iscritti è vuota
