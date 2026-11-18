@@ -2464,8 +2464,16 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
     // Fetch tutte le prove pista
     const prove = await dbAll('SELECT id, nome, cognome, giorno, ora, COALESCE(note, \'\') as note, COALESCE(stato, \'sospesa\') as stato FROM prove_prenotazioni ORDER BY cognome, nome');
     
-    // Fetch tutti gli ordini merch
+    // Fetch tutti gli ordini merch con items
     const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY cognome, nome');
+    const merchItems = await dbAll('SELECT * FROM merch_items');
+    
+    // Mappa items per ordine_id
+    const itemsMap = {};
+    for (const item of merchItems) {
+      if (!itemsMap[item.ordine_id]) itemsMap[item.ordine_id] = [];
+      itemsMap[item.ordine_id].push(item);
+    }
     
     // Helper per parsing discipline
     function parseDiscipline(categoria) {
@@ -2561,33 +2569,50 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
       
       // Merchandising
       const merchOrdini = merchMap[key] || [];
-      const merchParsed = merchOrdini.map(o => {
-        // Parse note per articolo e taglia
-        let articolo = '';
-        let taglia = '';
-        if (o.note) {
-          const parts = o.note.split(' | ');
-          for (const p of parts) {
-            if (p.trim().startsWith('Maglia:')) {
-              articolo = 'Maglia';
-              taglia = p.trim().replace('Maglia:', '').trim();
-            } else if (p.trim().startsWith('Felpa:')) {
-              articolo = 'Felpa';
-              taglia = p.trim().replace('Felpa:', '').trim();
-            } else if (p.trim().toLowerCase().includes('cappellino')) {
-              articolo = 'Cappellino';
-            } else if (p.trim().toLowerCase().includes('asciugamano')) {
-              articolo = 'Asciugamano';
+      const merchParsed = [];
+      
+      for (const o of merchOrdini) {
+        // Prima prova a usare merch_items
+        const items = itemsMap[o.id] || [];
+        if (items.length > 0) {
+          for (const item of items) {
+            merchParsed.push({
+              id: item.id,
+              articolo: item.articolo,
+              taglia: item.taglia || '',
+              pagato: o.stato === 'confermata'
+            });
+          }
+        } else {
+          // Fallback: parse dalle note
+          let articolo = '';
+          let taglia = '';
+          if (o.note) {
+            const parts = o.note.split(' | ');
+            for (const p of parts) {
+              if (p.trim().startsWith('Maglia:')) {
+                articolo = 'Maglia';
+                taglia = p.trim().replace('Maglia:', '').trim();
+              } else if (p.trim().startsWith('Felpa:')) {
+                articolo = 'Felpa';
+                taglia = p.trim().replace('Felpa:', '').trim();
+              } else if (p.trim().toLowerCase().includes('cappellino')) {
+                articolo = 'Cappellino';
+              } else if (p.trim().toLowerCase().includes('asciugamano')) {
+                articolo = 'Asciugamano';
+              }
             }
           }
+          if (articolo) {
+            merchParsed.push({
+              id: o.id,
+              articolo: articolo,
+              taglia: taglia,
+              pagato: o.stato === 'confermata'
+            });
+          }
         }
-        return {
-          id: o.id,
-          articolo: articolo || 'Articolo sconosciuto',
-          taglia: taglia,
-          pagato: o.stato === 'confermata'
-        };
-      });
+      }
       
       // Calcola totale iscrizione (basato su numero discipline)
       const totaleIscrizione = discipline.length * 10; // €10 per disciplina (esempio)
