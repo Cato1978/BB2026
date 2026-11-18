@@ -464,10 +464,27 @@
     let athletes = [];
     let currentAthleteId = null;
     
+    // Verifica autenticazione admin
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/session', { credentials: 'include' });
+        const data = await res.json();
+        if (!data.isAdmin) {
+          window.location.href = '/login.html';
+        }
+      } catch (err) {
+        window.location.href = '/login.html';
+      }
+    }
+    
     // Carica tutti gli atleti
     async function loadAthletes() {
       try {
-        const res = await fetch('/api/checkin');
+        const res = await fetch('/api/checkin', { credentials: 'include' });
+        if (res.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
         const data = await res.json();
         athletes = data;
         
@@ -644,6 +661,7 @@
         await fetch('/api/checkin/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             athleteId,
             field: 'prove_pagato',
@@ -669,6 +687,7 @@
         await fetch('/api/checkin/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             athleteId,
             field: 'merch_pagato',
@@ -690,6 +709,7 @@
         const res = await fetch('/api/checkin/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             athleteId: currentAthleteId,
             field: 'checkin_fatto',
@@ -697,10 +717,18 @@
           })
         });
         
+        if (res.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
         if (res.ok) {
           closeModal();
-          loadAthletes();
-          alert('✅ Check-in salvato!');
+          await loadAthletes();
+          alert('✅ Check-in completato!');
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
         }
       } catch (err) {
         console.error('Errore salvataggio:', err);
@@ -719,8 +747,8 @@
       if (e.target.id === 'athlete-modal') closeModal();
     });
     
-    // Carica all'avvio
-    loadAthletes();
+    // Carica all'avvio (dopo verifica auth)
+    checkAuth().then(() => loadAthletes());
     
     // Cerca con invio
     document.getElementById('search').addEventListener('keypress', (e) => {
