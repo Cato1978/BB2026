@@ -372,14 +372,31 @@
     
     function renderTable(list) {
       const tbody = document.getElementById('athletes-body');
-      tbody.innerHTML = list.map(a => `
+      tbody.innerHTML = list.map(a => {
+        // Stato prove
+        let proveStatus = '';
+        if (a.num_prove > 0) {
+          proveStatus = a.prove_pagato 
+            ? '<span class="badge badge-ok">✓</span>' 
+            : '<span class="badge badge-no">€</span>';
+        }
+        
+        // Stato merch
+        let merchStatus = '';
+        if (a.num_merch > 0) {
+          merchStatus = a.merch_pagato 
+            ? '<span class="badge badge-ok">✓</span>' 
+            : '<span class="badge badge-no">€</span>';
+        }
+        
+        return `
         <tr>
           <td><code>${a.codice}</code></td>
           <td>${a.cognome}</td>
           <td>${a.nome}</td>
           <td>${a.num_discipline}</td>
-          <td>${a.num_prove}</td>
-          <td>${a.num_merch}</td>
+          <td>${a.num_prove} ${proveStatus}</td>
+          <td>${a.num_merch} ${merchStatus}</td>
           <td>
             ${a.checkin_fatto 
               ? '<span class="badge badge-ok">✓ Fatto</span>' 
@@ -387,7 +404,7 @@
           </td>
           <td><button class="btn-open" data-id="${a.id}">Apri</button></td>
         </tr>
-      `).join('');
+      `}).join('');
       
       // Aggiungi event listeners ai pulsanti
       tbody.querySelectorAll('.btn-open').forEach(btn => {
