@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Generate Documentation PDFs",
+  "description": "Generate documentation PDFs: technical report and user/admin guide",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ""
+  }
+}
