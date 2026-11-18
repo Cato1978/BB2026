@@ -247,8 +247,8 @@
     </div>
     
     <div class="search-box">
-      <input type="text" id="search" placeholder="Cerca per nome, cognome o codice..." onkeypress="if(event.key==='Enter')searchAthletes()">
-      <button onclick="searchAthletes()">🔍 Cerca</button>
+      <input type="text" id="search" placeholder="Cerca per nome, cognome o codice...">
+      <button id="btn-search">🔍 Cerca</button>
     </div>
     
     <div class="stats-bar">
@@ -279,7 +279,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <h2 id="modal-title">Scheda Atleta</h2>
-        <button class="modal-close" onclick="closeModal()">×</button>
+        <button class="modal-close" id="btn-modal-close">×</button>
       </div>
       <div class="modal-body">
         <!-- Info Atleta -->
@@ -304,7 +304,7 @@
               <div class="label">Quota iscrizione</div>
               <div class="price" id="iscrizione-prezzo">€0</div>
               <div class="status">
-                <button class="btn-pay" id="btn-iscrizione" onclick="toggleIscrizione()">Da pagare</button>
+                <button class="btn-pay" id="btn-iscrizione">Da pagare</button>
               </div>
             </div>
           </div>
@@ -329,8 +329,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal()">Annulla</button>
-        <button class="btn-save" onclick="saveAndClose()">✅ Chiudi Check-in</button>
+        <button class="btn-cancel" id="btn-annulla">Annulla</button>
+        <button class="btn-save" id="btn-chiudi-checkin">✅ Chiudi Check-in</button>
       </div>
     </div>
   </div>
@@ -459,13 +459,19 @@
             <div class="label">${p.giorno_nome} ${p.ora} - ${p.specialita || 'Prova'}</div>
             <div class="price">€${PREZZI.prova}</div>
             <div class="status">
-              <button class="btn-pay ${p.pagato ? 'paid' : 'unpaid'}" 
-                      onclick="toggleProva(${i})" id="btn-prova-${i}">
+              <button class="btn-pay btn-prova ${p.pagato ? 'paid' : 'unpaid'}" data-idx="${i}">
                 ${p.pagato ? '✓ Pagato' : 'Da pagare'}
               </button>
             </div>
           </div>
         `).join('');
+        
+        // Event listeners per prove
+        proveDiv.querySelectorAll('.btn-prova').forEach(btn => {
+          btn.addEventListener('click', function() {
+            toggleProva(parseInt(this.dataset.idx), this);
+          });
+        });
       }
       
       // Merchandising
@@ -482,13 +488,19 @@
             <div class="label">${m.articolo}${m.taglia ? ' - ' + m.taglia : ''}</div>
             <div class="price">€${prezzo}</div>
             <div class="status">
-              <button class="btn-pay ${m.pagato ? 'paid' : 'unpaid'}" 
-                      onclick="toggleMerch(${i})" id="btn-merch-${i}">
+              <button class="btn-pay btn-merch ${m.pagato ? 'paid' : 'unpaid'}" data-idx="${i}">
                 ${m.pagato ? '✓ Pagato' : 'Da pagare'}
               </button>
             </div>
           </div>
         `}).join('');
+        
+        // Event listeners per merch
+        merchDiv.querySelectorAll('.btn-merch').forEach(btn => {
+          btn.addEventListener('click', function() {
+            toggleMerch(parseInt(this.dataset.idx), this);
+          });
+        });
       }
       
       updateTotal();
@@ -521,28 +533,26 @@
       }
     }
     
-    function toggleProva(idx) {
+    function toggleProva(idx, btn) {
       currentAthlete.prove[idx].pagato = !currentAthlete.prove[idx].pagato;
-      const btn = document.getElementById('btn-prova-' + idx);
       if (currentAthlete.prove[idx].pagato) {
-        btn.className = 'btn-pay paid';
+        btn.className = 'btn-pay btn-prova paid';
         btn.textContent = '✓ Pagato';
       } else {
-        btn.className = 'btn-pay unpaid';
+        btn.className = 'btn-pay btn-prova unpaid';
         btn.textContent = 'Da pagare';
       }
       pendingChanges.prove_pagato = currentAthlete.prove.every(p => p.pagato);
       updateTotal();
     }
     
-    function toggleMerch(idx) {
+    function toggleMerch(idx, btn) {
       currentAthlete.merch[idx].pagato = !currentAthlete.merch[idx].pagato;
-      const btn = document.getElementById('btn-merch-' + idx);
       if (currentAthlete.merch[idx].pagato) {
-        btn.className = 'btn-pay paid';
+        btn.className = 'btn-pay btn-merch paid';
         btn.textContent = '✓ Pagato';
       } else {
-        btn.className = 'btn-pay unpaid';
+        btn.className = 'btn-pay btn-merch unpaid';
         btn.textContent = 'Da pagare';
       }
       pendingChanges.merch_pagato = currentAthlete.merch.every(m => m.pagato);
@@ -642,6 +652,26 @@
     // Click esterno chiude modal
     document.getElementById('modal').addEventListener('click', (e) => {
       if (e.target.id === 'modal') closeModal();
+    });
+    
+    // Pulsante X chiude modal
+    document.getElementById('btn-modal-close').addEventListener('click', closeModal);
+    
+    // Pulsante Annulla
+    document.getElementById('btn-annulla').addEventListener('click', closeModal);
+    
+    // Pulsante Chiudi Check-in
+    document.getElementById('btn-chiudi-checkin').addEventListener('click', saveAndClose);
+    
+    // Pulsante Iscrizione
+    document.getElementById('btn-iscrizione').addEventListener('click', toggleIscrizione);
+    
+    // Pulsante Cerca
+    document.getElementById('btn-search').addEventListener('click', searchAthletes);
+    
+    // Enter nella ricerca
+    document.getElementById('search').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchAthletes();
     });
     
     // Avvio
