@@ -2589,6 +2589,9 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
         };
       });
       
+      // Calcola totale iscrizione (basato su numero discipline)
+      const totaleIscrizione = discipline.length * 10; // €10 per disciplina (esempio)
+      
       return {
         id: isc.id,
         codice: `BB11-${String(isc.id).padStart(4, '0')}`,
@@ -2598,6 +2601,9 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
         genere: getGenere(isc.categoria),
         nazionalita: isc.nazionalita || '',
         datanascita: isc.data_nascita || '',
+        metodo_pagamento: isc.metodo_pagamento || '',
+        stato: isc.stato || 'sospesa',
+        totale_iscrizione: totaleIscrizione,
         disciplines: discipline,
         prove: proveParsed,
         merch: merchParsed,
@@ -2635,9 +2641,20 @@ app.post('/api/checkin/update', requireAdmin, async (req, res) => {
     }
     
     // Aggiorna solo i campi specifici nel database
-    const allowedFields = ['checkin_fatto', 'prove_pagato', 'merch_pagato'];
+    const allowedFields = ['checkin_fatto', 'prove_pagato', 'merch_pagato', 'iscrizione_pagato'];
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ error: 'Campo non aggiornabile' });
+    }
+    
+    // Campo speciale: iscrizione_pagato aggiorna lo stato a 'confermata'
+    if (field === 'iscrizione_pagato' && value) {
+      if (usePostgres) {
+        await pgPool.query(`UPDATE iscritti SET stato = 'confermata', pagamento = 1 WHERE id = $1`, [athleteId]);
+      } else {
+        db.run(`UPDATE iscritti SET stato = 'confermata', pagamento = 1 WHERE id = ?`, [athleteId]);
+        save();
+      }
+      return res.json({ success: true, field, value: 1 });
     }
     
     const intValue = value ? 1 : 0;

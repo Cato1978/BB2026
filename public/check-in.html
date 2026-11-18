@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Check-in Atleti - Busto Battle XI</title>
   <link rel="icon" type="image/jpeg" href="/LogoBB.jpeg">
-  <link rel="stylesheet" href="style.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -16,455 +15,340 @@
       padding: 1rem;
     }
     .container { max-width: 1400px; margin: 0 auto; }
-    h1 { color: #F7AF40; margin-bottom: 1.5rem; text-align: center; }
+    h1 { color: #F7AF40; margin-bottom: 1rem; text-align: center; font-size: 1.5rem; }
+    
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .top-bar a {
+      background: #333;
+      color: #F7AF40;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    
     .search-box {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
     }
     .search-box input {
       flex: 1;
-      min-width: 250px;
-      padding: 0.8rem 1rem;
+      padding: 0.6rem;
       background: #1a1a1a;
-      border: 2px solid #333;
+      border: 1px solid #333;
       color: #fff;
-      border-radius: 6px;
-      font-size: 1rem;
-    }
-    .search-box input:focus {
-      border-color: #F7AF40;
-      outline: none;
-    }
-    .stats-bar {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-    }
-    .stat-card {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      min-width: 180px;
-    }
-    .stat-card h3 {
-      color: #888;
-      font-size: 0.85rem;
-      margin-bottom: 0.5rem;
-    }
-    .stat-card .value {
-      color: #F7AF40;
-      font-size: 2rem;
-      font-weight: bold;
-    }
-    .athletes-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 1rem;
-    }
-    .athlete-card {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .athlete-card:hover {
-      border-color: #F7AF40;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(247, 175, 64, 0.15);
-    }
-    .athlete-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .athlete-card-header h3 {
-      color: #F7AF40;
-      font-size: 1.2rem;
-    }
-    .athlete-card-header .code {
-      background: #333;
-      color: #888;
-      padding: 0.2rem 0.6rem;
       border-radius: 4px;
-      font-size: 0.8rem;
-      font-family: monospace;
     }
-    .athlete-card-info {
-      margin-bottom: 1rem;
-    }
-    .athlete-discipline {
-      color: #ccc;
-      font-size: 0.85rem;
-      margin: 0.3rem 0;
-    }
-    .athlete-discipline span {
-      color: #F7AF40;
-      font-weight: 500;
-    }
-    .athlete-card-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-    .status-badge {
-      padding: 0.3rem 0.6rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .status-done { background: #1a3a1a; color: #22c55e; border: 1px solid #22c55e; }
-    .status-pending { background: #3a3a1a; color: #f59e0b; border: 1px solid #f59e0b; }
-    .status-none { background: #3a1a1a; color: #ef4444; border: 1px solid #ef4444; }
-    
-    /* Modal Check-in */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-content {
-      background: #1a1a1a;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 800px;
-      max-height: 90vh;
-      overflow-y: auto;
-      border: 2px solid #333;
-    }
-    .modal-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid #333;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .modal-header h2 { color: #F7AF40; margin: 0; font-size: 1.5rem; }
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: #888;
-      font-size: 1.5rem;
-      cursor: pointer;
-      padding: 0.5rem;
-    }
-    .modal-header:hover .close-btn { color: #fff; }
-    .modal-body { padding: 1.5rem; }
-    .athlete-detail-info {
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .athlete-detail-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .athlete-detail-name {
-      font-size: 1.5rem;
-      color: #F7AF40;
-      font-weight: bold;
-    }
-    .athlete-detail-code {
-      background: #333;
-      color: #888;
-      padding: 0.3rem 0.8rem;
-      border-radius: 6px;
-      font-family: monospace;
-    }
-    .detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    .detail-item {
-      background: #0a0a0a;
-      padding: 0.8rem;
-      border-radius: 6px;
-      border: 1px solid #222;
-    }
-    .detail-item label {
-      display: block;
-      color: #888;
-      font-size: 0.75rem;
-      margin-bottom: 0.3rem;
-      text-transform: uppercase;
-    }
-    .detail-item .value {
-      color: #fff;
-      font-size: 0.95rem;
-    }
-    .checkin-section {
-      margin-bottom: 2rem;
-    }
-    .checkin-section h3 {
-      color: #F7AF40;
-      margin-bottom: 1rem;
-      font-size: 1.1rem;
-    }
-    .checkin-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 8px;
-      margin-bottom: 0.8rem;
-    }
-    .checkin-row:last-child { margin-bottom: 0; }
-    .checkin-info {
-      flex: 1;
-    }
-    .checkin-title {
-      color: #fff;
-      font-weight: 600;
-      margin-bottom: 0.3rem;
-    }
-    .checkin-details {
-      color: #888;
-      font-size: 0.85rem;
-    }
-    .checkin-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .check-btn {
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-    .check-btn.checkin { background: #22c55e; color: #000; }
-    .check-btn.checkin:hover { background: #16a34a; }
-    .check-btn.prove { background: #3b82f6; color: #fff; }
-    .check-btn.prove:hover { background: #2563eb; }
-    .check-btn.merch { background: #f59e0b; color: #000; }
-    .check-btn.merch:hover { background: #d97706; }
-    .check-btn.done { background: #1a3a1a; color: #22c55e; border: 2px solid #22c55e; }
-    .totals-card {
-      background: #1a3a1a;
-      border: 2px solid #22c55e;
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin-top: 2rem;
-      text-align: center;
-    }
-    .totals-card h3 {
-      color: #22c55e;
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #2a5a2a;
-    }
-    .total-row:last-child { border-bottom: none; }
-    .total-label { color: #a7f3d0; }
-    .total-value { color: #fff; font-weight: bold; }
-    .grand-total {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 2px solid #22c55e;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .grand-total .total-value {
-      font-size: 1.5rem;
-      color: #F7AF40;
-    }
-    .save-btn {
-      width: 100%;
-      padding: 1rem;
+    .search-box button {
+      padding: 0.6rem 1.5rem;
       background: #F7AF40;
       color: #000;
       border: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: bold;
+      border-radius: 4px;
       cursor: pointer;
-      margin-top: 1.5rem;
+      font-weight: bold;
     }
-    .save-btn:hover { background: #fbbf24; }
-    .proves-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 0.8rem;
+    
+    .stats-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
     }
-    .prove-slot {
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 6px;
-      padding: 0.8rem;
+    .stat { background: #1a1a1a; padding: 0.5rem 1rem; border-radius: 4px; }
+    .stat span { color: #F7AF40; font-weight: bold; }
+    
+    /* Lista atleti - tabella compatta */
+    .athletes-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
     }
-    .prove-slot .prove-time {
+    .athletes-table th, .athletes-table td {
+      padding: 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid #333;
+    }
+    .athletes-table th {
+      background: #222;
       color: #F7AF40;
-      font-weight: 600;
       font-size: 0.85rem;
     }
-    .prove-slot .prove-discipline {
-      color: #888;
+    .athletes-table tr:hover { background: #252525; }
+    .athletes-table .btn-open {
+      background: #F7AF40;
+      color: #000;
+      border: none;
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
       font-size: 0.8rem;
-      margin-top: 0.3rem;
     }
-    .prove-slot .prove-day {
-      color: #6366f1;
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
       font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .badge-ok { background: #166534; color: #22c55e; }
+    .badge-no { background: #7f1d1d; color: #ef4444; }
+    .badge-wait { background: #78350f; color: #f59e0b; }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .modal.active { display: flex; justify-content: center; align-items: flex-start; }
+    .modal-box {
+      background: #1a1a1a;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 700px;
+      margin: 2rem 0;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+      background: #222;
+    }
+    .modal-header h2 { color: #F7AF40; font-size: 1.2rem; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+    }
+    .modal-close:hover { color: #fff; }
+    .modal-body { padding: 1rem; }
+    
+    /* Sezioni scheda */
+    .section {
+      margin-bottom: 1rem;
+      background: #111;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .section-title {
+      background: #222;
+      padding: 0.5rem 0.8rem;
+      font-weight: bold;
+      color: #F7AF40;
+      font-size: 0.9rem;
+    }
+    .section-content { padding: 0.8rem; }
+    
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.5rem;
+    }
+    .info-item label {
+      display: block;
+      color: #666;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+    .info-item span { color: #fff; font-size: 0.9rem; }
+    
+    /* Righe pagamento */
+    .pay-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #222;
+    }
+    .pay-row:last-child { border-bottom: none; }
+    .pay-row .label { flex: 1; }
+    .pay-row .price { color: #F7AF40; margin-right: 1rem; font-weight: bold; }
+    .pay-row .status { min-width: 100px; text-align: right; }
+    
+    .btn-pay {
+      padding: 0.3rem 0.8rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    .btn-pay.unpaid { background: #dc2626; color: #fff; }
+    .btn-pay.paid { background: #16a34a; color: #fff; }
+    
+    /* Totale */
+    .total-box {
+      background: #166534;
+      border: 2px solid #22c55e;
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .total-box .label { color: #a7f3d0; font-size: 0.9rem; }
+    .total-box .amount { color: #fff; font-size: 1.8rem; font-weight: bold; }
+    
+    /* Footer modal */
+    .modal-footer {
+      padding: 1rem;
+      border-top: 1px solid #333;
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+    .btn-save {
+      background: #22c55e;
+      color: #000;
+      border: none;
+      padding: 0.8rem 2rem;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .btn-save:hover { background: #16a34a; }
+    .btn-cancel {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🏁 Check-in Atleti</h1>
+    <div class="top-bar">
+      <a href="/admin.html">← Admin</a>
+      <h1>🏁 Check-in Atleti</h1>
+      <div></div>
+    </div>
     
     <div class="search-box">
-      <input type="text" id="search" placeholder="Cerca atleta per nome, cognome o codice...">
-      <button onclick="searchAthletes()" style="padding:0.8rem 2rem;background:#F7AF40;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
-        🔍 Cerca
-      </button>
+      <input type="text" id="search" placeholder="Cerca per nome, cognome o codice..." onkeypress="if(event.key==='Enter')searchAthletes()">
+      <button onclick="searchAthletes()">🔍 Cerca</button>
     </div>
     
     <div class="stats-bar">
-      <div class="stat-card">
-        <h3>Arrivati</h3>
-        <div class="value" id="total-arrived">0</div>
-      </div>
-      <div class="stat-card">
-        <h3>In attesa</h3>
-        <div class="value" id="total-pending">0</div>
-      </div>
-      <div class="stat-card">
-        <h3>Prove Pagate</h3>
-        <div class="value" id="total-proves-paid">0</div>
-      </div>
-      <div class="stat-card">
-        <h3>Merch Pagato</h3>
-        <div class="value" id="total-merch-paid">0</div>
-      </div>
+      <div class="stat">Totale: <span id="stat-total">0</span></div>
+      <div class="stat">Check-in: <span id="stat-checkin">0</span></div>
+      <div class="stat">In attesa: <span id="stat-pending">0</span></div>
     </div>
     
-    <div id="athletes-list" class="athletes-grid"></div>
+    <table class="athletes-table">
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Cognome</th>
+          <th>Nome</th>
+          <th>Discipline</th>
+          <th>Prove</th>
+          <th>Merch</th>
+          <th>Stato</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="athletes-body"></tbody>
+    </table>
   </div>
   
-  <!-- Modal Check-in -->
-  <div id="athlete-modal" class="modal-overlay">
-    <div class="modal-content">
+  <!-- Modal Scheda Atleta -->
+  <div id="modal" class="modal">
+    <div class="modal-box">
       <div class="modal-header">
-        <h2 id="modal-title">Check-in Atleta</h2>
-        <button class="close-btn" onclick="closeModal()">×</button>
+        <h2 id="modal-title">Scheda Atleta</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
       </div>
       <div class="modal-body">
-        <!-- Info atleta -->
-        <div class="athlete-detail-info">
-          <div class="athlete-detail-header">
-            <span class="athlete-detail-name" id="athlete-name">Atleta</span>
-            <span class="athlete-detail-code" id="athlete-code">BB11-0001</span>
-          </div>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <label>Società</label>
-              <div class="value" id="athlete-societa">-</div>
-            </div>
-            <div class="detail-item">
-              <label>Genere</label>
-              <div class="value" id="athlete-genere">-</div>
-            </div>
-            <div class="detail-item">
-              <label>Nazionalità</label>
-              <div class="value" id="athlete-nazionalita">-</div>
-            </div>
-            <div class="detail-item">
-              <label>Data Nascita</label>
-              <div class="value" id="athlete-datanascita">-</div>
-            </div>
+        <!-- Info Atleta -->
+        <div class="section">
+          <div class="section-title">👤 Dati Atleta</div>
+          <div class="section-content">
+            <div class="info-grid" id="athlete-info"></div>
           </div>
         </div>
         
         <!-- Discipline -->
-        <div class="checkin-section">
-          <h3>🏆 Discipline iscritte</h3>
-          <div id="athlete-disciplines" class="athlete-disciplines"></div>
+        <div class="section">
+          <div class="section-title">🏆 Discipline</div>
+          <div class="section-content" id="athlete-disciplines"></div>
         </div>
         
-        <!-- Prove pista -->
-        <div class="checkin-section">
-          <h3>📅 Prove Pista</h3>
-          <div id="athlete-proves" class="proves-grid"></div>
+        <!-- Iscrizione (se contanti) -->
+        <div class="section" id="section-iscrizione" style="display:none">
+          <div class="section-title">💳 Iscrizione</div>
+          <div class="section-content">
+            <div class="pay-row">
+              <div class="label">Quota iscrizione</div>
+              <div class="price" id="iscrizione-prezzo">€0</div>
+              <div class="status">
+                <button class="btn-pay" id="btn-iscrizione" onclick="toggleIscrizione()">Da pagare</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Prove Pista -->
+        <div class="section" id="section-prove">
+          <div class="section-title">📅 Prove Pista</div>
+          <div class="section-content" id="athlete-prove"></div>
         </div>
         
         <!-- Merchandising -->
-        <div class="checkin-section">
-          <h3>🛍️ Merchandising</h3>
-          <div id="athlete-merch" class="athlete-merch"></div>
+        <div class="section" id="section-merch">
+          <div class="section-title">🛍️ Merchandising</div>
+          <div class="section-content" id="athlete-merch"></div>
         </div>
         
-        <!-- Totale -->
-        <div class="totals-card">
-          <h3>💰 Totale da pagare al check-in</h3>
-          <div class="total-row">
-            <span class="total-label">Prove Pista (€5/slot)</span>
-            <span class="total-value" id="total-proves-cost">€0</span>
-          </div>
-          <div class="total-row">
-            <span class="total-label">Maglie (€15)</span>
-            <span class="total-value" id="total-maglie-cost">€0</span>
-          </div>
-          <div class="total-row">
-            <span class="total-label">Felpa (€35)</span>
-            <span class="total-value" id="total-felpa-cost">€0</span>
-          </div>
-          <div class="total-row">
-            <span class="total-label">Cappellino (€5)</span>
-            <span class="total-value" id="total-cappellino-cost">€0</span>
-          </div>
-          <div class="total-row">
-            <span class="total-label">Asciugamano (€5)</span>
-            <span class="total-value" id="total-asciugamano-cost">€0</span>
-          </div>
-          <div class="grand-total">
-            <span class="total-label">TOTALE:</span>
-            <span class="total-value" id="grand-total">€0</span>
-          </div>
+        <!-- Totale da pagare -->
+        <div class="total-box">
+          <div class="label">TOTALE DA PAGARE</div>
+          <div class="amount" id="total-amount">€0</div>
         </div>
-        
-        <!-- Azioni -->
-        <button class="save-btn" onclick="saveCheckin()">
-          ✅ Chiudi Check-in
-        </button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Annulla</button>
+        <button class="btn-save" onclick="saveAndClose()">✅ Chiudi Check-in</button>
       </div>
     </div>
   </div>
   
-  <script src="translations.js"></script>
-  <script src="page-guard.js"></script>
-  <script src="app.js"></script>
   <script>
     let athletes = [];
-    let currentAthleteId = null;
+    let currentAthlete = null;
+    let pendingChanges = {};
     
-    // Carica tutti gli atleti
+    // Prezzi
+    const PREZZI = {
+      prova: 5,
+      maglia: 15,
+      felpa: 35,
+      cappellino: 5,
+      asciugamano: 5
+    };
+    
     async function loadAthletes() {
       try {
         const res = await fetch('/api/checkin', { credentials: 'include' });
@@ -473,123 +357,103 @@
           window.location.href = '/login.html';
           return;
         }
-        if (!res.ok) {
-          throw new Error('Errore API: ' + res.status);
-        }
-        const data = await res.json();
-        athletes = data;
+        athletes = await res.json();
         
-        // Conta totali
-        const arrived = athletes.filter(a => a.checkin_fatto).length;
-        const pending = athletes.filter(a => !a.checkin_fatto).length;
-        const provesPaid = athletes.filter(a => a.prove_pagato).length;
-        const merchPaid = athletes.filter(a => a.merch_pagato).length;
+        document.getElementById('stat-total').textContent = athletes.length;
+        document.getElementById('stat-checkin').textContent = athletes.filter(a => a.checkin_fatto).length;
+        document.getElementById('stat-pending').textContent = athletes.filter(a => !a.checkin_fatto).length;
         
-        document.getElementById('total-arrived').textContent = arrived;
-        document.getElementById('total-pending').textContent = pending;
-        document.getElementById('total-proves-paid').textContent = provesPaid;
-        document.getElementById('total-merch-paid').textContent = merchPaid;
-        
-        renderAthletes(athletes);
+        renderTable(athletes);
       } catch (err) {
-        console.error('Errore caricamento atleti:', err);
-        alert('Errore caricamento atleti: ' + err.message);
+        console.error(err);
+        alert('Errore caricamento: ' + err.message);
       }
     }
     
-    // Renderizza lista atleti
-    function renderAthletes(filteredList) {
-      const container = document.getElementById('athletes-list');
-      container.innerHTML = '';
-      
-      if (filteredList.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center">Nessun atleta trovato</p>';
-        return;
-      }
-      
-      filteredList.forEach(athlete => {
-        const card = document.createElement('div');
-        card.className = 'athlete-card';
-        card.innerHTML = `
-          <div class="athlete-card-header">
-            <h3>${athlete.cognome} ${athlete.nome}</h3>
-            <span class="code">${athlete.codice}</span>
-          </div>
-          <div class="athlete-card-info">
-            <div class="athlete-discipline">
-              <span>${athlete.num_discipline}</span> discipline
-            </div>
-            <div class="athlete-discipline">
-              <span>${athlete.num_prove}</span> prove pista
-            </div>
-            <div class="athlete-discipline">
-              <span>${athlete.num_merch}</span> articoli merch
-            </div>
-          </div>
-          <div class="athlete-card-actions">
-            <span class="status-badge ${athlete.checkin_fatto ? 'status-done' : 'status-pending'}">
-              ${athlete.checkin_fatto ? '✅ Check-in' : '⏳ In attesa'}
-            </span>
-            <button onclick="openAthlete(${athlete.id})" style="padding:0.5rem 1rem;background:#F7AF40;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold">
-              📋 Apri scheda
-            </button>
-          </div>
-        `;
-        card.onclick = () => openAthlete(athlete.id);
-        container.appendChild(card);
-      });
+    function renderTable(list) {
+      const tbody = document.getElementById('athletes-body');
+      tbody.innerHTML = list.map(a => `
+        <tr>
+          <td><code>${a.codice}</code></td>
+          <td>${a.cognome}</td>
+          <td>${a.nome}</td>
+          <td>${a.num_discipline}</td>
+          <td>${a.num_prove}</td>
+          <td>${a.num_merch}</td>
+          <td>
+            ${a.checkin_fatto 
+              ? '<span class="badge badge-ok">✓ Fatto</span>' 
+              : '<span class="badge badge-wait">In attesa</span>'}
+          </td>
+          <td><button class="btn-open" onclick="openAthlete(${a.id})">Apri</button></td>
+        </tr>
+      `).join('');
     }
     
-    // Cerca atleti
     function searchAthletes() {
-      const search = document.getElementById('search').value.toLowerCase();
+      const q = document.getElementById('search').value.toLowerCase();
       const filtered = athletes.filter(a => 
-        a.cognome.toLowerCase().includes(search) ||
-        a.nome.toLowerCase().includes(search) ||
-        a.codice.toLowerCase().includes(search)
+        a.cognome.toLowerCase().includes(q) ||
+        a.nome.toLowerCase().includes(q) ||
+        a.codice.toLowerCase().includes(q)
       );
-      renderAthletes(filtered);
+      renderTable(filtered);
     }
     
-    // Apri scheda atleta
     function openAthlete(id) {
-      const athlete = athletes.find(a => a.id === id);
-      if (!athlete) return;
+      currentAthlete = athletes.find(a => a.id === id);
+      if (!currentAthlete) return;
       
-      currentAthleteId = id;
+      pendingChanges = {
+        checkin_fatto: currentAthlete.checkin_fatto,
+        prove_pagato: currentAthlete.prove_pagato,
+        merch_pagato: currentAthlete.merch_pagato,
+        iscrizione_pagato: currentAthlete.stato === 'confermata'
+      };
       
-      // Info atleta
-      document.getElementById('athlete-name').textContent = `${athlete.cognome} ${athlete.nome}`;
-      document.getElementById('athlete-code').textContent = athlete.codice;
-      document.getElementById('athlete-societa').textContent = athlete.societa || '-';
-      document.getElementById('athlete-genere').textContent = athlete.genere;
-      document.getElementById('athlete-nazionalita').textContent = athlete.nazionalita || '-';
-      document.getElementById('athlete-datanascita').textContent = athlete.datanascita || '-';
+      // Titolo
+      document.getElementById('modal-title').textContent = 
+        `${currentAthlete.cognome} ${currentAthlete.nome} - ${currentAthlete.codice}`;
+      
+      // Info
+      document.getElementById('athlete-info').innerHTML = `
+        <div class="info-item"><label>Società</label><span>${currentAthlete.societa || '-'}</span></div>
+        <div class="info-item"><label>Nazionalità</label><span>${currentAthlete.nazionalita || '-'}</span></div>
+        <div class="info-item"><label>Data nascita</label><span>${currentAthlete.datanascita || '-'}</span></div>
+        <div class="info-item"><label>Metodo pag.</label><span>${currentAthlete.metodo_pagamento || '-'}</span></div>
+      `;
       
       // Discipline
-      const disciplinesContainer = document.getElementById('athlete-disciplines');
-      disciplinesContainer.innerHTML = athlete.disciplines.map(d => 
-        `<div class="checkin-row">
-          <div class="checkin-info">
-            <div class="checkin-title">${d.nome}</div>
-            <div class="checkin-details">Categoria: ${d.categoria}</div>
-          </div>
-        </div>`
-      ).join('');
+      document.getElementById('athlete-disciplines').innerHTML = currentAthlete.disciplines.length 
+        ? currentAthlete.disciplines.map(d => `<span class="badge badge-ok">${d.nome} (${d.categoria})</span> `).join('')
+        : '<span style="color:#666">Nessuna disciplina</span>';
+      
+      // Sezione Iscrizione (solo se contanti)
+      const isContanti = currentAthlete.metodo_pagamento === 'contanti';
+      const sectionIscr = document.getElementById('section-iscrizione');
+      if (isContanti) {
+        sectionIscr.style.display = 'block';
+        document.getElementById('iscrizione-prezzo').textContent = '€' + (currentAthlete.totale_iscrizione || 0);
+        updateIscrizioneBtn();
+      } else {
+        sectionIscr.style.display = 'none';
+      }
       
       // Prove pista
-      const provesContainer = document.getElementById('athlete-proves');
-      if (athlete.prove.length === 0) {
-        provesContainer.innerHTML = '<p style="color:#888;">Nessuna prova pista prenotata</p>';
+      const proveDiv = document.getElementById('athlete-prove');
+      if (currentAthlete.prove.length === 0) {
+        proveDiv.innerHTML = '<span style="color:#666">Nessuna prova prenotata</span>';
+        document.getElementById('section-prove').style.display = 'none';
       } else {
-        provesContainer.innerHTML = athlete.prove.map(p => `
-          <div class="prove-slot">
-            <div class="prove-day">${p.giorno_nome}</div>
-            <div class="prove-time">${p.ora}</div>
-            <div class="prove-discipline">${p.specialita}</div>
-            <div class="checkin-actions">
-              <button class="check-btn prove" onclick="toggleProve(${athlete.id}, ${p.id}, this)">
-                ${p.pagato ? '✅ Pagato' : '💰 Paga'}
+        document.getElementById('section-prove').style.display = 'block';
+        proveDiv.innerHTML = currentAthlete.prove.map((p, i) => `
+          <div class="pay-row">
+            <div class="label">${p.giorno_nome} ${p.ora} - ${p.specialita || 'Prova'}</div>
+            <div class="price">€${PREZZI.prova}</div>
+            <div class="status">
+              <button class="btn-pay ${p.pagato ? 'paid' : 'unpaid'}" 
+                      onclick="toggleProva(${i})" id="btn-prova-${i}">
+                ${p.pagato ? '✓ Pagato' : 'Da pagare'}
               </button>
             </div>
           </div>
@@ -597,154 +461,183 @@
       }
       
       // Merchandising
-      const merchContainer = document.getElementById('athlete-merch');
-      if (athlete.merch.length === 0) {
-        merchContainer.innerHTML = '<p style="color:#888;">Nessun articolo merch prenotato</p>';
+      const merchDiv = document.getElementById('athlete-merch');
+      if (currentAthlete.merch.length === 0) {
+        merchDiv.innerHTML = '<span style="color:#666">Nessun articolo</span>';
+        document.getElementById('section-merch').style.display = 'none';
       } else {
-        merchContainer.innerHTML = athlete.merch.map(m => `
-          <div class="checkin-row">
-            <div class="checkin-info">
-              <div class="checkin-title">${m.articolo}</div>
-              <div class="checkin-details">${m.taglia ? 'Taglia: ' + m.taglia : ''}</div>
-            </div>
-            <div class="checkin-actions">
-              <button class="check-btn merch" onclick="toggleMerch(${athlete.id}, ${m.id}, this)">
-                ${m.pagato ? '✅ Pagato' : '💰 Paga'}
+        document.getElementById('section-merch').style.display = 'block';
+        merchDiv.innerHTML = currentAthlete.merch.map((m, i) => {
+          const prezzo = getPrezzo(m.articolo);
+          return `
+          <div class="pay-row">
+            <div class="label">${m.articolo}${m.taglia ? ' - ' + m.taglia : ''}</div>
+            <div class="price">€${prezzo}</div>
+            <div class="status">
+              <button class="btn-pay ${m.pagato ? 'paid' : 'unpaid'}" 
+                      onclick="toggleMerch(${i})" id="btn-merch-${i}">
+                ${m.pagato ? '✓ Pagato' : 'Da pagare'}
               </button>
             </div>
           </div>
-        `).join('');
+        `}).join('');
       }
       
-      // Calcola totals
-      calculateTotals(athlete);
-      
-      // Mostra modal
-      document.getElementById('athlete-modal').classList.add('active');
+      updateTotal();
+      document.getElementById('modal').classList.add('active');
     }
     
-    // Calcola totals
-    function calculateTotals(athlete) {
-      const proveCost = athlete.prove.filter(p => !p.pagato).length * 5;
-      const maglieCost = athlete.merch.filter(m => !m.pagato && m.articolo.includes('Maglia')).length * 15;
-      const felpaCost = athlete.merch.filter(m => !m.pagato && m.articolo.includes('Felpa')).length * 35;
-      const cappellinoCost = athlete.merch.filter(m => !m.pagato && m.articolo.includes('Cappellino')).length * 5;
-      const asciugamanoCost = athlete.merch.filter(m => !m.pagato && m.articolo.includes('Asciugamano')).length * 5;
-      
-      const total = proveCost + maglieCost + felpaCost + cappellinoCost + asciugamanoCost;
-      
-      document.getElementById('total-proves-cost').textContent = '€' + proveCost;
-      document.getElementById('total-maglie-cost').textContent = '€' + maglieCost;
-      document.getElementById('total-felpa-cost').textContent = '€' + felpaCost;
-      document.getElementById('total-cappellino-cost').textContent = '€' + cappellinoCost;
-      document.getElementById('total-asciugamano-cost').textContent = '€' + asciugamanoCost;
-      document.getElementById('grand-total').textContent = '€' + total;
+    function getPrezzo(articolo) {
+      const a = articolo.toLowerCase();
+      if (a.includes('felpa')) return PREZZI.felpa;
+      if (a.includes('maglia')) return PREZZI.maglia;
+      if (a.includes('cappellino')) return PREZZI.cappellino;
+      if (a.includes('asciugamano')) return PREZZI.asciugamano;
+      return 0;
     }
     
-    // Toggle prove pagato
-    async function toggleProve(athleteId, proveId, btn) {
-      const isPaid = btn.classList.contains('prove');
-      btn.classList.toggle('prove');
-      btn.classList.toggle('done');
-      btn.textContent = isPaid ? '💰 Paga' : '✅ Pagato';
+    function toggleIscrizione() {
+      pendingChanges.iscrizione_pagato = !pendingChanges.iscrizione_pagato;
+      updateIscrizioneBtn();
+      updateTotal();
+    }
+    
+    function updateIscrizioneBtn() {
+      const btn = document.getElementById('btn-iscrizione');
+      if (pendingChanges.iscrizione_pagato) {
+        btn.className = 'btn-pay paid';
+        btn.textContent = '✓ Pagato';
+      } else {
+        btn.className = 'btn-pay unpaid';
+        btn.textContent = 'Da pagare';
+      }
+    }
+    
+    function toggleProva(idx) {
+      currentAthlete.prove[idx].pagato = !currentAthlete.prove[idx].pagato;
+      const btn = document.getElementById('btn-prova-' + idx);
+      if (currentAthlete.prove[idx].pagato) {
+        btn.className = 'btn-pay paid';
+        btn.textContent = '✓ Pagato';
+      } else {
+        btn.className = 'btn-pay unpaid';
+        btn.textContent = 'Da pagare';
+      }
+      pendingChanges.prove_pagato = currentAthlete.prove.every(p => p.pagato);
+      updateTotal();
+    }
+    
+    function toggleMerch(idx) {
+      currentAthlete.merch[idx].pagato = !currentAthlete.merch[idx].pagato;
+      const btn = document.getElementById('btn-merch-' + idx);
+      if (currentAthlete.merch[idx].pagato) {
+        btn.className = 'btn-pay paid';
+        btn.textContent = '✓ Pagato';
+      } else {
+        btn.className = 'btn-pay unpaid';
+        btn.textContent = 'Da pagare';
+      }
+      pendingChanges.merch_pagato = currentAthlete.merch.every(m => m.pagato);
+      updateTotal();
+    }
+    
+    function updateTotal() {
+      let total = 0;
+      
+      // Iscrizione (solo se contanti e non pagato)
+      const isContanti = currentAthlete.metodo_pagamento === 'contanti';
+      if (isContanti && !pendingChanges.iscrizione_pagato) {
+        total += currentAthlete.totale_iscrizione || 0;
+      }
+      
+      // Prove non pagate
+      currentAthlete.prove.forEach(p => {
+        if (!p.pagato) total += PREZZI.prova;
+      });
+      
+      // Merch non pagato
+      currentAthlete.merch.forEach(m => {
+        if (!m.pagato) total += getPrezzo(m.articolo);
+      });
+      
+      document.getElementById('total-amount').textContent = '€' + total;
+    }
+    
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+      currentAthlete = null;
+      pendingChanges = {};
+    }
+    
+    async function saveAndClose() {
+      if (!currentAthlete) return;
       
       try {
+        // Salva check-in fatto
         await fetch('/api/checkin/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            athleteId,
-            field: 'prove_pagato',
-            value: !isPaid
-          })
-        });
-        // Ricarica atleti
-        await loadAthletes();
-      } catch (err) {
-        console.error('Errore aggiornamento:', err);
-        alert('Errore aggiornamento stato');
-      }
-    }
-    
-    // Toggle merch pagato
-    async function toggleMerch(athleteId, merchId, btn) {
-      const isPaid = btn.classList.contains('merch');
-      btn.classList.toggle('merch');
-      btn.classList.toggle('done');
-      btn.textContent = isPaid ? '💰 Paga' : '✅ Pagato';
-      
-      try {
-        await fetch('/api/checkin/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            athleteId,
-            field: 'merch_pagato',
-            value: !isPaid
-          })
-        });
-        await loadAthletes();
-      } catch (err) {
-        console.error('Errore aggiornamento:', err);
-        alert('Errore aggiornamento stato');
-      }
-    }
-    
-    // Salva check-in
-    async function saveCheckin() {
-      if (!currentAthleteId) return;
-      
-      try {
-        const res = await fetch('/api/checkin/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            athleteId: currentAthleteId,
+            athleteId: currentAthlete.id,
             field: 'checkin_fatto',
             value: true
           })
         });
         
-        if (res.status === 401) {
-          window.location.href = '/login.html';
-          return;
+        // Salva prove pagato
+        await fetch('/api/checkin/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            athleteId: currentAthlete.id,
+            field: 'prove_pagato',
+            value: pendingChanges.prove_pagato
+          })
+        });
+        
+        // Salva merch pagato
+        await fetch('/api/checkin/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            athleteId: currentAthlete.id,
+            field: 'merch_pagato',
+            value: pendingChanges.merch_pagato
+          })
+        });
+        
+        // Se contanti e pagato, conferma iscrizione
+        if (currentAthlete.metodo_pagamento === 'contanti' && pendingChanges.iscrizione_pagato) {
+          await fetch('/api/checkin/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              athleteId: currentAthlete.id,
+              field: 'iscrizione_pagato',
+              value: true
+            })
+          });
         }
         
-        if (res.ok) {
-          closeModal();
-          await loadAthletes();
-          alert('✅ Check-in completato!');
-        } else {
-          const err = await res.json();
-          alert('Errore: ' + (err.error || 'Errore sconosciuto'));
-        }
+        closeModal();
+        await loadAthletes();
       } catch (err) {
-        console.error('Errore salvataggio:', err);
-        alert('Errore salvataggio check-in');
+        console.error(err);
+        alert('Errore salvataggio: ' + err.message);
       }
     }
     
-    // Chiudi modal
-    function closeModal() {
-      document.getElementById('athlete-modal').classList.remove('active');
-      currentAthleteId = null;
-    }
-    
-    // Chiudi modal con click esterno
-    document.getElementById('athlete-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'athlete-modal') closeModal();
+    // Click esterno chiude modal
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') closeModal();
     });
     
-    // Carica all'avvio
+    // Avvio
     loadAthletes();
-    
-    // Cerca con invio
-    document.getElementById('search').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') searchAthletes();
-    });
   </script>
 </body>
 </html>
