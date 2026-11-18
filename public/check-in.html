@@ -467,13 +467,15 @@
     // Verifica autenticazione admin
     async function checkAuth() {
       try {
-        const res = await fetch('/api/session', { credentials: 'include' });
-        const data = await res.json();
-        if (!data.isAdmin) {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (!res.ok) {
           window.location.href = '/login.html';
+          return false;
         }
+        return true;
       } catch (err) {
         window.location.href = '/login.html';
+        return false;
       }
     }
     
