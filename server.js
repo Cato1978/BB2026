@@ -2567,20 +2567,63 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
         };
       });
       
-      // Merchandising
+      // Merchandising dall'iscrizione (nelle note)
+      const merchIscrizione = [];
+      const noteMerch = parseNoteMerch(isc.note);
+      if (noteMerch.maglia) {
+        merchIscrizione.push({
+          id: 'isc-maglia-' + isc.id,
+          articolo: 'Maglia',
+          taglia: noteMerch.maglia,
+          pagato: isc.stato === 'confermata',
+          origine: 'iscrizione'
+        });
+      }
+      if (noteMerch.felpa) {
+        merchIscrizione.push({
+          id: 'isc-felpa-' + isc.id,
+          articolo: 'Felpa',
+          taglia: noteMerch.felpa,
+          pagato: isc.stato === 'confermata',
+          origine: 'iscrizione'
+        });
+      }
+      if (noteMerch.cappellino) {
+        merchIscrizione.push({
+          id: 'isc-cappellino-' + isc.id,
+          articolo: 'Cappellino',
+          taglia: '',
+          pagato: isc.stato === 'confermata',
+          origine: 'iscrizione'
+        });
+      }
+      if (noteMerch.asciugamano) {
+        merchIscrizione.push({
+          id: 'isc-asciugamano-' + isc.id,
+          articolo: 'Asciugamano',
+          taglia: '',
+          pagato: isc.stato === 'confermata',
+          origine: 'iscrizione'
+        });
+      }
+      
+      // Merchandising da ordini separati
       const merchOrdini = merchMap[key] || [];
-      const merchParsed = [];
+      const merchSeparato = [];
       
       for (const o of merchOrdini) {
         // Prima prova a usare merch_items
         const items = itemsMap[o.id] || [];
         if (items.length > 0) {
           for (const item of items) {
-            merchParsed.push({
+            merchSeparato.push({
               id: item.id,
+              ordine_id: o.id,
+              codice_ordine: o.codice,
               articolo: item.articolo,
               taglia: item.taglia || '',
-              pagato: o.stato === 'confermata'
+              pagato: o.stato === 'confermata',
+              origine: 'ordine'
             });
           }
         } else {
@@ -2604,15 +2647,21 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
             }
           }
           if (articolo) {
-            merchParsed.push({
+            merchSeparato.push({
               id: o.id,
+              ordine_id: o.id,
+              codice_ordine: o.codice,
               articolo: articolo,
               taglia: taglia,
-              pagato: o.stato === 'confermata'
+              pagato: o.stato === 'confermata',
+              origine: 'ordine'
             });
           }
         }
       }
+      
+      // Combina tutto il merch
+      const merchParsed = [...merchIscrizione, ...merchSeparato];
       
       // Calcola totale iscrizione (basato su numero discipline)
       const totaleIscrizione = discipline.length * 10; // €10 per disciplina (esempio)
@@ -2694,6 +2743,63 @@ app.post('/api/checkin/update', requireAdmin, async (req, res) => {
     res.json({ success: true, field, value: intValue });
   } catch (err) {
     console.error('Check-in update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- ORDINI MERCH NON ASSOCIATI (per check-in) ---
+app.get('/api/checkin/merch-non-associati', requireAdmin, async (req, res) => {
+  try {
+    // Ordini merch senza iscrizione_codice associato
+    const ordini = await dbAll(`
+      SELECT mo.*, 
+        (SELECT GROUP_CONCAT(mi.articolo || ' ' || COALESCE(mi.taglia, ''), ', ') 
+         FROM merch_items mi WHERE mi.ordine_id = mo.id) as articoli
+      FROM merch_ordini mo 
+      WHERE mo.iscrizione_codice IS NULL OR mo.iscrizione_codice = ''
+      ORDER BY mo.cognome, mo.nome
+    `);
+    res.json(ordini);
+  } catch (err) {
+    console.error('Merch non associati error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- ASSOCIA ORDINE MERCH A ATLETA ---
+app.post('/api/checkin/associa-merch', requireAdmin, async (req, res) => {
+  try {
+    const { ordine_codice, atleta_id } = req.body;
+    
+    if (!ordine_codice || !atleta_id) {
+      return res.status(400).json({ error: 'ordine_codice e atleta_id richiesti' });
+    }
+    
+    // Trova l'atleta
+    const atleta = await dbGet('SELECT id, nome, cognome FROM iscritti WHERE id = ?', [atleta_id]);
+    if (!atleta) {
+      return res.status(404).json({ error: 'Atleta non trovato' });
+    }
+    
+    // Aggiorna l'ordine con nome/cognome dell'atleta
+    const codiceIscrizione = `BB11-${String(atleta_id).padStart(4, '0')}`;
+    
+    if (usePostgres) {
+      await pgPool.query(
+        'UPDATE merch_ordini SET nome = $1, cognome = $2, iscrizione_codice = $3 WHERE codice = $4',
+        [atleta.nome, atleta.cognome, codiceIscrizione, ordine_codice]
+      );
+    } else {
+      db.run(
+        'UPDATE merch_ordini SET nome = ?, cognome = ?, iscrizione_codice = ? WHERE codice = ?',
+        [atleta.nome, atleta.cognome, codiceIscrizione, ordine_codice]
+      );
+      save();
+    }
+    
+    res.json({ success: true, message: 'Ordine associato con successo' });
+  } catch (err) {
+    console.error('Associa merch error:', err);
     res.status(500).json({ error: err.message });
   }
 });

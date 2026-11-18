@@ -316,10 +316,29 @@
           <div class="section-content" id="athlete-prove"></div>
         </div>
         
-        <!-- Merchandising -->
-        <div class="section" id="section-merch">
-          <div class="section-title">🛍️ Merchandising</div>
-          <div class="section-content" id="athlete-merch"></div>
+        <!-- Merchandising da iscrizione -->
+        <div class="section" id="section-merch-isc">
+          <div class="section-title">🛍️ Merch (da iscrizione)</div>
+          <div class="section-content" id="athlete-merch-isc"></div>
+        </div>
+        
+        <!-- Merchandising da ordini separati -->
+        <div class="section" id="section-merch-ord">
+          <div class="section-title">🛒 Merch (ordini separati)</div>
+          <div class="section-content" id="athlete-merch-ord"></div>
+        </div>
+        
+        <!-- Associa ordine merch -->
+        <div class="section" id="section-associa-merch">
+          <div class="section-title">➕ Associa ordine merch</div>
+          <div class="section-content">
+            <select id="select-ordine-merch" style="width:100%;padding:0.5rem;background:#222;color:#fff;border:1px solid #444;border-radius:4px">
+              <option value="">-- Seleziona ordine da associare --</option>
+            </select>
+            <button id="btn-associa-merch" style="margin-top:0.5rem;padding:0.5rem 1rem;background:#3b82f6;color:#fff;border:none;border-radius:4px;cursor:pointer">
+              Associa a questo atleta
+            </button>
+          </div>
         </div>
         
         <!-- Totale da pagare -->
@@ -491,37 +510,121 @@
         });
       }
       
-      // Merchandising
-      const merchDiv = document.getElementById('athlete-merch');
-      if (currentAthlete.merch.length === 0) {
-        merchDiv.innerHTML = '<span style="color:#666">Nessun articolo</span>';
-        document.getElementById('section-merch').style.display = 'none';
+      // Merchandising da iscrizione
+      const merchIsc = currentAthlete.merch.filter(m => m.origine === 'iscrizione');
+      const merchIscDiv = document.getElementById('athlete-merch-isc');
+      if (merchIsc.length === 0) {
+        merchIscDiv.innerHTML = '<span style="color:#666">Nessun articolo</span>';
+        document.getElementById('section-merch-isc').style.display = 'none';
       } else {
-        document.getElementById('section-merch').style.display = 'block';
-        merchDiv.innerHTML = currentAthlete.merch.map((m, i) => {
+        document.getElementById('section-merch-isc').style.display = 'block';
+        merchIscDiv.innerHTML = merchIsc.map((m, i) => {
           const prezzo = getPrezzo(m.articolo);
+          const globalIdx = currentAthlete.merch.indexOf(m);
           return `
           <div class="pay-row">
             <div class="label">${m.articolo}${m.taglia ? ' - ' + m.taglia : ''}</div>
             <div class="price">€${prezzo}</div>
             <div class="status">
-              <button class="btn-pay btn-merch ${m.pagato ? 'paid' : 'unpaid'}" data-idx="${i}">
+              <button class="btn-pay btn-merch ${m.pagato ? 'paid' : 'unpaid'}" data-idx="${globalIdx}">
                 ${m.pagato ? '✓ Pagato' : 'Da pagare'}
               </button>
             </div>
           </div>
         `}).join('');
-        
-        // Event listeners per merch
-        merchDiv.querySelectorAll('.btn-merch').forEach(btn => {
-          btn.addEventListener('click', function() {
-            toggleMerch(parseInt(this.dataset.idx), this);
-          });
-        });
       }
+      
+      // Merchandising da ordini separati
+      const merchOrd = currentAthlete.merch.filter(m => m.origine === 'ordine');
+      const merchOrdDiv = document.getElementById('athlete-merch-ord');
+      if (merchOrd.length === 0) {
+        merchOrdDiv.innerHTML = '<span style="color:#666">Nessun ordine separato</span>';
+        document.getElementById('section-merch-ord').style.display = 'none';
+      } else {
+        document.getElementById('section-merch-ord').style.display = 'block';
+        merchOrdDiv.innerHTML = merchOrd.map((m, i) => {
+          const prezzo = getPrezzo(m.articolo);
+          const globalIdx = currentAthlete.merch.indexOf(m);
+          return `
+          <div class="pay-row">
+            <div class="label">${m.articolo}${m.taglia ? ' - ' + m.taglia : ''} <small style="color:#888">(${m.codice_ordine || 'ord'})</small></div>
+            <div class="price">€${prezzo}</div>
+            <div class="status">
+              <button class="btn-pay btn-merch ${m.pagato ? 'paid' : 'unpaid'}" data-idx="${globalIdx}">
+                ${m.pagato ? '✓ Pagato' : 'Da pagare'}
+              </button>
+            </div>
+          </div>
+        `}).join('');
+      }
+      
+      // Event listeners per tutti i merch
+      document.querySelectorAll('.btn-merch').forEach(btn => {
+        btn.addEventListener('click', function() {
+          toggleMerch(parseInt(this.dataset.idx), this);
+        });
+      });
+      
+      // Carica ordini non associati
+      loadOrdiniNonAssociati();
       
       updateTotal();
       document.getElementById('modal').classList.add('active');
+    }
+    
+    async function loadOrdiniNonAssociati() {
+      try {
+        const res = await fetch('/api/checkin/merch-non-associati', { credentials: 'include' });
+        const ordini = await res.json();
+        
+        const select = document.getElementById('select-ordine-merch');
+        select.innerHTML = '<option value="">-- Seleziona ordine da associare --</option>';
+        
+        if (ordini.length === 0) {
+          document.getElementById('section-associa-merch').style.display = 'none';
+        } else {
+          document.getElementById('section-associa-merch').style.display = 'block';
+          ordini.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.codice;
+            opt.textContent = `${o.codice} - ${o.cognome} ${o.nome} - ${o.articoli || 'articoli'}`;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Errore caricamento ordini:', err);
+      }
+    }
+    
+    async function associaMerch() {
+      const codice = document.getElementById('select-ordine-merch').value;
+      if (!codice || !currentAthlete) {
+        alert('Seleziona un ordine');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/checkin/associa-merch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            ordine_codice: codice,
+            atleta_id: currentAthlete.id
+          })
+        });
+        
+        if (res.ok) {
+          alert('Ordine associato con successo!');
+          closeModal();
+          await loadAthletes();
+        } else {
+          const err = await res.json();
+          alert('Errore: ' + err.error);
+        }
+      } catch (err) {
+        alert('Errore associazione: ' + err.message);
+      }
     }
     
     function getPrezzo(articolo) {
@@ -696,6 +799,9 @@
     document.getElementById('search').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') searchAthletes();
     });
+    
+    // Pulsante Associa Merch
+    document.getElementById('btn-associa-merch').addEventListener('click', associaMerch);
     
     // Avvio
     loadAthletes();
