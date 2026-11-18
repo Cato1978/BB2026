@@ -385,9 +385,17 @@
               ? '<span class="badge badge-ok">✓ Fatto</span>' 
               : '<span class="badge badge-wait">In attesa</span>'}
           </td>
-          <td><button class="btn-open" onclick="openAthlete(${a.id})">Apri</button></td>
+          <td><button class="btn-open" data-id="${a.id}">Apri</button></td>
         </tr>
       `).join('');
+      
+      // Aggiungi event listeners ai pulsanti
+      tbody.querySelectorAll('.btn-open').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = parseInt(this.getAttribute('data-id'));
+          openAthlete(id);
+        });
+      });
     }
     
     function searchAthletes() {
