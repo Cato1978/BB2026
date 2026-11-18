@@ -2461,8 +2461,13 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
     // Fetch tutti gli iscritti con discipline parsed
     const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
     
-    // Fetch tutte le prove pista
-    const prove = await dbAll('SELECT id, nome, cognome, giorno, ora, COALESCE(note, \'\') as note, COALESCE(stato, \'sospesa\') as stato FROM prove_prenotazioni ORDER BY cognome, nome');
+    // Fetch tutte le prove pista (include origine per distinguere iscrizione da standalone)
+    const prove = await dbAll(`SELECT id, nome, cognome, giorno, ora, 
+      COALESCE(note, '') as note, 
+      COALESCE(stato, 'sospesa') as stato,
+      COALESCE(origine, 'standalone') as origine,
+      codice
+      FROM prove_prenotazioni ORDER BY cognome, nome`);
     
     // Fetch tutti gli ordini merch con items
     const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY cognome, nome');
@@ -2543,14 +2548,26 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
       const proveAtleta = proveMap[key] || [];
       const proveParsed = proveAtleta.map(p => {
         const giorno = p.giorno || '';
-        // Estrai specialit� dalle note (formato: "2026-11-13 21:00: Classic Slalom")
+        // Estrai specialità dalle note (formato: "2026-11-13 21:00: Classic Slalom" o "14:00: Speed Slalom")
         let specialita = '';
         if (p.note) {
-          const pattern = /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\s+([^\n,]+)/g;
-          const matches = p.note.matchAll(pattern);
+          // Pattern per formato con data
+          const pattern1 = /\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\s+([^\n,]+)/g;
+          // Pattern per formato senza data (es: "14:00: Speed Slalom")
+          const pattern2 = /\d{2}:\d{2}:\s+([^\n,]+)/g;
+          
+          let matches = p.note.matchAll(pattern1);
           for (const m of matches) {
             specialita = m[1].trim();
-            break; // Usa la prima specialit� trovata
+            break;
+          }
+          
+          if (!specialita) {
+            matches = p.note.matchAll(pattern2);
+            for (const m of matches) {
+              specialita = m[1].trim();
+              break;
+            }
           }
         }
         
@@ -2559,11 +2576,13 @@ app.get('/api/checkin', requireAdmin, async (req, res) => {
         
         return {
           id: p.id,
+          codice: p.codice || '',
           giorno: giorno,
           giorno_nome: giorno_nome,
           ora: p.ora,
-          specialita: specialita,
-          pagato: p.stato === 'confermata'
+          specialita: specialita || p.ora,
+          pagato: p.stato === 'confermata',
+          origine: p.origine || 'standalone'
         };
       });
       

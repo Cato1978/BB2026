@@ -490,9 +490,14 @@
         document.getElementById('section-prove').style.display = 'none';
       } else {
         document.getElementById('section-prove').style.display = 'block';
-        proveDiv.innerHTML = currentAthlete.prove.map((p, i) => `
+        proveDiv.innerHTML = currentAthlete.prove.map((p, i) => {
+          const origineLabel = p.origine === 'iscrizione' ? '📋' : '🎫';
+          return `
           <div class="pay-row">
-            <div class="label">${p.giorno_nome} ${p.ora} - ${p.specialita || 'Prova'}</div>
+            <div class="label">
+              ${origineLabel} ${p.giorno_nome} ${p.ora} - ${p.specialita || 'Prova'}
+              ${p.codice ? `<small style="color:#666">(${p.codice})</small>` : ''}
+            </div>
             <div class="price">€${PREZZI.prova}</div>
             <div class="status">
               <button class="btn-pay btn-prova ${p.pagato ? 'paid' : 'unpaid'}" data-idx="${i}">
@@ -500,7 +505,7 @@
               </button>
             </div>
           </div>
-        `).join('');
+        `}).join('');
         
         // Event listeners per prove
         proveDiv.querySelectorAll('.btn-prova').forEach(btn => {
