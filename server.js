@@ -321,7 +321,9 @@ async function initDb() {
     try { await pgPool.query("UPDATE prove_prenotazioni SET stato = 'sospesa' WHERE stato IS NULL"); } catch(e) {}
     // 2. Popola iscrizione_codice per prove collegate a iscrizioni (codice inizia con PRV-BB11-)
     try { await pgPool.query("UPDATE prove_prenotazioni SET iscrizione_codice = REPLACE(codice, 'PRV-', ''), origine = 'iscrizione' WHERE codice LIKE 'PRV-BB11-%' AND iscrizione_codice IS NULL"); } catch(e) {}
-    // 3. Conferma prove collegate a iscrizioni confermate
+    // 3. Imposta origine = 'standalone' per prove non da iscrizione
+    try { await pgPool.query("UPDATE prove_prenotazioni SET origine = 'standalone' WHERE origine IS NULL"); } catch(e) {}
+    // 4. Conferma prove collegate a iscrizioni confermate
     try {
       await pgPool.query(`
         UPDATE prove_prenotazioni pp
@@ -362,6 +364,21 @@ async function initDb() {
       page TEXT PRIMARY KEY,
       enabled INTEGER DEFAULT 1,
       visible INTEGER DEFAULT 1
+    )`);
+    
+    // Tabella bilancio spese per bando Regione Lombardia
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS bilancio_spese (
+      id SERIAL PRIMARY KEY,
+      descrizione TEXT NOT NULL,
+      categoria_bando TEXT,
+      importo REAL NOT NULL DEFAULT 0,
+      stato_preventivo INTEGER DEFAULT 1,
+      stato_confermato INTEGER DEFAULT 0,
+      stato_pagato INTEGER DEFAULT 0,
+      includi_bando INTEGER DEFAULT 0,
+      fattura_filename TEXT,
+      note TEXT,
+      data_inserimento TIMESTAMP DEFAULT NOW()
     )`);
     
     // Seed pagine default
@@ -452,6 +469,7 @@ async function initDb() {
   try { db.run('ALTER TABLE iscritti ADD COLUMN ricevuta_base64 TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN note_admin TEXT'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN nazionalita TEXT'); } catch(e) {}
+  try { db.run('ALTER TABLE iscritti ADD COLUMN metodo_pagamento TEXT'); } catch(e) {}
   // Migrazioni per check-in
   try { db.run('ALTER TABLE iscritti ADD COLUMN checkin_fatto INTEGER DEFAULT 0'); } catch(e) {}
   try { db.run('ALTER TABLE iscritti ADD COLUMN prove_pagato INTEGER DEFAULT 0'); } catch(e) {}
@@ -588,6 +606,22 @@ async function initDb() {
   )`);
   // Assicura che la colonna visible esista (per DB esistenti)
   try { db.run('ALTER TABLE page_settings ADD COLUMN visible INTEGER DEFAULT 1'); } catch(e) {}
+  
+  // Tabella bilancio spese per bando Regione Lombardia
+  db.run(`CREATE TABLE IF NOT EXISTS bilancio_spese (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    descrizione TEXT NOT NULL,
+    categoria_bando TEXT,
+    importo REAL NOT NULL DEFAULT 0,
+    stato_preventivo INTEGER DEFAULT 1,
+    stato_confermato INTEGER DEFAULT 0,
+    stato_pagato INTEGER DEFAULT 0,
+    includi_bando INTEGER DEFAULT 0,
+    fattura_filename TEXT,
+    note TEXT,
+    data_inserimento TEXT DEFAULT (datetime('now'))
+  )`);
+  
   // Seed pagine default
   const pages = ['iscrizioni','iscrizioni2','verifica','programma','hotel','travel','navetta','maglia','risultati','contact','cena','prove'];
   for (const p of pages) {
@@ -2795,7 +2829,8 @@ app.post('/api/checkin/associa-merch', requireAdmin, async (req, res) => {
     }
     
     // Trova l'atleta
-    const atleta = await dbGet('SELECT id, nome, cognome FROM iscritti WHERE id = ?', [atleta_id]);
+    const atletaRows = await dbAll('SELECT id, nome, cognome FROM iscritti WHERE id = ?', [atleta_id]);
+    const atleta = atletaRows[0];
     if (!atleta) {
       return res.status(404).json({ error: 'Atleta non trovato' });
     }
@@ -3250,9 +3285,65 @@ app.get('/api/fix-ditta-sisters', requireAdmin, async (req, res) => {
 
 app.put('/api/iscritti/:id', async (req, res) => {
   try {
-    const { nome, cognome, data_nascita, categoria, societa, nazionalita, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin } = req.body;
-    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, nazionalita=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=? WHERE id=?`,
-      [nome, cognome, data_nascita || null, categoria || null, societa || null, nazionalita || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, req.params.id]);
+    const { nome, cognome, data_nascita, categoria, societa, nazionalita, email, telefono, navetta, navetta_dettagli, pagamento, note, note_admin, metodo_pagamento } = req.body;
+    const id = req.params.id;
+    const codiceIscrizione = 'BB11-' + String(id).padStart(4, '0');
+    
+    await dbRun(`UPDATE iscritti SET nome=?, cognome=?, data_nascita=?, categoria=?, societa=?, nazionalita=?, email=?, telefono=?, navetta=?, navetta_dettagli=?, pagamento=?, note=?, note_admin=?, metodo_pagamento=? WHERE id=?`,
+      [nome, cognome, data_nascita || null, categoria || null, societa || null, nazionalita || null, email || null, telefono || null, navetta ? 1 : 0, navetta_dettagli || null, pagamento ? 1 : 0, note || null, note_admin || null, metodo_pagamento || null, id]);
+    
+    // Sincronizza merch (maglia/felpa) dalle note
+    // Estrai maglia e felpa dalle note
+    const magliaMatch = note ? note.match(/Maglia:\s*([^|]+)/i) : null;
+    const felpaMatch = note ? note.match(/Felpa:\s*([^|]+)/i) : null;
+    const tagliaMaglia = magliaMatch ? magliaMatch[1].trim() : null;
+    const tagliaFelpa = felpaMatch ? felpaMatch[1].trim() : null;
+    
+    // Cerca ordine merch esistente per questa iscrizione
+    const merchRows = await dbAll('SELECT * FROM merch_ordini WHERE iscrizione_codice = ?', [codiceIscrizione]);
+    
+    if (tagliaMaglia || tagliaFelpa) {
+      // Deve esistere un ordine merch
+      let ordineId;
+      
+      if (merchRows.length > 0) {
+        // Aggiorna ordine esistente
+        ordineId = merchRows[0].id;
+        await dbRun('UPDATE merch_ordini SET nome = ?, cognome = ?, email = ?, telefono = ? WHERE id = ?',
+          [nome, cognome, email || null, telefono || null, ordineId]);
+        // Elimina vecchi items
+        await dbRun('DELETE FROM merch_items WHERE ordine_id = ?', [ordineId]);
+      } else {
+        // Crea nuovo ordine merch
+        const merchCodice = 'MRC-' + codiceIscrizione;
+        await dbRun(`INSERT INTO merch_ordini (nome, cognome, email, telefono, codice, stato, origine, iscrizione_codice) VALUES (?,?,?,?,?,?,?,?)`,
+          [nome, cognome, email || null, telefono || null, merchCodice, 'sospesa', 'iscrizione', codiceIscrizione]);
+        const newRows = await dbAll('SELECT id FROM merch_ordini WHERE codice = ?', [merchCodice]);
+        ordineId = newRows[0].id;
+      }
+      
+      // Inserisci gli items
+      if (tagliaMaglia) {
+        await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+          [ordineId, 'Maglia', tagliaMaglia, 1, 15]);
+      }
+      if (tagliaFelpa) {
+        await dbRun('INSERT INTO merch_items (ordine_id, articolo, taglia, quantita, prezzo_unitario) VALUES (?,?,?,?,?)',
+          [ordineId, 'Felpa', tagliaFelpa, 1, 35]);
+      }
+      
+      console.log('Merch sincronizzato per iscritto:', { codiceIscrizione, tagliaMaglia, tagliaFelpa });
+    } else if (merchRows.length > 0) {
+      // Non ci sono più maglia/felpa, elimina l'ordine merch se origine = iscrizione
+      for (const m of merchRows) {
+        if (m.origine === 'iscrizione') {
+          await dbRun('DELETE FROM merch_items WHERE ordine_id = ?', [m.id]);
+          await dbRun('DELETE FROM merch_ordini WHERE id = ?', [m.id]);
+          console.log('Merch eliminato per iscritto:', codiceIscrizione);
+        }
+      }
+    }
+    
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore PUT iscritti:', err);
@@ -3303,6 +3394,15 @@ app.post('/api/iscritti/conferma-pagamento', async (req, res) => {
     const iscritto = rows[0];
     await dbRun('UPDATE iscritti SET pagamento=1, stato=? WHERE id=?', ['confermata', id]);
     console.log('Pagamento Stripe confermato per iscritto:', { codice, id });
+    
+    // Conferma automaticamente le prove pista collegate
+    const proveCodice = 'PRV-' + codice;
+    await dbRun('UPDATE prove_prenotazioni SET stato=? WHERE codice=? OR iscrizione_codice=?', ['confermata', proveCodice, codice]);
+    console.log('Prove pista confermate automaticamente:', proveCodice);
+    
+    // Conferma automaticamente il merch collegato
+    await dbRun('UPDATE merch_ordini SET stato=? WHERE iscrizione_codice=?', ['confermata', codice]);
+    console.log('Merch confermato automaticamente:', codice);
     
     // Invia email conferma
     if (iscritto && iscritto.email) {
@@ -4445,6 +4545,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       db.run('UPDATE prove_prenotazioni SET stato=? WHERE codice=?', ['confermata', proveCodice]);
       save();
       console.log(`Prove pista confermate automaticamente: ${proveCodice}`);
+      
+      // Conferma automaticamente il merch collegato
+      db.run('UPDATE merch_ordini SET stato=? WHERE iscrizione_codice=?', ['confermata', codice]);
+      save();
+      console.log(`Merch confermato automaticamente: ${codice}`);
     }
   }
 
@@ -4712,13 +4817,86 @@ app.post('/api/merch/prenota', async (req, res) => {
 
 app.get('/api/merch/ordini', requireAdmin, async (req, res) => {
   try {
-    const ordini = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    // Fetch ordini with association status
+    const ordini = await dbAll(`
+      SELECT mo.*, 
+        CASE WHEN EXISTS (
+          SELECT 1 FROM iscritti i 
+          WHERE LOWER(i.nome) = LOWER(mo.nome) AND LOWER(i.cognome) = LOWER(mo.cognome)
+        ) THEN 1 ELSE 0 END as associato
+      FROM merch_ordini mo 
+      ORDER BY mo.created_at DESC
+    `);
     for (const o of ordini) {
       o.items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
     }
     res.json(ordini);
   } catch (err) {
     console.error('Errore lista ordini merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Riepilogo merch per taglia (totali aggregati)
+app.get('/api/merch/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    // Raggruppa per articolo e taglia, somma quantità
+    const riepilogo = await dbAll(`
+      SELECT mi.articolo, mi.taglia, SUM(mi.quantita) as totale
+      FROM merch_items mi
+      JOIN merch_ordini mo ON mi.ordine_id = mo.id
+      WHERE mo.stato != 'annullato'
+      GROUP BY mi.articolo, mi.taglia
+      ORDER BY mi.articolo, mi.taglia
+    `);
+    
+    // Riepilogo per stato
+    const perStato = await dbAll(`
+      SELECT mi.articolo, mi.taglia, mo.stato, SUM(mi.quantita) as totale
+      FROM merch_items mi
+      JOIN merch_ordini mo ON mi.ordine_id = mo.id
+      GROUP BY mi.articolo, mi.taglia, mo.stato
+      ORDER BY mi.articolo, mi.taglia, mo.stato
+    `);
+    
+    // Totale ordini e incasso
+    const totali = await dbAll(`
+      SELECT 
+        COUNT(DISTINCT mo.id) as num_ordini,
+        SUM(mi.quantita * mi.prezzo_unitario) as incasso_totale,
+        SUM(CASE WHEN mo.stato = 'confermata' THEN mi.quantita * mi.prezzo_unitario ELSE 0 END) as incasso_confermato
+      FROM merch_items mi
+      JOIN merch_ordini mo ON mi.ordine_id = mo.id
+    `);
+    
+    res.json({
+      riepilogo,
+      perStato,
+      totali: totali[0] || { num_ordini: 0, incasso_totale: 0, incasso_confermato: 0 }
+    });
+  } catch (err) {
+    console.error('Errore riepilogo merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Associa ordine merch a un iscritto (aggiorna nome/cognome)
+app.post('/api/merch/ordini/:codice/associa', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { iscritto_id } = req.body;
+    
+    // Trova l'iscritto
+    const iscrittoRows = await dbAll('SELECT * FROM iscritti WHERE id = ?', [iscritto_id]);
+    const iscritto = iscrittoRows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    // Aggiorna l'ordine
+    await dbRun(`UPDATE merch_ordini SET nome = ?, cognome = ? WHERE codice = ?`,
+      [iscritto.nome, iscritto.cognome, codice]);
+    
+    res.json({ ok: true, nome: iscritto.nome, cognome: iscritto.cognome });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -4796,8 +4974,14 @@ app.delete('/api/merch/stampati/:data', requireAdmin, async (req, res) => {
 // Export Excel ordini merch - con separazione merch/iscrizioni e riepilogo taglie
 app.get('/api/merch/export', requireAdmin, async (req, res) => {
   try {
+    const ordine = req.query.ordine || 'default'; // nome, taglia, o default
+    
     // Fetch tutti gli ordini merch
-    const ordiniMerch = await dbAll('SELECT * FROM merch_ordini ORDER BY created_at DESC');
+    let orderBy = 'created_at DESC';
+    if (ordine === 'nome') orderBy = 'cognome, nome';
+    else if (ordine === 'taglia') orderBy = 'cognome, nome'; // taglia viene gestito dopo
+    
+    const ordiniMerch = await dbAll(`SELECT * FROM merch_ordini ORDER BY ${orderBy}`);
     
     // Fetch tutti gli iscritti con merch (maglia/felpa/cappellino/asciugamano)
     const iscritti = await dbAll('SELECT * FROM iscritti ORDER BY cognome, nome');
@@ -4911,53 +5095,37 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     // ========== FOGLIO 3: RIEPILOGO TAGLIE ==========
     const sheetRiepilogo = workbook.addWorksheet('Riepilogo Taglie');
     
-    // Struttura per conteggio
-    const conteggio = {
-      // Maglie
-      'Maglia XS Uomo': 0, 'Maglia S Uomo': 0, 'Maglia M Uomo': 0, 'Maglia L Uomo': 0, 'Maglia XL Uomo': 0,
-      'Maglia XXL Uomo': 0, 'Maglia 3XL Uomo': 0, 'Maglia 4XL Uomo': 0, 'Maglia 5XL Uomo': 0,
-      'Maglia XS Donna': 0, 'Maglia S Donna': 0, 'Maglia M Donna': 0, 'Maglia L Donna': 0, 'Maglia XL Donna': 0,
-      'Maglia XXL Donna': 0, 'Maglia 3XL Donna': 0,
-      // Felpe
-      'Felpa XS Uomo': 0, 'Felpa S Uomo': 0, 'Felpa M Uomo': 0, 'Felpa L Uomo': 0, 'Felpa XL Uomo': 0,
-      'Felpa XXL Uomo': 0, 'Felpa 3XL Uomo': 0,
-      'Felpa XS Donna': 0, 'Felpa S Donna': 0, 'Felpa M Donna': 0, 'Felpa L Donna': 0, 'Felpa XL Donna': 0,
-      'Felpa XXL Donna': 0,
-      // Accessori
-      'Cappellino': 0,
-      'Asciugamano': 0
+    // Struttura per conteggio dinamico (supporta sia taglie con genere che senza)
+    const conteggio = {};
+    
+    // Funzione per normalizzare e contare
+    const addConteggio = (articolo, taglia, qty = 1) => {
+      if (!taglia) {
+        // Accessori senza taglia
+        if (!conteggio[articolo]) conteggio[articolo] = 0;
+        conteggio[articolo] += qty;
+      } else {
+        // Articoli con taglia
+        const key = `${articolo} ${taglia}`;
+        if (!conteggio[key]) conteggio[key] = 0;
+        conteggio[key] += qty;
+      }
     };
     
     // Conta da iscrizioni
     for (const isc of iscritti) {
       const note = parseNote(isc.note);
-      if (note.maglia) {
-        const key = 'Maglia ' + note.maglia;
-        if (conteggio[key] !== undefined) conteggio[key]++;
-      }
-      if (note.felpa) {
-        const key = 'Felpa ' + note.felpa;
-        if (conteggio[key] !== undefined) conteggio[key]++;
-      }
-      if (note.cappellino) conteggio['Cappellino']++;
-      if (note.asciugamano) conteggio['Asciugamano']++;
+      if (note.maglia) addConteggio('Maglia', note.maglia);
+      if (note.felpa) addConteggio('Felpa', note.felpa);
+      if (note.cappellino) addConteggio('Cappellino', null);
+      if (note.asciugamano) addConteggio('Asciugamano', null);
     }
     
     // Conta da ordini merch
     for (const o of ordiniMerch) {
       const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id=?', [o.id]);
       for (const item of items) {
-        if (item.articolo === 'Maglia' && item.taglia) {
-          const key = 'Maglia ' + item.taglia;
-          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
-        } else if (item.articolo === 'Felpa' && item.taglia) {
-          const key = 'Felpa ' + item.taglia;
-          if (conteggio[key] !== undefined) conteggio[key] += (item.quantita || 1);
-        } else if (item.articolo === 'Cappellino') {
-          conteggio['Cappellino'] += (item.quantita || 1);
-        } else if (item.articolo === 'Asciugamano') {
-          conteggio['Asciugamano'] += (item.quantita || 1);
-        }
+        addConteggio(item.articolo, item.taglia, item.quantita || 1);
       }
     }
     
@@ -4978,28 +5146,26 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     sheetRiepilogo.getRow(1).font = { bold: true };
     sheetRiepilogo.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6366F1' } };
     
-    // Ordine logico degli articoli
-    const ordineArticoli = [
-      // Maglie Uomo
-      'Maglia XS Uomo', 'Maglia S Uomo', 'Maglia M Uomo', 'Maglia L Uomo', 'Maglia XL Uomo',
-      'Maglia XXL Uomo', 'Maglia 3XL Uomo', 'Maglia 4XL Uomo', 'Maglia 5XL Uomo',
-      // Maglie Donna
-      'Maglia XS Donna', 'Maglia S Donna', 'Maglia M Donna', 'Maglia L Donna', 'Maglia XL Donna',
-      'Maglia XXL Donna', 'Maglia 3XL Donna',
-      // Felpe Uomo
-      'Felpa XS Uomo', 'Felpa S Uomo', 'Felpa M Uomo', 'Felpa L Uomo', 'Felpa XL Uomo',
-      'Felpa XXL Uomo', 'Felpa 3XL Uomo',
-      // Felpe Donna
-      'Felpa XS Donna', 'Felpa S Donna', 'Felpa M Donna', 'Felpa L Donna', 'Felpa XL Donna',
-      'Felpa XXL Donna',
-      // Accessori
-      'Cappellino',
-      'Asciugamano'
-    ];
+    // Ordina articoli: prima Maglie, poi Felpe, poi Accessori
+    // Usa le chiavi effettive dal conteggio
+    const ordineArticoli = Object.keys(conteggio).sort((a, b) => {
+      // Priorità: Maglia > Felpa > Cappellino > Asciugamano
+      const getPriority = (s) => {
+        if (s.startsWith('Maglia')) return 1;
+        if (s.startsWith('Felpa')) return 2;
+        if (s === 'Cappellino') return 3;
+        if (s === 'Asciugamano') return 4;
+        return 5;
+      };
+      const pa = getPriority(a);
+      const pb = getPriority(b);
+      if (pa !== pb) return pa - pb;
+      return a.localeCompare(b);
+    });
     
     for (const art of ordineArticoli) {
       const totale = conteggio[art] || 0;
-      if (totale > 0 || art.includes('Maglia') || art.includes('Felpa')) {
+      if (totale > 0) {
         const rowData = {
           articolo: art,
           totale: totale
@@ -5050,7 +5216,10 @@ app.get('/api/merch/export', requireAdmin, async (req, res) => {
     totRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=merchandising_completo.xlsx');
+    const filename = ordine === 'nome' ? 'merch_per_nome.xlsx' : 
+                     ordine === 'taglia' ? 'merch_per_taglia.xlsx' : 
+                     'merchandising_completo.xlsx';
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     await workbook.xlsx.write(res);
   } catch (err) {
     console.error('Errore export merch:', err);
@@ -5174,6 +5343,44 @@ app.put('/api/merch/ordini/:codice/aggiorna', requireAdmin, async (req, res) => 
     res.json({ ok: true });
   } catch (err) {
     console.error('Errore aggiorna merch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: aggiorna items ordine merch (taglie, quantità)
+app.put('/api/merch/ordini/:codice/items', requireAdmin, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Items richiesti' });
+    }
+    
+    // Aggiorna ogni item
+    for (const item of items) {
+      if (!item.id) continue;
+      
+      const updates = [];
+      const values = [];
+      
+      if (item.taglia !== undefined) {
+        updates.push('taglia = ?');
+        values.push(item.taglia);
+      }
+      if (item.quantita !== undefined) {
+        updates.push('quantita = ?');
+        values.push(item.quantita);
+      }
+      
+      if (updates.length > 0) {
+        values.push(item.id);
+        await dbRun(`UPDATE merch_items SET ${updates.join(', ')} WHERE id = ?`, values);
+      }
+    }
+    
+    console.log('Items merch aggiornati per ordine:', req.params.codice);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Errore aggiorna items merch:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -5582,8 +5789,8 @@ app.post('/api/prove/prenota', async (req, res) => {
     const codice = 'PRV-' + Date.now().toString(36).toUpperCase();
     for (const sess of sessioniNormalizzate) {
       const giorno = sess.giorno || null;
-      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, note) VALUES (?,?,?,?,?,?,?,?,?)',
-        [nome, cognome, email || null, telefono || null, sess.ora, giorno, codice, 'sospesa', note || null]);
+      await dbRun('INSERT INTO prove_prenotazioni (nome, cognome, email, telefono, ora, giorno, codice, stato, note, origine) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [nome, cognome, email || null, telefono || null, sess.ora, giorno, codice, 'sospesa', note || null, 'standalone']);
     }
 
     // Invia email SOLO se non è in modalità batch (skipEmail=true significa che l'email verrà inviata dopo)
@@ -5905,8 +6112,38 @@ app.post('/api/prove/conferma-pagamento', async (req, res) => {
 
 app.get('/api/prove/prenotazioni', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM prove_prenotazioni ORDER BY ora, cognome, nome');
+    // Fetch prove with association status
+    const rows = await dbAll(`
+      SELECT p.*, 
+        CASE WHEN EXISTS (
+          SELECT 1 FROM iscritti i 
+          WHERE LOWER(i.nome) = LOWER(p.nome) AND LOWER(i.cognome) = LOWER(p.cognome)
+        ) THEN 1 ELSE 0 END as associato
+      FROM prove_prenotazioni p 
+      ORDER BY p.ora, p.cognome, p.nome
+    `);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Associa prova pista a un iscritto (aggiorna nome/cognome)
+app.post('/api/prove/prenotazioni/:codice/associa', requireAdmin, async (req, res) => {
+  try {
+    const { codice } = req.params;
+    const { iscritto_id } = req.body;
+    
+    // Trova l'iscritto
+    const iscrittoRows = await dbAll('SELECT * FROM iscritti WHERE id = ?', [iscritto_id]);
+    const iscritto = iscrittoRows[0];
+    if (!iscritto) return res.status(404).json({ error: 'Iscritto non trovato' });
+    
+    // Aggiorna tutte le prove con questo codice
+    await dbRun(`UPDATE prove_prenotazioni SET nome = ?, cognome = ? WHERE codice = ?`,
+      [iscritto.nome, iscritto.cognome, codice]);
+    
+    res.json({ ok: true, nome: iscritto.nome, cognome: iscritto.cognome });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -5954,12 +6191,12 @@ app.put('/api/prove/prenotazioni/:codice/aggiorna', requireAdmin, async (req, re
         await dbRun('DELETE FROM prove_prenotazioni WHERE codice=? AND ora=?', [codice, ora]);
       }
       
-      // Aggiungi nuovi slot
+      // Aggiungi nuovi slot - SEMPRE con stato 'sospesa' perché devono essere pagati
       for (const ora of daAggiungere) {
         const noteSlot = slots.find(s => s.ora === ora)?.note || ora;
         await dbRun(`INSERT INTO prove_prenotazioni (codice, nome, cognome, email, telefono, giorno, ora, note, stato, note_admin) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [codice, first.nome, first.cognome, first.email, first.telefono, giornoFinale, ora, noteSlot, first.stato || 'sospesa', first.note_admin]);
+          [codice, first.nome, first.cognome, first.email, first.telefono, giornoFinale, ora, noteSlot, 'sospesa', first.note_admin]);
       }
       
       // Aggiorna giorno per tutti gli slot rimanenti
@@ -6179,6 +6416,13 @@ app.post('/api/prove/prenotazioni/:codice/sollecito', requireAdmin, async (req, 
 // --- EXPORT EXCEL PROVE PISTA ---
 app.get('/api/prove/export', async (req, res) => {
   try {
+    const ordine = req.query.ordine || 'default'; // nome, orario, o default
+    
+    // Determina l'ordinamento
+    let orderBy = 'giorno, ora, cognome';
+    if (ordine === 'nome') orderBy = 'cognome, nome, giorno, ora';
+    else if (ordine === 'orario') orderBy = 'giorno, ora, cognome, nome';
+    
     const prenotazioni = await dbAll(`SELECT id, nome, cognome, 
       COALESCE(email, '') as email, COALESCE(telefono, '') as telefono, ora, 
       COALESCE(codice, '') as codice,
@@ -6186,7 +6430,7 @@ app.get('/api/prove/export', async (req, res) => {
       COALESCE(note, '') as note, COALESCE(origine, 'standalone') as origine,
       COALESCE(giorno, '') as giorno, COALESCE(note_admin, '') as note_admin,
       COALESCE(ricevuta_bonifico, '') as ricevuta_bonifico, created_at
-      FROM prove_prenotazioni ORDER BY giorno, ora, cognome`);
+      FROM prove_prenotazioni ORDER BY ${orderBy}`);
     const slots = await dbAll('SELECT * FROM prove_slots ORDER BY giorno, ora_inizio');
     
     // Mappa slot per lookup giorno
@@ -6323,7 +6567,10 @@ app.get('/api/prove/export', async (req, res) => {
     
     // Genera file
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=prove_pista_export.xlsx');
+    const filename = ordine === 'nome' ? 'prove_pista_per_nome.xlsx' : 
+                     ordine === 'orario' ? 'prove_pista_per_orario.xlsx' : 
+                     'prove_pista_export.xlsx';
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     
     await workbook.xlsx.write(res);
     res.end();
@@ -6910,6 +7157,598 @@ app.get('/api/statistiche/permanenza', async (req, res) => {
     });
   } catch (err) {
     console.error('Errore statistiche permanenza:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ BILANCIO SPESE (BANDO REGIONE LOMBARDIA) ============
+
+// API: Totali incassi per bilancio (iscrizioni, prove, merch)
+app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
+  try {
+    // Iscrizioni confermate
+    const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata'");
+    
+    let totaleIscrizioni = 0;
+    let totaleIscrizioniBando = 0; // Esclude contanti
+    
+    for (const isc of iscritti) {
+      // Calcola totale iscrizione (stessa logica dell'export)
+      let totale = 0;
+      const note = isc.note || '';
+      
+      // Discipline base
+      const discCount = ['Speed', 'Classic', 'Battle', 'Slides', 'Pair', 'Free'].filter(d => 
+        note.toLowerCase().includes(d.toLowerCase())
+      ).length;
+      
+      // Prima disciplina gratis con pacchetto, altrimenti 15€ ciascuna
+      if (note.includes('Pack 1')) totale += 30;
+      else if (note.includes('Pack 2')) totale += 40;
+      else if (note.includes('Pack 3')) totale += 50;
+      else totale += discCount * 15;
+      
+      // Maglia +15, Felpa +35
+      if (note.includes('Maglia:')) totale += 15;
+      if (note.includes('Felpa:')) totale += 35;
+      
+      totaleIscrizioni += totale;
+      
+      // Per bando: escludi contanti
+      if (isc.metodo_pagamento !== 'contanti') {
+        totaleIscrizioniBando += totale;
+      }
+    }
+    
+    // Prove pista confermate
+    const prove = await dbAll("SELECT * FROM prove_prenotazioni WHERE stato = 'confermata'");
+    let totaleProve = prove.length * 5; // 5€ a sessione
+    let totaleProveBando = 0;
+    
+    for (const p of prove) {
+      // Cerca se collegata a iscrizione con metodo != contanti
+      if (p.iscrizione_codice) {
+        const match = p.iscrizione_codice.match(/BB11-(\d+)/);
+        if (match) {
+          const iscId = parseInt(match[1]);
+          const isc = iscritti.find(i => i.id === iscId);
+          if (isc && isc.metodo_pagamento !== 'contanti') {
+            totaleProveBando += 5;
+          }
+        }
+      }
+    }
+    
+    // Merch confermato
+    const ordini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
+    let totaleMerch = 0;
+    let totaleMerchBando = 0;
+    
+    for (const o of ordini) {
+      const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id = ?', [o.id]);
+      const totOrdine = items.reduce((sum, it) => sum + (it.prezzo_unitario * it.quantita), 0);
+      totaleMerch += totOrdine;
+      
+      // Per bando: escludi se origine iscrizione con contanti
+      if (o.iscrizione_codice) {
+        const match = o.iscrizione_codice.match(/BB11-(\d+)/);
+        if (match) {
+          const iscId = parseInt(match[1]);
+          const isc = iscritti.find(i => i.id === iscId);
+          if (isc && isc.metodo_pagamento !== 'contanti') {
+            totaleMerchBando += totOrdine;
+          }
+        }
+      } else {
+        // Ordine standalone, includi nel bando
+        totaleMerchBando += totOrdine;
+      }
+    }
+    
+    res.json({
+      iscrizioni: {
+        totale: totaleIscrizioni,
+        bando: totaleIscrizioniBando,
+        count: iscritti.length
+      },
+      prove: {
+        totale: totaleProve,
+        bando: totaleProveBando,
+        count: prove.length
+      },
+      merch: {
+        totale: totaleMerch,
+        bando: totaleMerchBando,
+        count: ordini.length
+      },
+      totaleGenerale: totaleIscrizioni + totaleProve + totaleMerch,
+      totaleBando: totaleIscrizioniBando + totaleProveBando + totaleMerchBando
+    });
+  } catch (err) {
+    console.error('Errore GET bilancio/incassi:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper: assicura che la tabella bilancio_spese esista
+async function ensureBilancioTable() {
+  if (usePostgres) {
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS bilancio_spese (
+      id SERIAL PRIMARY KEY,
+      descrizione TEXT NOT NULL,
+      categoria_bando TEXT,
+      importo REAL NOT NULL DEFAULT 0,
+      stato_preventivo INTEGER DEFAULT 1,
+      stato_confermato INTEGER DEFAULT 0,
+      stato_pagato INTEGER DEFAULT 0,
+      includi_bando INTEGER DEFAULT 0,
+      fattura_filename TEXT,
+      note TEXT,
+      data_inserimento TIMESTAMP DEFAULT NOW()
+    )`);
+  } else {
+    db.run(`CREATE TABLE IF NOT EXISTS bilancio_spese (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      descrizione TEXT NOT NULL,
+      categoria_bando TEXT,
+      importo REAL NOT NULL DEFAULT 0,
+      stato_preventivo INTEGER DEFAULT 1,
+      stato_confermato INTEGER DEFAULT 0,
+      stato_pagato INTEGER DEFAULT 0,
+      includi_bando INTEGER DEFAULT 0,
+      fattura_filename TEXT,
+      note TEXT,
+      data_inserimento TEXT DEFAULT (datetime('now'))
+    )`);
+    save();
+  }
+}
+
+// API: Lista tutte le spese
+app.get('/api/bilancio/spese', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const spese = await dbAll('SELECT * FROM bilancio_spese ORDER BY data_inserimento DESC');
+    res.json(spese);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Aggiungi nuova spesa
+app.post('/api/bilancio/spese', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const { 
+      descrizione, categoria_bando, importo, 
+      stato_preventivo, stato_confermato, stato_pagato, 
+      includi_bando, note 
+    } = req.body;
+    
+    if (!descrizione || importo === undefined) {
+      return res.status(400).json({ error: 'Descrizione e importo sono obbligatori' });
+    }
+    
+    const id = await dbInsert(
+      `INSERT INTO bilancio_spese (descrizione, categoria_bando, importo, stato_preventivo, stato_confermato, stato_pagato, includi_bando, note) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, note || '']
+    );
+    
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error('Errore POST bilancio/spese:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Modifica spesa
+app.put('/api/bilancio/spese/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      descrizione, categoria_bando, importo, 
+      stato_preventivo, stato_confermato, stato_pagato, 
+      includi_bando, note 
+    } = req.body;
+    
+    await dbRun(
+      `UPDATE bilancio_spese SET 
+        descrizione = ?, categoria_bando = ?, importo = ?, 
+        stato_preventivo = ?, stato_confermato = ?, stato_pagato = ?, 
+        includi_bando = ?, note = ?
+       WHERE id = ?`,
+      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, note || '', id]
+    );
+    
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Elimina spesa
+app.delete('/api/bilancio/spese/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await dbRun('DELETE FROM bilancio_spese WHERE id = ?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Upload fattura per spesa
+const uploadFattura = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, 'public', 'uploads', 'fatture');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => cb(null, `fattura-${req.params.id}-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`)
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
+});
+
+app.post('/api/bilancio/spese/:id/fattura', requireAdmin, uploadFattura.single('fattura'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'File non caricato' });
+    
+    const filename = req.file.filename;
+    await dbRun('UPDATE bilancio_spese SET fattura_filename = ? WHERE id = ?', [filename, id]);
+    
+    res.json({ ok: true, filename });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Elimina fattura
+app.delete('/api/bilancio/spese/:id/fattura', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Recupera il filename attuale
+    const spesa = await dbGet('SELECT fattura_filename FROM bilancio_spese WHERE id = ?', [id]);
+    if (spesa && spesa.fattura_filename) {
+      const filePath = path.join(__dirname, 'public', 'uploads', 'fatture', spesa.fattura_filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    
+    await dbRun('UPDATE bilancio_spese SET fattura_filename = NULL WHERE id = ?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Riepilogo bilancio con verifica limiti bando
+app.get('/api/bilancio/riepilogo', requireAdmin, async (req, res) => {
+  try {
+    const spese = await dbAll('SELECT * FROM bilancio_spese');
+    
+    // Limiti bando Regione Lombardia
+    const limitiBando = {
+      'Premi in beni materiali': 1500,
+      'Rinfreschi e ristori': 2000
+    };
+    
+    // Calcola totali
+    let totaleGenerale = 0;
+    let totaleBando = 0;
+    let totalePreventivo = 0;
+    let totaleConfermato = 0;
+    let totalePagato = 0;
+    
+    const perCategoria = {};
+    const alertLimiti = [];
+    
+    for (const s of spese) {
+      const importo = parseFloat(s.importo) || 0;
+      totaleGenerale += importo;
+      
+      if (s.stato_preventivo) totalePreventivo += importo;
+      if (s.stato_confermato) totaleConfermato += importo;
+      if (s.stato_pagato) totalePagato += importo;
+      
+      if (s.includi_bando) {
+        totaleBando += importo;
+        
+        const cat = s.categoria_bando || 'Altre spese';
+        if (!perCategoria[cat]) perCategoria[cat] = 0;
+        perCategoria[cat] += importo;
+      }
+    }
+    
+    // Verifica limiti
+    for (const [cat, limite] of Object.entries(limitiBando)) {
+      const speso = perCategoria[cat] || 0;
+      if (speso > limite) {
+        alertLimiti.push({
+          categoria: cat,
+          limite,
+          speso,
+          eccedenza: speso - limite
+        });
+      }
+    }
+    
+    // Contributo massimo stimato (60% spese ammissibili, max 15000)
+    const contributoStimato = Math.min(totaleBando * 0.6, 15000);
+    
+    res.json({
+      totaleGenerale,
+      totaleBando,
+      totalePreventivo,
+      totaleConfermato,
+      totalePagato,
+      perCategoria,
+      limitiBando,
+      alertLimiti,
+      contributoStimato: Math.round(contributoStimato * 100) / 100,
+      numSpese: spese.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ EXPORT PDF BILANCI ============
+
+// Helper per calcolare incassi (stessa logica dell'API incassi)
+async function calcolaIncassi() {
+  const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata'");
+  
+  let totaleIscrizioni = 0;
+  let totaleIscrizioniBando = 0;
+  const dettaglioIscrizioni = [];
+  
+  for (const isc of iscritti) {
+    let totale = 0;
+    const note = isc.note || '';
+    
+    const discCount = ['Speed', 'Classic', 'Battle', 'Slides', 'Pair', 'Free'].filter(d => 
+      note.toLowerCase().includes(d.toLowerCase())
+    ).length;
+    
+    if (note.includes('Pack 1')) totale += 30;
+    else if (note.includes('Pack 2')) totale += 40;
+    else if (note.includes('Pack 3')) totale += 50;
+    else totale += discCount * 15;
+    
+    if (note.includes('Maglia:')) totale += 15;
+    if (note.includes('Felpa:')) totale += 35;
+    
+    totaleIscrizioni += totale;
+    const isContanti = isc.metodo_pagamento === 'contanti';
+    if (!isContanti) totaleIscrizioniBando += totale;
+    
+    dettaglioIscrizioni.push({
+      nome: `${isc.cognome} ${isc.nome}`,
+      importo: totale,
+      metodo: isc.metodo_pagamento || 'bonifico',
+      isContanti
+    });
+  }
+  
+  const prove = await dbAll("SELECT * FROM prove_prenotazioni WHERE stato = 'confermata'");
+  const totaleProve = prove.length * 5;
+  
+  const ordini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
+  let totaleMerch = 0;
+  const dettaglioMerch = [];
+  
+  for (const o of ordini) {
+    const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id = ?', [o.id]);
+    const totOrdine = items.reduce((sum, it) => sum + (it.prezzo_unitario * it.quantita), 0);
+    totaleMerch += totOrdine;
+    dettaglioMerch.push({
+      nome: `${o.cognome} ${o.nome}`,
+      importo: totOrdine,
+      items: items.map(it => `${it.articolo} ${it.taglia || ''} x${it.quantita}`).join(', ')
+    });
+  }
+  
+  return {
+    iscrizioni: { totale: totaleIscrizioni, bando: totaleIscrizioniBando, dettaglio: dettaglioIscrizioni },
+    prove: { totale: totaleProve, count: prove.length },
+    merch: { totale: totaleMerch, dettaglio: dettaglioMerch },
+    totaleGenerale: totaleIscrizioni + totaleProve + totaleMerch,
+    totaleBando: totaleIscrizioniBando + totaleProve + totaleMerch
+  };
+}
+
+// PDF Bilancio Completo
+app.get('/api/bilancio/pdf/completo', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const spese = await dbAll('SELECT * FROM bilancio_spese ORDER BY descrizione');
+    const incassi = await calcolaIncassi();
+    
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    
+    const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+    const fontBoldPath = path.join(__dirname, 'fonts', 'NotoSans-Bold.ttf');
+    if (fs.existsSync(fontPath)) doc.registerFont('NotoSans', fontPath);
+    if (fs.existsSync(fontBoldPath)) doc.registerFont('NotoSans-Bold', fontBoldPath);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=Bilancio_Completo.pdf');
+    doc.pipe(res);
+    
+    // Titolo
+    doc.fontSize(18).font('NotoSans-Bold').text('BILANCIO COMPLETO', { align: 'center' });
+    doc.fontSize(10).font('NotoSans').text('Busto Battle XI - ' + new Date().toLocaleDateString('it-IT'), { align: 'center' });
+    doc.moveDown(1.5);
+    
+    // ENTRATE
+    doc.fontSize(14).font('NotoSans-Bold').fillColor('#22c55e').text('ENTRATE');
+    doc.fillColor('#000');
+    doc.moveDown(0.5);
+    
+    doc.fontSize(10).font('NotoSans-Bold').text('Iscrizioni confermate:', { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.iscrizioni.totale.toFixed(2));
+    
+    doc.fontSize(8).font('NotoSans');
+    for (const i of incassi.iscrizioni.dettaglio.slice(0, 30)) {
+      doc.text(`   • ${i.nome}: € ${i.importo.toFixed(2)} (${i.metodo})`);
+    }
+    if (incassi.iscrizioni.dettaglio.length > 30) {
+      doc.text(`   ... e altri ${incassi.iscrizioni.dettaglio.length - 30} iscritti`);
+    }
+    doc.moveDown(0.3);
+    
+    doc.fontSize(10).font('NotoSans-Bold').text(`Prove Pista (${incassi.prove.count} sessioni):`, { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.prove.totale.toFixed(2));
+    doc.moveDown(0.3);
+    
+    doc.fontSize(10).font('NotoSans-Bold').text('Merchandising:', { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.merch.totale.toFixed(2));
+    doc.moveDown(0.5);
+    
+    doc.fontSize(12).font('NotoSans-Bold').text('TOTALE ENTRATE: € ' + incassi.totaleGenerale.toFixed(2));
+    doc.moveDown(1);
+    
+    // USCITE (solo NON bando per bilancio completo)
+    const speseNonBando = spese.filter(s => !s.includi_bando);
+    const totaleUscite = speseNonBando.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
+    
+    doc.fontSize(14).font('NotoSans-Bold').fillColor('#ef4444').text('USCITE (non bando)');
+    doc.fillColor('#000');
+    doc.moveDown(0.5);
+    
+    doc.fontSize(9).font('NotoSans');
+    for (const s of speseNonBando) {
+      const stato = [s.stato_preventivo ? 'Prev' : '', s.stato_confermato ? 'Conf' : '', s.stato_pagato ? 'Pag' : ''].filter(x => x).join('/');
+      doc.text(`• ${s.descrizione}: € ${parseFloat(s.importo).toFixed(2)} [${stato || '-'}]`);
+    }
+    if (speseNonBando.length === 0) doc.text('(Nessuna spesa non-bando)');
+    doc.moveDown(0.5);
+    
+    doc.fontSize(12).font('NotoSans-Bold').text('TOTALE USCITE: € ' + totaleUscite.toFixed(2));
+    doc.moveDown(1.5);
+    
+    // SALDO
+    const saldo = incassi.totaleGenerale - totaleUscite;
+    doc.fontSize(16).font('NotoSans-Bold');
+    doc.fillColor(saldo >= 0 ? '#22c55e' : '#ef4444');
+    doc.text('SALDO: € ' + saldo.toFixed(2), { align: 'center' });
+    
+    doc.end();
+  } catch (err) {
+    console.error('Errore PDF bilancio completo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PDF Bilancio Bando
+app.get('/api/bilancio/pdf/bando', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const spese = await dbAll('SELECT * FROM bilancio_spese ORDER BY includi_bando DESC, descrizione');
+    const incassi = await calcolaIncassi();
+    
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    
+    const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+    const fontBoldPath = path.join(__dirname, 'fonts', 'NotoSans-Bold.ttf');
+    if (fs.existsSync(fontPath)) doc.registerFont('NotoSans', fontPath);
+    if (fs.existsSync(fontBoldPath)) doc.registerFont('NotoSans-Bold', fontBoldPath);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=Bilancio_Bando.pdf');
+    doc.pipe(res);
+    
+    // Titolo
+    doc.fontSize(18).font('NotoSans-Bold').text('BILANCIO BANDO REGIONE LOMBARDIA', { align: 'center' });
+    doc.fontSize(10).font('NotoSans').text('Busto Battle XI - ' + new Date().toLocaleDateString('it-IT'), { align: 'center' });
+    doc.moveDown(1.5);
+    
+    // ENTRATE (esclusi contanti)
+    doc.fontSize(14).font('NotoSans-Bold').fillColor('#22c55e').text('ENTRATE (esclusi pagamenti in contanti)');
+    doc.fillColor('#000');
+    doc.moveDown(0.5);
+    
+    const iscrizioniBando = incassi.iscrizioni.dettaglio.filter(i => !i.isContanti);
+    doc.fontSize(10).font('NotoSans-Bold').text('Iscrizioni (no contanti):', { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.iscrizioni.bando.toFixed(2));
+    
+    doc.fontSize(8).font('NotoSans');
+    for (const i of iscrizioniBando.slice(0, 25)) {
+      doc.text(`   • ${i.nome}: € ${i.importo.toFixed(2)} (${i.metodo})`);
+    }
+    if (iscrizioniBando.length > 25) {
+      doc.text(`   ... e altri ${iscrizioniBando.length - 25} iscritti`);
+    }
+    
+    const contanti = incassi.iscrizioni.dettaglio.filter(i => i.isContanti);
+    if (contanti.length > 0) {
+      doc.fillColor('#888').text(`   [Esclusi ${contanti.length} pagamenti in contanti per € ${contanti.reduce((s, i) => s + i.importo, 0).toFixed(2)}]`);
+      doc.fillColor('#000');
+    }
+    doc.moveDown(0.3);
+    
+    doc.fontSize(10).font('NotoSans-Bold').text(`Prove Pista:`, { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.prove.totale.toFixed(2));
+    doc.moveDown(0.3);
+    
+    doc.fontSize(10).font('NotoSans-Bold').text('Merchandising:', { continued: true });
+    doc.font('NotoSans').text('  € ' + incassi.merch.totale.toFixed(2));
+    doc.moveDown(0.5);
+    
+    doc.fontSize(12).font('NotoSans-Bold').text('TOTALE ENTRATE BANDO: € ' + incassi.totaleBando.toFixed(2));
+    doc.moveDown(1);
+    
+    // USCITE (tutte)
+    const totaleUscite = spese.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
+    
+    doc.fontSize(14).font('NotoSans-Bold').fillColor('#ef4444').text('USCITE (tutte le spese)');
+    doc.fillColor('#000');
+    doc.moveDown(0.5);
+    
+    doc.fontSize(9).font('NotoSans');
+    for (const s of spese) {
+      const stato = [s.stato_preventivo ? 'Prev' : '', s.stato_confermato ? 'Conf' : '', s.stato_pagato ? 'Pag' : ''].filter(x => x).join('/');
+      const bandoTag = s.includi_bando ? ' [BANDO]' : '';
+      doc.text(`• ${s.descrizione}: € ${parseFloat(s.importo).toFixed(2)} [${stato || '-'}]${bandoTag}`);
+    }
+    if (spese.length === 0) doc.text('(Nessuna spesa registrata)');
+    doc.moveDown(0.5);
+    
+    doc.fontSize(12).font('NotoSans-Bold').text('TOTALE USCITE: € ' + totaleUscite.toFixed(2));
+    doc.moveDown(1.5);
+    
+    // RIEPILOGO BANDO
+    const disavanzo = Math.max(0, totaleUscite - incassi.totaleBando);
+    const contributo = Math.min(disavanzo * 0.6, 15000);
+    
+    doc.fontSize(14).font('NotoSans-Bold').text('RIEPILOGO BANDO', { align: 'center' });
+    doc.moveDown(0.5);
+    
+    doc.fontSize(11).font('NotoSans');
+    doc.text(`Entrate bando: € ${incassi.totaleBando.toFixed(2)}`);
+    doc.text(`Uscite totali: € ${totaleUscite.toFixed(2)}`);
+    doc.moveDown(0.3);
+    
+    doc.fontSize(12).font('NotoSans-Bold').fillColor('#ef4444');
+    doc.text(`DISAVANZO: € ${disavanzo.toFixed(2)}`);
+    doc.moveDown(0.3);
+    
+    doc.fontSize(14).fillColor('#3b82f6');
+    doc.text(`CONTRIBUTO STIMATO (60%): € ${contributo.toFixed(2)}`, { align: 'center' });
+    
+    doc.fillColor('#888').fontSize(9).font('NotoSans');
+    doc.text('(Min € 2.000 - Max € 15.000)', { align: 'center' });
+    
+    doc.end();
+  } catch (err) {
+    console.error('Errore PDF bilancio bando:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bilancio Spese - Busto Battle XI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: #0a0a0a; 
+      color: #f0f0f0; 
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { color: #F7AF40; margin-bottom: 1rem; }
+    h2 { color: #F7AF40; margin: 1.5rem 0 1rem; font-size: 1.3rem; }
+    h3 { color: #22c55e; margin: 1rem 0 0.5rem; }
+    .back-link {
+      display: inline-block;
+      color: #F7AF40;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 0.8rem 1.5rem;
+      background: #222;
+      border: 1px solid #333;
+      color: #888;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .tab-btn.active { background: #F7AF40; color: #000; border-color: #F7AF40; }
+    .tab-btn:hover:not(.active) { background: #333; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-box {
+      background: #1a1a1a;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #333;
+    }
+    .stat-box .label { color: #888; font-size: 0.85rem; }
+    .stat-box .value { color: #F7AF40; font-size: 1.5rem; font-weight: bold; margin-top: 0.3rem; }
+    .stat-box.green { border-color: #22c55e; }
+    .stat-box.green .value { color: #22c55e; }
+    .stat-box.blue { border-color: #3b82f6; }
+    .stat-box.blue .value { color: #3b82f6; }
+    .stat-box.red { border-color: #ef4444; }
+    .stat-box.red .value { color: #ef4444; }
+    
+    .bilancio-section {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .bilancio-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #222;
+    }
+    .bilancio-row:last-child { border-bottom: none; }
+    .bilancio-row.totale { font-weight: bold; font-size: 1.1rem; border-top: 2px solid #333; margin-top: 0.5rem; padding-top: 1rem; }
+    .bilancio-row .entrata { color: #22c55e; }
+    .bilancio-row .uscita { color: #ef4444; }
+    
+    .form-card {
+      background: #111;
+      border: 2px solid #F7AF40;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-card h3 { color: #F7AF40; margin-bottom: 1rem; }
+    .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .form-row > * { flex: 1; min-width: 200px; }
+    input, select, textarea {
+      padding: 0.6rem;
+      background: #1a1a1a;
+      color: #f0f0f0;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #F7AF40; }
+    textarea { min-height: 60px; resize: vertical; }
+    label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #ccc; }
+    label input[type="checkbox"] { width: 18px; height: 18px; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin-bottom: 1rem; }
+    button {
+      padding: 0.8rem 1.5rem;
+      background: #F7AF40;
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+    button:hover { background: #e09a30; }
+    button.secondary { background: #333; color: #f0f0f0; }
+    button.secondary:hover { background: #444; }
+    button.danger { background: #ef4444; color: #fff; }
+    button.danger:hover { background: #dc2626; }
+    
+    table { width: 100%; border-collapse: collapse; background: #111; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #333; }
+    th { background: #1a1a1a; color: #F7AF40; font-weight: 600; }
+    tr:hover { background: #1a1a1a; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .actions button { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+    
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge-prev { background: #6366f1; color: #fff; }
+    .badge-conf { background: #22c55e; color: #fff; }
+    .badge-pag { background: #14b8a6; color: #fff; }
+    .badge-bando { background: #F7AF40; color: #000; }
+    
+    .alert { padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .alert-danger { background: #3a1a1a; border: 1px solid #ef4444; color: #fca5a5; }
+    .alert-warning { background: #3a3a1a; border: 1px solid #f59e0b; color: #fcd34d; }
+    .alert-success { background: #1a3a1a; border: 1px solid #22c55e; color: #86efac; }
+    
+    .categoria-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .categoria-box { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1rem; }
+    .categoria-box h4 { color: #F7AF40; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .categoria-box .importo { font-size: 1.3rem; font-weight: bold; color: #f0f0f0; }
+    .categoria-box .limite { font-size: 0.85rem; color: #888; margin-top: 0.3rem; }
+    .categoria-box.over-limit { border-color: #ef4444; }
+    .categoria-box.over-limit .importo { color: #ef4444; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto; }
+    .modal-content { background: #1a1a1a; max-width: 600px; margin: 2rem auto; padding: 1.5rem; border-radius: 8px; border: 1px solid #333; }
+    .modal h3 { color: #F7AF40; margin-bottom: 1rem; }
+    
+    @media (max-width: 768px) { .form-row > * { min-width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="admin.html" class="back-link">← Torna all'Admin</a>
+    <h1>💰 Bilancio - Bando Regione Lombardia</h1>
+    
+    <div class="tabs">
+      <button class="tab-btn active" id="btn-completo">📊 Bilancio Completo</button>
+      <button class="tab-btn" id="btn-bando">🏛️ Bilancio Bando</button>
+      <button class="tab-btn" id="btn-spese">📝 Gestione Spese</button>
+    </div>
+    
+    <!-- TAB BILANCIO COMPLETO -->
+    <div id="tab-completo" class="tab-content active">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="color:#888;margin:0">Bilancio completo dell'evento: tutte le entrate e le spese NON incluse nel bando.</p>
+        <a href="/api/bilancio/pdf/completo" style="background:#ef4444;color:#fff;padding:0.5rem 1rem;border-radius:4px;text-decoration:none;font-weight:bold">📄 Scarica PDF</a>
+      </div>
+      
+      <div class="bilancio-section">
+        <h3>📈 ENTRATE</h3>
+        <div class="bilancio-row">
+          <span>Iscrizioni (<span id="bc-isc-count">0</span> confermate)</span>
+          <span class="entrata" id="bc-isc-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row">
+          <span>Prove Pista (<span id="bc-prove-count">0</span> sessioni)</span>
+          <span class="entrata" id="bc-prove-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row">
+          <span>Merchandising (<span id="bc-merch-count">0</span> ordini)</span>
+          <span class="entrata" id="bc-merch-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row totale">
+          <span>TOTALE ENTRATE</span>
+          <span class="entrata" id="bc-entrate-tot">€ 0</span>
+        </div>
+      </div>
+      
+      <div class="bilancio-section">
+        <h3>📉 USCITE (non bando)</h3>
+        <div id="bc-uscite-list"></div>
+        <div class="bilancio-row totale">
+          <span>TOTALE USCITE</span>
+          <span class="uscita" id="bc-uscite-tot">€ 0</span>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-box green">
+          <div class="label">SALDO</div>
+          <div class="value" id="bc-saldo">€ 0</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- TAB BILANCIO BANDO -->
+    <div id="tab-bando" class="tab-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="color:#888;margin:0">Bilancio per il bando Regione Lombardia: entrate esclusi contanti, tutte le uscite.</p>
+        <a href="/api/bilancio/pdf/bando" style="background:#3b82f6;color:#fff;padding:0.5rem 1rem;border-radius:4px;text-decoration:none;font-weight:bold">📄 Scarica PDF Bando</a>
+      </div>
+      
+      <div id="bando-alerts"></div>
+      
+      <div class="bilancio-section">
+        <h3>📈 ENTRATE (esclusi contanti)</h3>
+        <div class="bilancio-row">
+          <span>Iscrizioni (no contanti)</span>
+          <span class="entrata" id="bb-isc-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row">
+          <span>Prove Pista</span>
+          <span class="entrata" id="bb-prove-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row">
+          <span>Merchandising</span>
+          <span class="entrata" id="bb-merch-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row totale">
+          <span>TOTALE ENTRATE BANDO</span>
+          <span class="entrata" id="bb-entrate-tot">€ 0</span>
+        </div>
+      </div>
+      
+      <div class="bilancio-section">
+        <h3>📉 USCITE (tutte le spese)</h3>
+        <div id="bb-uscite-list"></div>
+        <div class="bilancio-row totale">
+          <span>TOTALE USCITE</span>
+          <span class="uscita" id="bb-uscite-tot">€ 0</span>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-box red">
+          <div class="label">DISAVANZO (Uscite - Entrate)</div>
+          <div class="value" id="bb-disavanzo">€ 0</div>
+        </div>
+        <div class="stat-box blue">
+          <div class="label">Contributo Stimato (60% disavanzo)</div>
+          <div class="value" id="bb-contributo">€ 0</div>
+        </div>
+        <div class="stat-box">
+          <div class="label">Min / Max Contributo</div>
+          <div class="value">€2.000 / €15.000</div>
+        </div>
+      </div>
+      
+      <h2>📊 Riepilogo per Categoria</h2>
+      <div id="categorie-grid" class="categoria-grid"></div>
+    </div>
+    
+    <!-- TAB GESTIONE SPESE -->
+    <div id="tab-spese" class="tab-content">
+      <div class="form-card">
+        <h3 id="form-title">➕ Nuova Spesa</h3>
+        <form id="form-spesa">
+          <input type="hidden" id="spesa-id">
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Descrizione *</label>
+              <input type="text" id="spesa-descrizione" placeholder="Es: Affitto palazzetto" required>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Importo € *</label>
+              <input type="number" id="spesa-importo" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Categoria Bando</label>
+              <select id="spesa-categoria">
+                <option value="">-- Seleziona categoria --</option>
+                <option value="Affitto e allestimento spazi">Affitto e allestimento di spazi, locali, strutture</option>
+                <option value="Noleggio attrezzature">Noleggio attrezzature e strumentazioni</option>
+                <option value="Ambulanza e sicurezza">Ambulanza e Sicurezza</option>
+                <option value="Servizi assicurativi">Servizi assicurativi</option>
+                <option value="Tasse e fee">Tasse federali, fee, SIAE</option>
+                <option value="Compensi e rimborsi">Compensi e rimborsi (istruttori, arbitri, giudici)</option>
+                <option value="Ospitalità e trasporto">Ospitalità e trasporto atleti</option>
+                <option value="Comunicazione e pubblicità">Comunicazione e pubblicità</option>
+                <option value="Premi in beni materiali">Premi in beni materiali (MAX €1.500)</option>
+                <option value="Rinfreschi e ristori">Rinfreschi e ristori (MAX €2.000)</option>
+                <option value="Servizi di pulizia">Servizi di pulizia</option>
+                <option value="Altre spese">Altre spese (non ammissibili)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Note</label>
+              <textarea id="spesa-note" placeholder="Note aggiuntive..."></textarea>
+            </div>
+          </div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="spesa-preventivo" checked> 📝 Preventivo</label>
+            <label><input type="checkbox" id="spesa-confermato"> ✅ Confermato</label>
+            <label><input type="checkbox" id="spesa-pagato"> 💳 Pagato</label>
+            <label><input type="checkbox" id="spesa-bando"> 🏛️ Includi nel Bando</label>
+          </div>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button type="submit">💾 Salva Spesa</button>
+            <button type="button" class="secondary" id="btn-reset">🔄 Annulla</button>
+          </div>
+        </form>
+      </div>
+      
+      <h2>📋 Elenco Spese</h2>
+      <div style="margin-bottom:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <select id="filter-bando">
+          <option value="">Tutte</option>
+          <option value="1">Solo bando</option>
+          <option value="0">Non bando</option>
+        </select>
+        <input type="text" id="search" placeholder="Cerca..." style="flex:1;min-width:200px">
+      </div>
+      <table id="tabella-spese">
+        <thead>
+          <tr>
+            <th>Descrizione</th>
+            <th>Categoria</th>
+            <th>Importo</th>
+            <th>Stato</th>
+            <th>Bando</th>
+            <th>Note</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let spese = [];
+    let incassi = {};
+    let riepilogo = {};
+    
+    const categorieBando = [
+      'Affitto e allestimento spazi', 'Noleggio attrezzature', 'Ambulanza e sicurezza',
+      'Servizi assicurativi', 'Tasse e fee', 'Compensi e rimborsi', 'Ospitalità e trasporto',
+      'Comunicazione e pubblicità', 'Premi in beni materiali', 'Rinfreschi e ristori',
+      'Servizi di pulizia', 'Altre spese'
+    ];
+    const limitiCategoria = { 'Premi in beni materiali': 1500, 'Rinfreschi e ristori': 2000 };
+
+    async function caricaDati() {
+      try {
+        const [speseRes, incassiRes, riepilogoRes] = await Promise.all([
+          fetch('/api/bilancio/spese'),
+          fetch('/api/bilancio/incassi'),
+          fetch('/api/bilancio/riepilogo')
+        ]);
+        
+        if (speseRes.status === 401 || incassiRes.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        spese = speseRes.ok ? await speseRes.json() : [];
+        incassi = incassiRes.ok ? await incassiRes.json() : {};
+        riepilogo = riepilogoRes.ok ? await riepilogoRes.json() : {};
+        
+        renderAll();
+      } catch (err) {
+        console.error('Errore:', err);
+        spese = []; incassi = {}; riepilogo = {};
+        renderAll();
+      }
+    }
+    
+    function renderAll() {
+      renderBilancioCompleto();
+      renderBilancioBando();
+      renderSpese();
+    }
+    
+    function renderBilancioCompleto() {
+      // Entrate
+      document.getElementById('bc-isc-count').textContent = incassi.iscrizioni?.count || 0;
+      document.getElementById('bc-isc-tot').textContent = '€ ' + fmt(incassi.iscrizioni?.totale || 0);
+      document.getElementById('bc-prove-count').textContent = incassi.prove?.count || 0;
+      document.getElementById('bc-prove-tot').textContent = '€ ' + fmt(incassi.prove?.totale || 0);
+      document.getElementById('bc-merch-count').textContent = incassi.merch?.count || 0;
+      document.getElementById('bc-merch-tot').textContent = '€ ' + fmt(incassi.merch?.totale || 0);
+      
+      const totEntrate = incassi.totaleGenerale || 0;
+      document.getElementById('bc-entrate-tot').textContent = '€ ' + fmt(totEntrate);
+      
+      // Uscite (NON bando)
+      const speseNonBando = spese.filter(s => !s.includi_bando);
+      const listDiv = document.getElementById('bc-uscite-list');
+      listDiv.innerHTML = speseNonBando.map(s => `
+        <div class="bilancio-row">
+          <span>${esc(s.descrizione)}</span>
+          <span class="uscita">€ ${fmt(s.importo)}</span>
+        </div>
+      `).join('') || '<div class="bilancio-row"><span style="color:#666">Nessuna spesa</span></div>';
+      
+      const totUscite = speseNonBando.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
+      document.getElementById('bc-uscite-tot').textContent = '€ ' + fmt(totUscite);
+      
+      // Saldo
+      const saldo = totEntrate - totUscite;
+      const saldoEl = document.getElementById('bc-saldo');
+      saldoEl.textContent = '€ ' + fmt(saldo);
+      saldoEl.parentElement.classList.toggle('red', saldo < 0);
+      saldoEl.parentElement.classList.toggle('green', saldo >= 0);
+    }
+    
+    function renderBilancioBando() {
+      // Entrate (esclusi contanti)
+      document.getElementById('bb-isc-tot').textContent = '€ ' + fmt(incassi.iscrizioni?.bando || 0);
+      document.getElementById('bb-prove-tot').textContent = '€ ' + fmt(incassi.prove?.bando || 0);
+      document.getElementById('bb-merch-tot').textContent = '€ ' + fmt(incassi.merch?.bando || 0);
+      
+      const totEntrateBando = incassi.totaleBando || 0;
+      document.getElementById('bb-entrate-tot').textContent = '€ ' + fmt(totEntrateBando);
+      
+      // Uscite (TUTTE le spese, sia bando che non)
+      const listDiv = document.getElementById('bb-uscite-list');
+      listDiv.innerHTML = spese.map(s => `
+        <div class="bilancio-row">
+          <span>${esc(s.descrizione)} <small style="color:#888">(${s.categoria_bando || 'N/D'})</small> ${s.includi_bando ? '<span class="badge badge-bando" style="font-size:0.7rem">Bando</span>' : ''}</span>
+          <span class="uscita">€ ${fmt(s.importo)}</span>
+        </div>
+      `).join('') || '<div class="bilancio-row"><span style="color:#666">Nessuna spesa</span></div>';
+      
+      const totUscite = spese.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
+      document.getElementById('bb-uscite-tot').textContent = '€ ' + fmt(totUscite);
+      
+      // Disavanzo = Uscite - Entrate (se positivo)
+      const disavanzo = Math.max(0, totUscite - totEntrateBando);
+      document.getElementById('bb-disavanzo').textContent = '€ ' + fmt(disavanzo);
+      
+      // Contributo = 60% del disavanzo, max 15000
+      const contributo = Math.min(disavanzo * 0.6, 15000);
+      document.getElementById('bb-contributo').textContent = '€ ' + fmt(contributo);
+      
+      // Alerts
+      const alertsDiv = document.getElementById('bando-alerts');
+      let alertsHtml = '';
+      
+      if (riepilogo.alertLimiti?.length > 0) {
+        alertsHtml += '<div class="alert alert-danger"><strong>⚠️ Limiti Superati:</strong><br>';
+        riepilogo.alertLimiti.forEach(a => {
+          alertsHtml += `• ${a.categoria}: €${fmt(a.speso)} (limite €${fmt(a.limite)})<br>`;
+        });
+        alertsHtml += '</div>';
+      }
+      
+      if (contributo < 2000 && disavanzo > 0) {
+        alertsHtml += '<div class="alert alert-warning"><strong>⚠️</strong> Contributo sotto il minimo di €2.000</div>';
+      }
+      if (contributo >= 15000) {
+        alertsHtml += '<div class="alert alert-success"><strong>✅</strong> Raggiunto il contributo massimo di €15.000</div>';
+      }
+      alertsDiv.innerHTML = alertsHtml;
+      
+      // Categorie
+      const perCategoria = riepilogo.perCategoria || {};
+      document.getElementById('categorie-grid').innerHTML = categorieBando.map(cat => {
+        const importo = perCategoria[cat] || 0;
+        const limite = limitiCategoria[cat];
+        const over = limite && importo > limite;
+        return `<div class="categoria-box ${over ? 'over-limit' : ''}">
+          <h4>${cat}</h4>
+          <div class="importo">€ ${fmt(importo)}</div>
+          ${limite ? `<div class="limite">${over ? '⚠️ ' : ''}Limite: €${fmt(limite)}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    
+    function renderSpese() {
+      const filterBando = document.getElementById('filter-bando').value;
+      const search = document.getElementById('search').value.toLowerCase();
+      
+      let filtered = spese.filter(s => {
+        if (filterBando === '1' && !s.includi_bando) return false;
+        if (filterBando === '0' && s.includi_bando) return false;
+        if (search && !s.descrizione.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      document.querySelector('#tabella-spese tbody').innerHTML = filtered.map(s => {
+        let badges = '';
+        if (s.stato_preventivo) badges += '<span class="badge badge-prev">Prev</span> ';
+        if (s.stato_confermato) badges += '<span class="badge badge-conf">Conf</span> ';
+        if (s.stato_pagato) badges += '<span class="badge badge-pag">Pag</span> ';
+        
+        return `<tr>
+          <td>${esc(s.descrizione)}</td>
+          <td style="font-size:0.85rem">${esc(s.categoria_bando || '-')}</td>
+          <td style="font-weight:bold">€ ${fmt(s.importo)}</td>
+          <td>${badges || '-'}</td>
+          <td>${s.includi_bando ? '<span class="badge badge-bando">Bando</span>' : '-'}</td>
+          <td style="font-size:0.85rem;color:#888">${esc(s.note || '-')}</td>
+          <td class="actions">
+            <button class="secondary" data-edit="${s.id}">✏️</button>
+            <button class="danger" data-delete="${s.id}">❌</button>
+          </td>
+        </tr>`;
+      }).join('');
+      
+      // Event delegation per edit/delete
+      document.querySelector('#tabella-spese tbody').onclick = function(e) {
+        const editId = e.target.dataset.edit;
+        const deleteId = e.target.dataset.delete;
+        if (editId) editSpesa(parseInt(editId));
+        if (deleteId) deleteSpesa(parseInt(deleteId));
+      };
+    }
+    
+    // Tab handlers
+    document.getElementById('btn-completo').addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-completo').classList.add('active');
+    });
+    document.getElementById('btn-bando').addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-bando').classList.add('active');
+    });
+    document.getElementById('btn-spese').addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-spese').classList.add('active');
+    });
+    
+    // Form
+    document.getElementById('form-spesa').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('spesa-id').value;
+      const data = {
+        descrizione: document.getElementById('spesa-descrizione').value,
+        importo: parseFloat(document.getElementById('spesa-importo').value) || 0,
+        categoria_bando: document.getElementById('spesa-categoria').value,
+        note: document.getElementById('spesa-note').value,
+        stato_preventivo: document.getElementById('spesa-preventivo').checked,
+        stato_confermato: document.getElementById('spesa-confermato').checked,
+        stato_pagato: document.getElementById('spesa-pagato').checked,
+        includi_bando: document.getElementById('spesa-bando').checked
+      };
+      
+      try {
+        const url = id ? `/api/bilancio/spese/${id}` : '/api/bilancio/spese';
+        const res = await fetch(url, {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Errore salvataggio');
+        resetForm();
+        caricaDati();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    });
+    
+    document.getElementById('btn-reset').addEventListener('click', resetForm);
+    document.getElementById('filter-bando').addEventListener('change', renderSpese);
+    document.getElementById('search').addEventListener('input', renderSpese);
+    
+    function editSpesa(id) {
+      const s = spese.find(x => x.id === id);
+      if (!s) return;
+      document.getElementById('spesa-id').value = s.id;
+      document.getElementById('spesa-descrizione').value = s.descrizione;
+      document.getElementById('spesa-importo').value = s.importo;
+      document.getElementById('spesa-categoria').value = s.categoria_bando || '';
+      document.getElementById('spesa-note').value = s.note || '';
+      document.getElementById('spesa-preventivo').checked = s.stato_preventivo;
+      document.getElementById('spesa-confermato').checked = s.stato_confermato;
+      document.getElementById('spesa-pagato').checked = s.stato_pagato;
+      document.getElementById('spesa-bando').checked = s.includi_bando;
+      document.getElementById('form-title').textContent = '✏️ Modifica Spesa';
+      window.scrollTo(0, 0);
+    }
+    
+    function resetForm() {
+      document.getElementById('spesa-id').value = '';
+      document.getElementById('form-spesa').reset();
+      document.getElementById('spesa-preventivo').checked = true;
+      document.getElementById('form-title').textContent = '➕ Nuova Spesa';
+    }
+    
+    async function deleteSpesa(id) {
+      if (!confirm('Eliminare questa spesa?')) return;
+      try {
+        await fetch(`/api/bilancio/spese/${id}`, { method: 'DELETE' });
+        caricaDati();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    function fmt(n) { return (parseFloat(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function esc(s) { return s ? s.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''; }
+    
+    caricaDati();
+  </script>
+</body>
+</html>

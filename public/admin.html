@@ -16,30 +16,31 @@
     <nav>
       <a href="index.html">Home</a>
       <span id="admin-user" style="color:#F7AF40"></span>
-      <a href="javascript:void(0)" onclick="cambiaPassword()" style="color:#3498db">🔑 Cambia Password</a>
-      <a href="javascript:void(0)" onclick="logout()" style="color:#e74c3c">Logout</a>
+      <a href="javascript:void(0)" id="btn-cambia-password" style="color:#3498db">🔑 Cambia Password</a>
+      <a href="javascript:void(0)" id="btn-logout" style="color:#e74c3c">Logout</a>
     </nav>
   </header>
 
   <!-- Simulate banner -->
   <div id="simulate-banner" style="display:none;background:#F7AF40;color:#000;padding:0.6rem 1rem;text-align:center;font-weight:600">
     👁️ Stai simulando: <span id="sim-name"></span>
-    <button onclick="stopSimulate()" style="margin-left:1rem;padding:0.3rem 0.8rem">Esci simulazione</button>
+    <button id="btn-stop-simulate" style="margin-left:1rem;padding:0.3rem 0.8rem">Esci simulazione</button>
     <a id="sim-link" href="/index.html" target="_blank" style="margin-left:1rem;color:#000;text-decoration:underline">Apri sito come utente →</a>
   </div>
 
   <main>
     <div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.5rem">
-      <button onclick="showTab('export')" id="tab-export" class="tab-btn active">📥 Export</button>
-      <button onclick="showTab('iscritti')" id="tab-iscritti" class="tab-btn">📋 Iscritti</button>
-      <!-- <button onclick="showTab('navetta')" id="tab-navetta" class="tab-btn">🚐 Navetta</button> -->
-      <button onclick="showTab('prove')" id="tab-prove" class="tab-btn">Prove Pista</button>
-      <button onclick="showTab('bilancio')" id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
-      <button onclick="showTab('merch')" id="tab-merch" class="tab-btn">🛍️ Merch</button>
-      <!-- <button onclick="showTab('risultati')" id="tab-risultati" class="tab-btn">📊 Risultati</button> -->
-      <button onclick="showTab('notifiche')" id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
-      <!-- <button onclick="showTab('simula')" id="tab-simula" class="tab-btn">👁️ Simula Utente</button> -->
-      <button onclick="showTab('pagine')" id="tab-pagine" class="tab-btn">📄 Pagine</button>
+      <button id="tab-export" class="tab-btn active">📥 Export</button>
+      <button id="tab-iscritti" class="tab-btn">📋 Iscritti</button>
+      <!-- <button id="tab-navetta" class="tab-btn">🚐 Navetta</button> -->
+      <button id="tab-prove" class="tab-btn">Prove Pista</button>
+      <button id="tab-bilancio" class="tab-btn">💰 Bilancio</button>
+      <button id="tab-merch" class="tab-btn">🛍️ Merch</button>
+      <!-- <button id="tab-risultati" class="tab-btn">📊 Risultati</button> -->
+      <button id="tab-notifiche" class="tab-btn">📢 Notifiche</button>
+      <!-- <button id="tab-simula" class="tab-btn">👁️ Simula Utente</button> -->
+      <button id="tab-pagine" class="tab-btn">📄 Pagine</button>
+      <a href="/admin-bilancio.html" style="background:#6366f1;color:#fff;padding:0.5rem 1rem;border-radius:4px;text-decoration:none;font-weight:bold">🏛️ Spese Bando</a>
       <a href="/check-in.html" style="background:#22c55e;color:#000;padding:0.5rem 1rem;border-radius:4px;text-decoration:none;font-weight:bold">🏁 Check-in</a>
     </div>
 
@@ -48,7 +49,7 @@
       <span id="totale">Totale: 0</span>
       <span id="pagati">Pagati: 0</span>
       <span id="navette">Navette: 0</span>
-      <button onclick="apriModalNuovo()" style="margin-left:auto;background:#22c55e;border:none;padding:0.5rem 1rem;cursor:pointer">➕ Nuovo Iscritto</button>
+      <button id="btn-nuovo-iscritto" style="margin-left:auto;background:#22c55e;border:none;padding:0.5rem 1rem;cursor:pointer">➕ Nuovo Iscritto</button>
     </div>
 
     <div class="form-row" style="margin-bottom:1rem">
@@ -100,7 +101,7 @@
         <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
           Excel con fogli separati per disciplina/categoria/genere.
         </p>
-        <button onclick="exportExcel()" style="width:100%;padding:0.8rem;background:#217346;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+        <button id="btn-export-excel" style="width:100%;padding:0.8rem;background:#217346;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
           📥 Scarica Excel
         </button>
       </div>
@@ -111,7 +112,7 @@
         <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
           PDF stampabile con tutti gli atleti in ordine alfabetico.
         </p>
-        <button onclick="exportPDF()" style="width:100%;padding:0.8rem;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+        <button id="btn-export-pdf" style="width:100%;padding:0.8rem;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
           📄 Scarica PDF
         </button>
       </div>
@@ -122,8 +123,52 @@
         <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
           Excel per il check-in: nome/cognome, discipline, prove pista e merchandising prenotati.
         </p>
-        <button onclick="exportCheckIn()" style="width:100%;padding:0.8rem;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+        <button id="btn-export-checkin" style="width:100%;padding:0.8rem;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
           🧾 Scarica Excel Check-in
+        </button>
+      </div>
+      
+      <!-- Export Prove Pista per Nome -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📅 Prove Pista per Nome</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel con tutte le prove pista ordinate per cognome/nome.
+        </p>
+        <button id="btn-export-prove-nome" style="width:100%;padding:0.8rem;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          📅 Scarica Excel Prove (per nome)
+        </button>
+      </div>
+      
+      <!-- Export Prove Pista per Orario -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">🕐 Prove Pista per Orario</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel con tutte le prove pista ordinate per giorno e ora.
+        </p>
+        <button id="btn-export-prove-orario" style="width:100%;padding:0.8rem;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          🕐 Scarica Excel Prove (per orario)
+        </button>
+      </div>
+      
+      <!-- Export Merch per Nome -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">👕 Merch per Nome</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel con tutti gli ordini merch ordinati per cognome/nome.
+        </p>
+        <button id="btn-export-merch-nome" style="width:100%;padding:0.8rem;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          👕 Scarica Excel Merch (per nome)
+        </button>
+      </div>
+      
+      <!-- Export Merch per Taglia -->
+      <div style="background:#111;border:2px solid #333;border-radius:8px;padding:1.5rem">
+        <h4 style="color:#F7AF40;margin:0 0 1rem">📏 Merch per Taglia</h4>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1rem">
+          Excel con riepilogo merch raggruppato per articolo e taglia.
+        </p>
+        <button id="btn-export-merch-taglia" style="width:100%;padding:0.8rem;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">
+          📏 Scarica Excel Merch (per taglia)
         </button>
       </div>
       
@@ -196,6 +241,11 @@
         <option value="verifica">In Verifica</option>
         <option value="confermata">Confermate</option>
       </select>
+      <select id="filter-prove-associazione">
+        <option value="">Tutte le associazioni</option>
+        <option value="associato">Associate a iscritto</option>
+        <option value="non-associato">Non associate</option>
+      </select>
     </div>
     <div id="prove-disponibilita" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0"></div>
     <table id="tabella-prove">
@@ -207,6 +257,7 @@
           <th>Telefono</th>
           <th>Sessioni</th>
           <th>Totale €</th>
+          <th>Iscritto</th>
           <th>Stato</th>
           <th>Note Admin</th>
           <th>Azioni</th>
@@ -220,7 +271,7 @@
     <h3>💰 Bilancio Incassi</h3>
     <p style="color:#888;margin-bottom:1rem">Riepilogo incassi complessivo: iscrizioni, prove pista e merchandising.</p>
     
-    <button onclick="caricaBilancio()" style="margin-bottom:1rem">🔄 Aggiorna Bilancio</button>
+    <button id="btn-aggiorna-bilancio" style="margin-bottom:1rem">🔄 Aggiorna Bilancio</button>
     
     <!-- TOTALE GENERALE -->
     <div id="bilancio-totale" style="background:#1a3a1a;border:2px solid #22c55e;padding:1.5rem;border-radius:8px;margin-bottom:2rem">
@@ -257,15 +308,15 @@
     <h3>🛍️ Ordini Merchandising</h3>
     <p style="color:#888;margin-bottom:1rem">Gestione ordini merchandising. <a href="/merch.html" target="_blank" style="color:#F7AF40">Apri pagina ordini →</a></p>
     
-    <button onclick="caricaMerch()" style="margin-bottom:1rem">🔄 Aggiorna</button>
-    <button onclick="mostraGestioneStampati()" style="margin-bottom:1rem;background:#6366F1">🖨️ Gestione Ordini Stampati</button>
+    <button id="btn-aggiorna-merch" style="margin-bottom:1rem">🔄 Aggiorna</button>
+    <button id="btn-gestione-stampati" style="margin-bottom:1rem;background:#6366F1">🖨️ Gestione Ordini Stampati</button>
     
     <!-- Modal Gestione Ordini Stampati -->
     <div id="modal-stampati" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;overflow-y:auto">
       <div style="background:#1a1a1a;max-width:900px;margin:2rem auto;padding:1.5rem;border-radius:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
           <h3 style="margin:0;color:#6366F1">🖨️ Gestione Ordini Stampati</h3>
-          <button onclick="chiudiGestioneStampati()" style="background:#333;border:none;padding:0.5rem 1rem;cursor:pointer;border-radius:4px">✕ Chiudi</button>
+          <button id="btn-chiudi-stampati" style="background:#333;border:none;padding:0.5rem 1rem;cursor:pointer;border-radius:4px">✕ Chiudi</button>
         </div>
         
         <p style="color:#888;margin-bottom:1rem">Registra qui gli ordini che fai al fornitore. Ogni ordine avrà una colonna nell'export Excel.</p>
@@ -333,13 +384,34 @@
             </div>
           </div>
           
-          <button onclick="salvaOrdineStampato()" style="background:#22c55e;padding:0.8rem 1.5rem;font-weight:bold">💾 Salva Ordine</button>
+          <button id="btn-salva-stampato" style="background:#22c55e;padding:0.8rem 1.5rem;font-weight:bold">💾 Salva Ordine</button>
         </div>
       </div>
     </div>
     
-    <div id="merch-stats" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:1rem;margin-bottom:1.5rem">
-      <!-- Stats cards -->
+    <div id="merch-stats" style="margin-bottom:1.5rem">
+      <!-- Riepilogo totali -->
+      <div id="merch-totali" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;margin-bottom:1.5rem"></div>
+      
+      <!-- Riepilogo per taglia -->
+      <details style="background:#111;border:1px solid #333;border-radius:8px;margin-bottom:1rem">
+        <summary style="padding:1rem;cursor:pointer;color:#F7AF40;font-weight:bold">📊 Riepilogo per Taglia (clicca per espandere)</summary>
+        <div id="merch-riepilogo-taglie" style="padding:1rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem"></div>
+      </details>
+    </div>
+    
+    <div class="form-row" style="margin-bottom:1rem">
+      <select id="filter-merch-stato">
+        <option value="">Tutti gli stati</option>
+        <option value="sospesa">Sospese</option>
+        <option value="verifica">In Verifica</option>
+        <option value="confermata">Confermate</option>
+      </select>
+      <select id="filter-merch-associazione">
+        <option value="">Tutte le associazioni</option>
+        <option value="associato">Associati a iscritto</option>
+        <option value="non-associato">Non associati</option>
+      </select>
     </div>
     
     <table id="tabella-merch">
@@ -351,6 +423,7 @@
           <th>Articoli</th>
           <th>Totale</th>
           <th>Origine</th>
+          <th>Iscritto</th>
           <th>Stato</th>
           <th>Note Admin</th>
           <th>Data</th>
@@ -416,7 +489,7 @@
           <input type="checkbox" name="soloConfermati" checked onchange="previewDestinatari()">
           Solo iscritti confermati
         </label>
-        <button type="button" onclick="previewDestinatari()" style="background:#333;padding:0.4rem 0.8rem;font-size:0.85rem">👁️ Anteprima destinatari</button>
+        <button type="button" id="btn-preview-destinatari" style="background:#333;padding:0.4rem 0.8rem;font-size:0.85rem">👁️ Anteprima destinatari</button>
       </div>
       <div id="email-preview" style="margin:0.5rem 0;padding:0.8rem;background:#1a1a1a;border-radius:6px;display:none"></div>
       <button type="submit">📧 Invia Email a tutti</button>
@@ -431,7 +504,7 @@
       <select id="simula-select" style="flex:1">
         <option value="">-- Seleziona iscritto --</option>
       </select>
-      <button onclick="startSimulate()">👁️ Simula</button>
+      <button id="btn-simula">👁️ Simula</button>
     </div>
     <div id="simula-info" style="display:none" class="info">
       <h4 style="color:#F7AF40">Profilo simulato:</h4>
@@ -600,6 +673,14 @@
           <label><input type="checkbox" name="pagamento"> Pagato</label>
         </div>
         <div class="form-row">
+          <select name="metodo_pagamento" style="flex:1;padding:0.6rem;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px">
+            <option value="">-- Metodo Pagamento --</option>
+            <option value="bonifico">💳 Bonifico</option>
+            <option value="online">💳 Online (Stripe)</option>
+            <option value="contanti">💵 Contanti</option>
+          </select>
+        </div>
+        <div class="form-row">
           <input type="text" name="navetta_dettagli" placeholder="Dettagli navetta">
         </div>
         <div class="form-row">
@@ -654,7 +735,7 @@
         </div>
         <div class="form-row">
           <button type="submit">Salva</button>
-          <button type="button" onclick="chiudiModal()">Annulla</button>
+          <button type="button" id="btn-chiudi-modal">Annulla</button>
         </div>
       </form>
     </div>
@@ -746,7 +827,7 @@
         </div>
         <div class="form-row">
           <button type="submit" style="background:#22c55e">➕ Crea Iscritto</button>
-          <button type="button" onclick="chiudiModalNuovo()">Annulla</button>
+          <button type="button" id="btn-chiudi-modal-nuovo">Annulla</button>
         </div>
       </form>
     </div>
@@ -763,7 +844,7 @@
         </div>
         <div class="form-row">
           <button type="submit" style="background:#ef4444">❌ Rigetta e Invia Email</button>
-          <button type="button" onclick="chiudiModalRigetto()">Annulla</button>
+          <button type="button" id="btn-chiudi-modal-rigetto">Annulla</button>
         </div>
       </form>
     </div>
@@ -771,15 +852,17 @@
 
   <script>
     // Check auth
-    fetch('/api/me').then(r => {
+    fetch('/api/me', { credentials: 'same-origin' }).then(r => {
       if (!r.ok) window.location.href = '/login.html';
       return r.json();
     }).then(u => {
       document.getElementById('admin-user').textContent = `👤 ${u.username}`;
+    }).catch(() => {
+      window.location.href = '/login.html';
     });
 
     async function logout() {
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
       window.location.href = '/login.html';
     }
 
@@ -867,12 +950,13 @@
       // Se c'è il campo metodo_pagamento salvato, usalo
       if (i.metodo_pagamento === 'online') return '<span style="color:#a78bfa">💳 Carta</span>';
       if (i.metodo_pagamento === 'bonifico') return '<span style="color:#22d3ee">🏦 Bonifico</span>';
+      if (i.metodo_pagamento === 'contanti') return '<span style="color:#f59e0b">💵 Contanti</span>';
       
       // Fallback per iscrizioni vecchie senza il campo
       const stato = i.stato || 'sospesa';
       const noteAdmin = (i.note_admin || '').toLowerCase();
       const note = (i.note || '').toLowerCase();
-      if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#9ca3af">💵 Contanti</span>';
+      if (noteAdmin.includes('contanti') || note.includes('contanti')) return '<span style="color:#f59e0b">💵 Contanti</span>';
       if (i.ricevuta_bonifico || i.ricevuta_base64) return '<span style="color:#22d3ee">🏦 Bonifico</span>';
       if (stato === 'confermata') return '<span style="color:#a78bfa">💳 Carta</span>';
       return '<span style="color:#888">⏳ In attesa</span>';
@@ -887,8 +971,8 @@
         
         // Bottone conferma bonifico (solo se in verifica)
         if (stato === 'verifica') {
-          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
-          azioniHtml += `<button onclick="rigettaBonifico(${i.id})" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
+          azioniHtml += `<button data-action="conferma-bonifico" data-id="${i.id}" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button data-action="rigetta-bonifico" data-id="${i.id}" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
         
         // Bottone vedi ricevuta (se esiste, per verifica e confermata)
@@ -898,12 +982,12 @@
         
         // Bottone segna pagato (solo se sospesa)
         if (stato === 'sospesa') {
-          azioniHtml += `<button onclick="confermaBonifico(${i.id})" title="Segna pagato">💰</button>`;
-          azioniHtml += `<button onclick="inviaSollecitoIscrizione(${i.id})" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
+          azioniHtml += `<button data-action="conferma-bonifico" data-id="${i.id}" title="Segna pagato">💰</button>`;
+          azioniHtml += `<button data-action="sollecito-iscrizione" data-id="${i.id}" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
         }
         
-        azioniHtml += `<button onclick="modifica(${i.id})">✏️</button>`;
-        azioniHtml += `<button onclick="elimina(${i.id})">🗑️</button>`;
+        azioniHtml += `<button data-action="modifica" data-id="${i.id}">✏️</button>`;
+        azioniHtml += `<button data-action="elimina" data-id="${i.id}">🗑️</button>`;
         
         // Tronca note admin se troppo lunghe
         const noteAdmin = i.note_admin || '';
@@ -1022,6 +1106,7 @@
       form.navetta.checked = !!i.navetta;
       form.navetta_dettagli.value = i.navetta_dettagli || '';
       form.pagamento.checked = !!i.pagamento;
+      form.metodo_pagamento.value = i.metodo_pagamento || '';
       form.note.value = i.note || '';
       form.note_admin.value = i.note_admin || '';
       
@@ -1169,6 +1254,7 @@
         navetta: form.navetta.checked,
         navetta_dettagli: form.navetta_dettagli.value,
         pagamento: form.pagamento.checked,
+        metodo_pagamento: form.metodo_pagamento.value,
         note: noteFinali,
         note_admin: form.note_admin.value
       };
@@ -1678,19 +1764,27 @@
 
     function renderProve() {
       const filtroStato = document.getElementById('filter-prove-stato').value;
+      const filtroAssociazione = document.getElementById('filter-prove-associazione').value;
       const grouped = {};
       provePrenotazioni.forEach(p => {
         if (!grouped[p.codice]) grouped[p.codice] = [];
         grouped[p.codice].push(p);
       });
       
-      // Filtra per stato
+      // Filtra per stato e associazione
       const filteredGroups = {};
       for (const [cod, sessioni] of Object.entries(grouped)) {
         const stato = sessioni[0].stato || 'sospesa';
-        if (!filtroStato || stato === filtroStato) {
-          filteredGroups[cod] = sessioni;
-        }
+        const associato = sessioni[0].associato;
+        
+        // Filtro stato
+        if (filtroStato && stato !== filtroStato) continue;
+        
+        // Filtro associazione
+        if (filtroAssociazione === 'associato' && !associato) continue;
+        if (filtroAssociazione === 'non-associato' && associato) continue;
+        
+        filteredGroups[cod] = sessioni;
       }
       
       const tbody = document.querySelector('#tabella-prove tbody');
@@ -1725,19 +1819,28 @@
         
         // Se in verifica: conferma bonifico, rigetta
         if (stato === 'verifica') {
-          azioniHtml += `<button onclick="confermaBonificoProva('${cod}')" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
-          azioniHtml += `<button onclick="rigettaProva('${cod}')" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
+          azioniHtml += `<button data-prove-action="conferma-bonifico" data-codice="${cod}" title="Conferma bonifico" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button data-prove-action="rigetta" data-codice="${cod}" title="Rigetta ricevuta" style="background:#ef4444">❌</button>`;
         }
         
         // Se sospesa: conferma manuale + sollecito
         if (stato === 'sospesa') {
-          azioniHtml += `<button onclick="confermaProva('${cod}')" title="Conferma manuale" style="background:#22c55e">✅</button>`;
-          azioniHtml += `<button onclick="inviaSollecitoProve('${cod}')" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
+          azioniHtml += `<button data-prove-action="conferma" data-codice="${cod}" title="Conferma manuale" style="background:#22c55e">✅</button>`;
+          azioniHtml += `<button data-prove-action="sollecito" data-codice="${cod}" title="Invia sollecito email" style="background:#f59e0b">📧</button>`;
         }
         
         // Sempre: modifica giorno + annulla/elimina
-        azioniHtml += `<button onclick="modificaProva('${cod}')" title="Modifica giorno/disciplina" style="background:#3b82f6">✏️</button>`;
-        azioniHtml += `<button onclick="annullaProva('${cod}')" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
+        azioniHtml += `<button data-prove-action="modifica" data-codice="${cod}" title="Modifica giorno/disciplina" style="background:#3b82f6">✏️</button>`;
+        azioniHtml += `<button data-prove-action="annulla" data-codice="${cod}" title="Annulla e libera slot" style="background:#ef4444">🗑️</button>`;
+        
+        // Colonna iscritto
+        const associato = first.associato;
+        let iscrittoHtml = '';
+        if (associato) {
+          iscrittoHtml = '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">Associato</span>';
+        } else {
+          iscrittoHtml = `<span style="color:#f59e0b;font-size:0.85rem">Non associato</span> <button class="btn-associa-prova" data-codice="${cod}" style="background:#f59e0b;color:#000;padding:4px 8px;border-radius:4px;font-size:0.8rem;cursor:pointer;border:none;margin-left:4px">Associa</button>`;
+        }
         
         html += `<tr>
           <td><strong>${cod}</strong></td>
@@ -1746,6 +1849,7 @@
           <td>${first.telefono || '-'}</td>
           <td style="font-size:0.85rem">${oreList}</td>
           <td>€${totale}</td>
+          <td>${iscrittoHtml}</td>
           <td>${statoBadge}</td>
           <td><input type="text" value="${first.note_admin || ''}" onchange="salvaNoteAdminProve('${cod}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
           <td>${azioniHtml}</td>
@@ -1753,19 +1857,106 @@
       }
       tbody.innerHTML = html;
       
+      // Aggiungi event listener ai bottoni associa
+      tbody.querySelectorAll('.btn-associa-prova').forEach(btn => {
+        btn.addEventListener('click', function() {
+          apriModalAssociaProva(this.dataset.codice);
+        });
+      });
+      
       const numPrenotazioni = Object.keys(grouped).length;
       const totSessioni = provePrenotazioni.length;
       const sospeseCount = Object.values(grouped).filter(s => (s[0].stato || 'sospesa') === 'sospesa').length;
       const verificaCount = Object.values(grouped).filter(s => s[0].stato === 'verifica').length;
       const confermateCount = Object.values(grouped).filter(s => s[0].stato === 'confermata').length;
+      const nonAssociateCount = Object.values(grouped).filter(s => !s[0].associato).length;
       
-      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${verificaCount} verifica, ${confermateCount} confermate)`;
+      document.getElementById('prove-totale-pren').textContent = `${numPrenotazioni} (${sospeseCount} sospese, ${verificaCount} verifica, ${confermateCount} confermate, ${nonAssociateCount} non associate)`;
       document.getElementById('prove-totale-sess').textContent = totSessioni;
       document.getElementById('prove-totale-euro').textContent = '€' + (totSessioni * 5);
     }
     
-    // Event listener per filtro stato prove
+    // Event listener per filtri prove
     document.getElementById('filter-prove-stato')?.addEventListener('change', renderProve);
+    document.getElementById('filter-prove-associazione')?.addEventListener('change', renderProve);
+
+    // Modal per associare prova a iscritto
+    let proveIscrittiCache = null;
+    
+    async function apriModalAssociaProva(codice) {
+      // Carica lista iscritti (con cache)
+      if (!proveIscrittiCache) {
+        const res = await fetch('/api/iscritti');
+        const data = await res.json();
+        proveIscrittiCache = data.iscritti || data;
+        // Ordina per cognome, nome
+        proveIscrittiCache.sort((a, b) => {
+          const cognomeCompare = a.cognome.localeCompare(b.cognome);
+          return cognomeCompare !== 0 ? cognomeCompare : a.nome.localeCompare(b.nome);
+        });
+      }
+      
+      // Crea modal
+      const modal = document.createElement('div');
+      modal.id = 'modal-associa-prova';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;justify-content:center;align-items:center';
+      
+      let optionsHtml = '<option value="">-- Seleziona iscritto --</option>';
+      for (const isc of proveIscrittiCache) {
+        optionsHtml += `<option value="${isc.id}">${isc.cognome} ${isc.nome} (${isc.societa || 'Nessuna società'})</option>`;
+      }
+      
+      modal.innerHTML = `
+        <div style="background:#1a1a1a;padding:1.5rem;border-radius:8px;max-width:500px;width:90%">
+          <h3 style="color:#F7AF40;margin:0 0 1rem">🔗 Associa Prova Pista a Iscritto</h3>
+          <p style="color:#888;margin-bottom:1rem">Codice prova: <strong>${codice}</strong></p>
+          <select id="select-iscritto-prova" style="width:100%;padding:0.8rem;background:#222;color:#fff;border:1px solid #444;border-radius:4px;margin-bottom:1rem">
+            ${optionsHtml}
+          </select>
+          <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+            <button id="btn-annulla-associa-prova" style="background:#333;color:#fff;border:none;padding:0.6rem 1.2rem;border-radius:4px;cursor:pointer">Annulla</button>
+            <button id="btn-conferma-associa-prova" style="background:#22c55e;color:#000;border:none;padding:0.6rem 1.2rem;border-radius:4px;cursor:pointer;font-weight:bold">✅ Associa</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Event listeners
+      document.getElementById('btn-annulla-associa-prova').addEventListener('click', () => modal.remove());
+      document.getElementById('btn-conferma-associa-prova').addEventListener('click', async () => {
+        const iscrittoId = document.getElementById('select-iscritto-prova').value;
+        if (!iscrittoId) {
+          alert('Seleziona un iscritto');
+          return;
+        }
+        
+        try {
+          const res = await fetch(`/api/prove/prenotazioni/${codice}/associa`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ iscritto_id: parseInt(iscrittoId) })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            alert(`✅ Prova associata a ${data.cognome} ${data.nome}`);
+            modal.remove();
+            caricaProve();
+          } else {
+            const err = await res.json();
+            alert('Errore: ' + err.error);
+          }
+        } catch (err) {
+          alert('Errore: ' + err.message);
+        }
+      });
+      
+      // Click esterno chiude
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
+    }
 
     async function confermaProva(codice) {
       if (!confirm('Confermare questa prenotazione? Verrà inviata email di conferma.')) return;
@@ -1883,7 +2074,7 @@
             
             <div style="margin-bottom:1rem">
               <label style="color:#888;display:block;margin-bottom:0.3rem">Giorno:</label>
-              <select id="mod-prova-giorno" onchange="aggiornaSlotDisponibili('${codice}')" style="width:100%;padding:0.5rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px">
+              <select id="mod-prova-giorno" data-codice="${codice}" style="width:100%;padding:0.5rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px">
                 ${[...new Set(proveSlots.map(s => s.giorno))].sort().map(g => {
                   const data = new Date(g);
                   const label = data.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' });
@@ -1900,8 +2091,8 @@
             </div>
             
             <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
-              <button onclick="document.getElementById('modal-modifica-prova').remove()" style="padding:0.5rem 1rem;background:#333;border:none;color:#fff;cursor:pointer;border-radius:4px">Annulla</button>
-              <button onclick="salvaModificaProva('${codice}')" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">Salva</button>
+              <button data-modal-action="chiudi-prova" style="padding:0.5rem 1rem;background:#333;border:none;color:#fff;cursor:pointer;border-radius:4px">Annulla</button>
+              <button data-modal-action="salva-prova" data-codice="${codice}" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">Salva</button>
             </div>
           </div>
         </div>
@@ -2242,17 +2433,29 @@
     
     async function caricaMerch() {
       try {
-        const res = await fetch('/api/merch/ordini');
-        if (!res.ok) throw new Error('Errore caricamento');
-        merchOrdini = await res.json();
-        renderMerchStats();
+        // Carica ordini e riepilogo in parallelo
+        const [resOrdini, resRiepilogo] = await Promise.all([
+          fetch('/api/merch/ordini'),
+          fetch('/api/merch/riepilogo')
+        ]);
+        
+        if (!resOrdini.ok) throw new Error('Errore caricamento ordini');
+        merchOrdini = await resOrdini.json();
+        
+        let riepilogo = null;
+        if (resRiepilogo.ok) {
+          riepilogo = await resRiepilogo.json();
+        }
+        
+        renderMerchStats(riepilogo);
         renderMerch();
       } catch (err) {
         console.error('Errore caricamento merch:', err);
       }
     }
     
-    function renderMerchStats() {
+    function renderMerchStats(riepilogo) {
+      // Calcola stats dagli ordini
       const stats = { felpa: 0, maglia: 0, cappellino: 0, asciugamano: 0, totale: 0, confermati: 0, inAttesa: 0 };
       
       for (const o of merchOrdini) {
@@ -2271,22 +2474,11 @@
         }
       }
       
-      document.getElementById('merch-stats').innerHTML = `
+      // Render totali
+      document.getElementById('merch-totali').innerHTML = `
         <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">Felpe</p>
-          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.felpa}</p>
-        </div>
-        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">Maglie</p>
-          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.maglia}</p>
-        </div>
-        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">Cappellini</p>
-          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.cappellino}</p>
-        </div>
-        <div style="background:#222;padding:1rem;border-radius:6px;text-align:center">
-          <p style="color:#888;margin:0;font-size:0.85rem">Asciugamani</p>
-          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${stats.asciugamano}</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Ordini</p>
+          <p style="font-size:1.5rem;color:#F7AF40;margin:0">${merchOrdini.length}</p>
         </div>
         <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
           <p style="color:#888;margin:0;font-size:0.85rem">Confermati</p>
@@ -2297,20 +2489,103 @@
           <p style="font-size:1.5rem;color:#f59e0b;margin:0">${stats.inAttesa}</p>
         </div>
         <div style="background:#1a3a1a;padding:1rem;border-radius:6px;text-align:center;border:1px solid #22c55e">
-          <p style="color:#888;margin:0;font-size:0.85rem">Totale €</p>
+          <p style="color:#888;margin:0;font-size:0.85rem">Incasso Totale</p>
           <p style="font-size:1.5rem;color:#22c55e;margin:0">€${stats.totale}</p>
         </div>
       `;
+      
+      // Render riepilogo per taglia
+      if (riepilogo && riepilogo.riepilogo) {
+        // Raggruppa per articolo
+        const perArticolo = {};
+        for (const r of riepilogo.riepilogo) {
+          if (!perArticolo[r.articolo]) perArticolo[r.articolo] = [];
+          perArticolo[r.articolo].push({ taglia: r.taglia || 'Unica', totale: r.totale });
+        }
+        
+        let riepilogoHtml = '';
+        
+        // Maglie
+        if (perArticolo['Maglia']) {
+          riepilogoHtml += `
+            <div style="background:#222;padding:1rem;border-radius:6px">
+              <h4 style="color:#F7AF40;margin:0 0 0.5rem">👕 Maglie (${perArticolo['Maglia'].reduce((s,x) => s + x.totale, 0)} totali)</h4>
+              <div style="display:grid;gap:0.3rem;font-size:0.9rem">
+                ${perArticolo['Maglia'].map(t => `
+                  <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #333">
+                    <span style="color:#888">${t.taglia}</span>
+                    <span style="color:#fff;font-weight:bold">${t.totale}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Felpe
+        if (perArticolo['Felpa']) {
+          riepilogoHtml += `
+            <div style="background:#222;padding:1rem;border-radius:6px">
+              <h4 style="color:#F7AF40;margin:0 0 0.5rem">🧥 Felpe (${perArticolo['Felpa'].reduce((s,x) => s + x.totale, 0)} totali)</h4>
+              <div style="display:grid;gap:0.3rem;font-size:0.9rem">
+                ${perArticolo['Felpa'].map(t => `
+                  <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #333">
+                    <span style="color:#888">${t.taglia}</span>
+                    <span style="color:#fff;font-weight:bold">${t.totale}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Accessori
+        const cappellini = perArticolo['Cappellino'] ? perArticolo['Cappellino'].reduce((s,x) => s + x.totale, 0) : 0;
+        const asciugamani = perArticolo['Asciugamano'] ? perArticolo['Asciugamano'].reduce((s,x) => s + x.totale, 0) : 0;
+        if (cappellini || asciugamani) {
+          riepilogoHtml += `
+            <div style="background:#222;padding:1rem;border-radius:6px">
+              <h4 style="color:#F7AF40;margin:0 0 0.5rem">🎁 Accessori</h4>
+              <div style="display:grid;gap:0.3rem;font-size:0.9rem">
+                <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #333">
+                  <span style="color:#888">🧢 Cappellini</span>
+                  <span style="color:#fff;font-weight:bold">${cappellini}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px solid #333">
+                  <span style="color:#888">🏖️ Asciugamani</span>
+                  <span style="color:#fff;font-weight:bold">${asciugamani}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        document.getElementById('merch-riepilogo-taglie').innerHTML = riepilogoHtml || '<p style="color:#888">Nessun articolo ordinato</p>';
+      }
     }
     
     function renderMerch() {
       const tbody = document.querySelector('#tabella-merch tbody');
-      if (!merchOrdini.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888">Nessun ordine</td></tr>';
+      const filtroStato = document.getElementById('filter-merch-stato')?.value || '';
+      const filtroAssociazione = document.getElementById('filter-merch-associazione')?.value || '';
+      
+      // Filtra ordini
+      let ordiniFiltered = merchOrdini;
+      if (filtroStato) {
+        ordiniFiltered = ordiniFiltered.filter(o => (o.stato || 'sospesa') === filtroStato);
+      }
+      if (filtroAssociazione === 'associato') {
+        ordiniFiltered = ordiniFiltered.filter(o => o.associato);
+      } else if (filtroAssociazione === 'non-associato') {
+        ordiniFiltered = ordiniFiltered.filter(o => !o.associato);
+      }
+      
+      if (!ordiniFiltered.length) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888">Nessun ordine</td></tr>';
         return;
       }
       
-      tbody.innerHTML = merchOrdini.map(o => {
+      tbody.innerHTML = ordiniFiltered.map(o => {
         const itemsStr = (o.items || []).map(i => {
           const taglia = i.taglia ? ` (${i.taglia})` : '';
           return `${i.quantita}x ${i.articolo}${taglia}`;
@@ -2341,6 +2616,14 @@
           statoBg = '#f59e0b';
         }
         
+        // Colonna iscritto
+        let iscrittoHtml = '';
+        if (o.associato) {
+          iscrittoHtml = '<span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.8rem">Associato</span>';
+        } else {
+          iscrittoHtml = `<span style="color:#f59e0b;font-size:0.85rem">Non associato</span> <button class="btn-associa-merch" data-codice="${o.codice}" style="background:#f59e0b;color:#000;padding:4px 8px;border-radius:4px;font-size:0.8rem;cursor:pointer;border:none;margin-left:4px">Associa</button>`;
+        }
+        
         // Costruisco i bottoni azioni
         let btns = '';
         
@@ -2351,14 +2634,15 @@
         
         // Bottoni in base allo stato
         if (stato === 'sospesa') {
-          btns += `<button onclick="inviaSollecitoMerch('${o.codice}')" style="background:#f59e0b" title="Invia sollecito email">📧</button>`;
-          btns += `<button onclick="confermaMerch('${o.codice}')" style="background:#22c55e" title="Conferma pagamento">✅</button>`;
+          btns += `<button data-merch-action="sollecito" data-codice="${o.codice}" style="background:#f59e0b" title="Invia sollecito email">📧</button>`;
+          btns += `<button data-merch-action="conferma" data-codice="${o.codice}" style="background:#22c55e" title="Conferma pagamento">✅</button>`;
         } else if (stato === 'verifica') {
-          btns += `<button onclick="confermaBonificoMerch('${o.codice}')" style="background:#22c55e" title="Conferma bonifico">✅</button>`;
-          btns += `<button onclick="rigettaBonificoMerch('${o.codice}')" style="background:#ef4444" title="Rigetta ricevuta">❌</button>`;
+          btns += `<button data-merch-action="conferma-bonifico" data-codice="${o.codice}" style="background:#22c55e" title="Conferma bonifico">✅</button>`;
+          btns += `<button data-merch-action="rigetta-bonifico" data-codice="${o.codice}" style="background:#ef4444" title="Rigetta ricevuta">❌</button>`;
         }
         
-        btns += `<button onclick="eliminaMerch('${o.codice}')" style="background:#ef4444" title="Elimina">🗑️</button>`;
+        btns += `<button data-merch-action="modifica" data-codice="${o.codice}" style="background:#3b82f6" title="Modifica articoli/taglie">✏️</button>`;
+        btns += `<button data-merch-action="elimina" data-codice="${o.codice}" style="background:#ef4444" title="Elimina">🗑️</button>`;
         
         return `
           <tr>
@@ -2368,6 +2652,7 @@
             <td style="font-size:0.85rem">${itemsStr || '-'}</td>
             <td style="color:#22c55e">€${totale}</td>
             <td><span style="background:${origineBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${origineLabel}</span></td>
+            <td>${iscrittoHtml}</td>
             <td><span style="background:${statoBg};padding:2px 6px;border-radius:4px;font-size:0.75rem">${statoLabel}</span></td>
             <td><input type="text" value="${o.note_admin || ''}" onchange="salvaNoteAdminMerch('${o.codice}', this.value)" style="width:100px;background:#222;border:1px solid #444;color:#fff;padding:4px;border-radius:4px" placeholder="Note..."></td>
             <td>${data}</td>
@@ -2375,6 +2660,95 @@
           </tr>
         `;
       }).join('');
+      
+      // Aggiungi event listener ai bottoni associa
+      tbody.querySelectorAll('.btn-associa-merch').forEach(btn => {
+        btn.addEventListener('click', function() {
+          apriModalAssociaMerch(this.dataset.codice);
+        });
+      });
+    }
+    
+    // Event listener per filtri merch
+    document.getElementById('filter-merch-stato')?.addEventListener('change', renderMerch);
+    document.getElementById('filter-merch-associazione')?.addEventListener('change', renderMerch);
+    
+    // Modal per associare merch a iscritto
+    let merchIscrittiCache = null;
+    
+    async function apriModalAssociaMerch(codice) {
+      // Carica lista iscritti (con cache)
+      if (!merchIscrittiCache) {
+        const res = await fetch('/api/iscritti');
+        const data = await res.json();
+        merchIscrittiCache = data.iscritti || data;
+        // Ordina per cognome, nome
+        merchIscrittiCache.sort((a, b) => {
+          const cognomeCompare = a.cognome.localeCompare(b.cognome);
+          return cognomeCompare !== 0 ? cognomeCompare : a.nome.localeCompare(b.nome);
+        });
+      }
+      
+      // Crea modal
+      const modal = document.createElement('div');
+      modal.id = 'modal-associa-merch';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;justify-content:center;align-items:center';
+      
+      let optionsHtml = '<option value="">-- Seleziona iscritto --</option>';
+      for (const isc of merchIscrittiCache) {
+        optionsHtml += `<option value="${isc.id}">${isc.cognome} ${isc.nome} (${isc.societa || 'Nessuna società'})</option>`;
+      }
+      
+      modal.innerHTML = `
+        <div style="background:#1a1a1a;padding:1.5rem;border-radius:8px;max-width:500px;width:90%">
+          <h3 style="color:#F7AF40;margin:0 0 1rem">🔗 Associa Ordine Merch a Iscritto</h3>
+          <p style="color:#888;margin-bottom:1rem">Codice ordine: <strong>${codice}</strong></p>
+          <select id="select-iscritto-merch" style="width:100%;padding:0.8rem;background:#222;color:#fff;border:1px solid #444;border-radius:4px;margin-bottom:1rem">
+            ${optionsHtml}
+          </select>
+          <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+            <button id="btn-annulla-associa-merch" style="background:#333;color:#fff;border:none;padding:0.6rem 1.2rem;border-radius:4px;cursor:pointer">Annulla</button>
+            <button id="btn-conferma-associa-merch" style="background:#22c55e;color:#000;border:none;padding:0.6rem 1.2rem;border-radius:4px;cursor:pointer;font-weight:bold">✅ Associa</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Event listeners
+      document.getElementById('btn-annulla-associa-merch').addEventListener('click', () => modal.remove());
+      document.getElementById('btn-conferma-associa-merch').addEventListener('click', async () => {
+        const iscrittoId = document.getElementById('select-iscritto-merch').value;
+        if (!iscrittoId) {
+          alert('Seleziona un iscritto');
+          return;
+        }
+        
+        try {
+          const res = await fetch(`/api/merch/ordini/${codice}/associa`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ iscritto_id: parseInt(iscrittoId) })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            alert(`✅ Ordine associato a ${data.cognome} ${data.nome}`);
+            modal.remove();
+            caricaMerch();
+          } else {
+            const err = await res.json();
+            alert('Errore: ' + err.error);
+          }
+        } catch (err) {
+          alert('Errore: ' + err.message);
+        }
+      });
+      
+      // Click esterno chiude
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
     }
     
     async function confermaMerch(codice) {
@@ -2392,6 +2766,121 @@
       try {
         await fetch('/api/merch/ordini/' + codice, { method: 'DELETE' });
         caricaMerch();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    // Taglie disponibili per ogni articolo (Uomo e Donna da XS a XL)
+    const TAGLIE_MERCH = {
+      'Maglia': [
+        'XS Uomo', 'S Uomo', 'M Uomo', 'L Uomo', 'XL Uomo',
+        'XS Donna', 'S Donna', 'M Donna', 'L Donna', 'XL Donna'
+      ],
+      'Felpa': [
+        'XS Uomo', 'S Uomo', 'M Uomo', 'L Uomo', 'XL Uomo',
+        'XS Donna', 'S Donna', 'M Donna', 'L Donna', 'XL Donna'
+      ],
+      'Cappellino': null,
+      'Asciugamano': null
+    };
+    
+    async function apriModalModificaMerch(codice) {
+      // Trova l'ordine
+      const ordine = merchOrdini.find(o => o.codice === codice);
+      if (!ordine) return alert('Ordine non trovato');
+      
+      const items = ordine.items || [];
+      
+      let itemsHtml = items.map((item, idx) => {
+        const taglie = TAGLIE_MERCH[item.articolo];
+        let tagliaSelect = '';
+        if (taglie) {
+          // Raggruppa le taglie per genere
+          tagliaSelect = `
+            <select data-item-id="${item.id}" data-field="taglia" style="padding:0.4rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px">
+              <optgroup label="Uomo">
+                ${taglie.filter(t => t.includes('Uomo')).map(t => `<option value="${t}" ${item.taglia === t ? 'selected' : ''}>${t.replace(' Uomo', '')}</option>`).join('')}
+              </optgroup>
+              <optgroup label="Donna">
+                ${taglie.filter(t => t.includes('Donna')).map(t => `<option value="${t}" ${item.taglia === t ? 'selected' : ''}>${t.replace(' Donna', '')}</option>`).join('')}
+              </optgroup>
+            </select>
+          `;
+        } else {
+          tagliaSelect = '<span style="color:#666">N/A</span>';
+        }
+        
+        return `
+          <div style="display:flex;gap:1rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid #333">
+            <span style="flex:1;color:#F7AF40">${item.articolo}</span>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <label style="color:#888;font-size:0.85rem">Qtà:</label>
+              <input type="number" data-item-id="${item.id}" data-field="quantita" value="${item.quantita || 1}" min="1" max="10" style="width:60px;padding:0.4rem;background:#222;border:1px solid #444;color:#fff;border-radius:4px;text-align:center">
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <label style="color:#888;font-size:0.85rem">Taglia:</label>
+              ${tagliaSelect}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      const modalHtml = `
+        <div id="modal-modifica-merch" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999">
+          <div style="background:#1a1a1a;padding:2rem;border-radius:8px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto">
+            <h3 style="color:#F7AF40;margin:0 0 1rem">Modifica ordine ${codice}</h3>
+            <p style="color:#888;margin-bottom:1rem">${ordine.cognome} ${ordine.nome}</p>
+            
+            <div id="merch-items-editor">
+              ${itemsHtml}
+            </div>
+            
+            <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+              <button data-modal-action="chiudi-merch" style="padding:0.5rem 1rem;background:#333;border:none;color:#fff;cursor:pointer;border-radius:4px">Annulla</button>
+              <button data-modal-action="salva-merch" data-codice="${codice}" style="padding:0.5rem 1rem;background:#F7AF40;border:none;color:#000;cursor:pointer;border-radius:4px">Salva</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    async function salvaModificaMerch(codice) {
+      const modal = document.getElementById('modal-modifica-merch');
+      if (!modal) return;
+      
+      // Raccogli i dati modificati
+      const updates = [];
+      modal.querySelectorAll('[data-item-id]').forEach(el => {
+        const itemId = parseInt(el.dataset.itemId);
+        const field = el.dataset.field;
+        const value = el.value;
+        
+        // Trova se già esiste un update per questo item
+        let update = updates.find(u => u.id === itemId);
+        if (!update) {
+          update = { id: itemId };
+          updates.push(update);
+        }
+        update[field] = field === 'quantita' ? parseInt(value) : value;
+      });
+      
+      try {
+        const res = await fetch('/api/merch/ordini/' + codice + '/items', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: updates })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          modal.remove();
+          caricaMerch();
+          alert('Ordine aggiornato!');
+        } else {
+          alert('Errore: ' + (data.error || 'Sconosciuto'));
+        }
       } catch (err) {
         alert('Errore: ' + err.message);
       }
@@ -2654,6 +3143,132 @@
     function exportCheckIn() {
       window.location.href = '/api/checkin/export';
     }
+    
+    // Export Prove Pista per Nome
+    function exportProveNome() {
+      window.location.href = '/api/prove/export?ordine=nome';
+    }
+    
+    // Export Prove Pista per Orario
+    function exportProveOrario() {
+      window.location.href = '/api/prove/export?ordine=orario';
+    }
+    
+    // Export Merch per Nome
+    function exportMerchNome() {
+      window.location.href = '/api/merch/export?ordine=nome';
+    }
+    
+    // Export Merch per Taglia
+    function exportMerchTaglia() {
+      window.location.href = '/api/merch/export?ordine=taglia';
+    }
+
+    // ========== EVENT LISTENERS (CSP-compliant) ==========
+    // Tab buttons
+    document.getElementById('tab-export').addEventListener('click', () => showTab('export'));
+    document.getElementById('tab-iscritti').addEventListener('click', () => showTab('iscritti'));
+    document.getElementById('tab-prove').addEventListener('click', () => showTab('prove'));
+    document.getElementById('tab-bilancio').addEventListener('click', () => showTab('bilancio'));
+    document.getElementById('tab-merch').addEventListener('click', () => showTab('merch'));
+    document.getElementById('tab-notifiche').addEventListener('click', () => showTab('notifiche'));
+    document.getElementById('tab-pagine').addEventListener('click', () => showTab('pagine'));
+    
+    // Export buttons
+    document.getElementById('btn-export-excel').addEventListener('click', exportExcel);
+    document.getElementById('btn-export-pdf').addEventListener('click', exportPDF);
+    document.getElementById('btn-export-checkin').addEventListener('click', exportCheckIn);
+    document.getElementById('btn-export-prove-nome').addEventListener('click', exportProveNome);
+    document.getElementById('btn-export-prove-orario').addEventListener('click', exportProveOrario);
+    document.getElementById('btn-export-merch-nome').addEventListener('click', exportMerchNome);
+    document.getElementById('btn-export-merch-taglia').addEventListener('click', exportMerchTaglia);
+    
+    // Navigation buttons
+    document.getElementById('btn-logout').addEventListener('click', logout);
+    document.getElementById('btn-cambia-password').addEventListener('click', cambiaPassword);
+    
+    // Section buttons
+    document.getElementById('btn-nuovo-iscritto').addEventListener('click', apriModalNuovo);
+    document.getElementById('btn-aggiorna-bilancio').addEventListener('click', caricaBilancio);
+    document.getElementById('btn-aggiorna-merch').addEventListener('click', caricaMerch);
+    document.getElementById('btn-gestione-stampati').addEventListener('click', mostraGestioneStampati);
+    
+    // Event delegation per tabella iscritti
+    document.querySelector('#tabella tbody').addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = parseInt(btn.dataset.id);
+      switch(action) {
+        case 'conferma-bonifico': confermaBonifico(id); break;
+        case 'rigetta-bonifico': rigettaBonifico(id); break;
+        case 'sollecito-iscrizione': inviaSollecitoIscrizione(id); break;
+        case 'modifica': modifica(id); break;
+        case 'elimina': elimina(id); break;
+      }
+    });
+    
+    // Event delegation per tabella prove pista
+    document.querySelector('#tabella-prove tbody').addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-prove-action]');
+      if (!btn) return;
+      const action = btn.dataset.proveAction;
+      const codice = btn.dataset.codice;
+      switch(action) {
+        case 'conferma-bonifico': confermaBonificoProva(codice); break;
+        case 'rigetta': rigettaProva(codice); break;
+        case 'conferma': confermaProva(codice); break;
+        case 'sollecito': inviaSollecitoProve(codice); break;
+        case 'modifica': modificaProva(codice); break;
+        case 'annulla': annullaProva(codice); break;
+      }
+    });
+    
+    // Event delegation per tabella merch
+    document.querySelector('#tabella-merch tbody').addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-merch-action]');
+      if (!btn) return;
+      const action = btn.dataset.merchAction;
+      const codice = btn.dataset.codice;
+      switch(action) {
+        case 'sollecito': inviaSollecitoMerch(codice); break;
+        case 'conferma': confermaMerch(codice); break;
+        case 'conferma-bonifico': confermaBonificoMerch(codice); break;
+        case 'rigetta-bonifico': rigettaBonificoMerch(codice); break;
+        case 'modifica': apriModalModificaMerch(codice); break;
+        case 'elimina': eliminaMerch(codice); break;
+      }
+    });
+    
+    // Modal and misc buttons
+    document.getElementById('btn-preview-destinatari')?.addEventListener('click', previewDestinatari);
+    document.getElementById('btn-simula')?.addEventListener('click', startSimulate);
+    document.getElementById('btn-stop-simulate')?.addEventListener('click', stopSimulate);
+    document.getElementById('btn-chiudi-modal')?.addEventListener('click', chiudiModal);
+    document.getElementById('btn-chiudi-modal-nuovo')?.addEventListener('click', chiudiModalNuovo);
+    document.getElementById('btn-chiudi-modal-rigetto')?.addEventListener('click', chiudiModalRigetto);
+    
+    // Event delegation per modal dinamici (creati via JS)
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-modal-action]');
+      if (!btn) return;
+      const action = btn.dataset.modalAction;
+      const codice = btn.dataset.codice;
+      switch(action) {
+        case 'chiudi-prova': document.getElementById('modal-modifica-prova')?.remove(); break;
+        case 'salva-prova': salvaModificaProva(codice); break;
+        case 'chiudi-merch': document.getElementById('modal-modifica-merch')?.remove(); break;
+        case 'salva-merch': salvaModificaMerch(codice); break;
+      }
+    });
+    
+    // Event delegation per cambio giorno nel modal prova
+    document.addEventListener('change', function(e) {
+      if (e.target.id === 'mod-prova-giorno') {
+        const codice = e.target.dataset.codice;
+        aggiornaSlotDisponibili(codice);
+      }
+    });
   </script>
   </main>
 </body>
