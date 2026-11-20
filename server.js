@@ -7177,7 +7177,7 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
     // Helper per contare discipline
     function numDiscipline(cat) { return cat ? cat.split(',').length : 0; }
     
-    // Helper per calcolare totale iscrizione (stessa logica di admin.html)
+    // Helper per calcolare totale iscrizione COMPLETO (stessa logica di admin.html)
     function calcolaTotaleIscrizione(i) {
       const numDisc = numDiscipline(i.categoria);
       if (numDisc === 0) return 0;
@@ -7198,13 +7198,22 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
       return totale;
     }
     
+    // Helper per calcolare totale iscrizione SOLO BANDO (esclude prove e merch che sono contanti)
+    function calcolaTotaleIscrizioneBando(i) {
+      const numDisc = numDiscipline(i.categoria);
+      if (numDisc === 0) return 0;
+      // Solo iscrizione pura: 50€ prima disciplina + 30€ per le altre
+      return 50 + (numDisc - 1) * 30;
+      // Escluso: felpa, cappellino, asciugamano, prove pista (sono tutti contanti)
+    }
+    
     for (const isc of iscritti) {
       const totale = calcolaTotaleIscrizione(isc);
       totaleIscrizioni += totale;
       
-      // Per bando: escludi contanti
+      // Per bando: escludi chi paga tutto in contanti, e per gli altri escludi prove/merch
       if (isc.metodo_pagamento !== 'contanti') {
-        totaleIscrizioniBando += totale;
+        totaleIscrizioniBando += calcolaTotaleIscrizioneBando(isc);
       }
     }
     
@@ -7213,9 +7222,10 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
     // Filtra solo quelle standalone (senza iscrizione_codice) perché le altre sono già conteggiate sopra
     const proveStandalone = prove.filter(p => !p.iscrizione_codice);
     let totaleProve = proveStandalone.length * 5; // 5€ a sessione
-    let totaleProveBando = totaleProve; // Tutte le prove standalone sono bando (non si paga in contanti)
+    // Prove standalone = pagate online/carta, quindi incluse nel bando
+    let totaleProveBando = totaleProve;
     
-    // Merch confermato (ordini standalone)
+    // Merch confermato (ordini standalone - quelli nelle iscrizioni sono già conteggiati sopra come contanti)
     const ordini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
     let totaleMerch = 0;
     let totaleMerchBando = 0;
@@ -7224,9 +7234,7 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
       const items = await dbAll('SELECT * FROM merch_items WHERE ordine_id = ?', [o.id]);
       const totOrdine = items.reduce((sum, it) => sum + (it.prezzo_unitario * it.quantita), 0);
       totaleMerch += totOrdine;
-      
-      // Per bando: escludi se pagato in contanti
-      // Gli ordini standalone sono generalmente via carta/bonifico, quindi li includiamo
+      // Ordini merch standalone sono pagati online, quindi inclusi nel bando
       totaleMerchBando += totOrdine;
     }
     
