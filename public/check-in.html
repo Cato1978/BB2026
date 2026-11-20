@@ -328,19 +328,6 @@
           <div class="section-content" id="athlete-merch-ord"></div>
         </div>
         
-        <!-- Associa ordine merch -->
-        <div class="section" id="section-associa-merch">
-          <div class="section-title">➕ Associa ordine merch</div>
-          <div class="section-content">
-            <select id="select-ordine-merch" style="width:100%;padding:0.5rem;background:#222;color:#fff;border:1px solid #444;border-radius:4px">
-              <option value="">-- Seleziona ordine da associare --</option>
-            </select>
-            <button id="btn-associa-merch" style="margin-top:0.5rem;padding:0.5rem 1rem;background:#3b82f6;color:#fff;border:none;border-radius:4px;cursor:pointer">
-              Associa a questo atleta
-            </button>
-          </div>
-        </div>
-        
         <!-- Totale da pagare -->
         <div class="total-box">
           <div class="label">TOTALE DA PAGARE</div>
@@ -349,7 +336,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-cancel" id="btn-annulla">Annulla</button>
-        <button class="btn-save" id="btn-chiudi-checkin">✅ Chiudi Check-in</button>
+        <button class="btn-save" id="btn-chiudi-checkin">✅ Check-in Fatto</button>
       </div>
     </div>
   </div>
@@ -570,66 +557,8 @@
         });
       });
       
-      // Carica ordini non associati
-      loadOrdiniNonAssociati();
-      
       updateTotal();
       document.getElementById('modal').classList.add('active');
-    }
-    
-    async function loadOrdiniNonAssociati() {
-      try {
-        const res = await fetch('/api/checkin/merch-non-associati', { credentials: 'include' });
-        const ordini = await res.json();
-        
-        const select = document.getElementById('select-ordine-merch');
-        select.innerHTML = '<option value="">-- Seleziona ordine da associare --</option>';
-        
-        if (ordini.length === 0) {
-          document.getElementById('section-associa-merch').style.display = 'none';
-        } else {
-          document.getElementById('section-associa-merch').style.display = 'block';
-          ordini.forEach(o => {
-            const opt = document.createElement('option');
-            opt.value = o.codice;
-            opt.textContent = `${o.codice} - ${o.cognome} ${o.nome} - ${o.articoli || 'articoli'}`;
-            select.appendChild(opt);
-          });
-        }
-      } catch (err) {
-        console.error('Errore caricamento ordini:', err);
-      }
-    }
-    
-    async function associaMerch() {
-      const codice = document.getElementById('select-ordine-merch').value;
-      if (!codice || !currentAthlete) {
-        alert('Seleziona un ordine');
-        return;
-      }
-      
-      try {
-        const res = await fetch('/api/checkin/associa-merch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            ordine_codice: codice,
-            atleta_id: currentAthlete.id
-          })
-        });
-        
-        if (res.ok) {
-          alert('Ordine associato con successo!');
-          closeModal();
-          await loadAthletes();
-        } else {
-          const err = await res.json();
-          alert('Errore: ' + err.error);
-        }
-      } catch (err) {
-        alert('Errore associazione: ' + err.message);
-      }
     }
     
     function getPrezzo(articolo) {
@@ -804,9 +733,6 @@
     document.getElementById('search').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') searchAthletes();
     });
-    
-    // Pulsante Associa Merch
-    document.getElementById('btn-associa-merch').addEventListener('click', associaMerch);
     
     // Avvio
     loadAthletes();

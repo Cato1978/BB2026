@@ -7166,6 +7166,8 @@ app.get('/api/statistiche/permanenza', async (req, res) => {
 // API: Totali incassi per bilancio (iscrizioni, prove, merch)
 app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
   try {
+    await ensureBilancioTable();
+    
     // Iscrizioni confermate
     const iscritti = await dbAll("SELECT * FROM iscritti WHERE stato = 'confermata'");
     
@@ -7245,6 +7247,20 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
       }
     }
     
+    // Entrate manuali (sponsor, donazioni, etc)
+    const entrateManuali = await dbAll('SELECT * FROM bilancio_entrate');
+    let totaleEntrateManuali = 0;
+    let totaleEntrateManualiNoContanti = 0;
+    
+    for (const e of entrateManuali) {
+      const importo = parseFloat(e.importo) || 0;
+      totaleEntrateManuali += importo;
+      // Per bando: escludi se tipo_pagamento = contanti
+      if (e.tipo_pagamento !== 'contanti') {
+        totaleEntrateManualiNoContanti += importo;
+      }
+    }
+    
     res.json({
       iscrizioni: {
         totale: totaleIscrizioni,
@@ -7261,8 +7277,13 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
         bando: totaleMerchBando,
         count: ordini.length
       },
-      totaleGenerale: totaleIscrizioni + totaleProve + totaleMerch,
-      totaleBando: totaleIscrizioniBando + totaleProveBando + totaleMerchBando
+      entrateManuali: {
+        totale: totaleEntrateManuali,
+        bando: totaleEntrateManualiNoContanti,
+        count: entrateManuali.length
+      },
+      totaleGenerale: totaleIscrizioni + totaleProve + totaleMerch + totaleEntrateManuali,
+      totaleBando: totaleIscrizioniBando + totaleProveBando + totaleMerchBando + totaleEntrateManualiNoContanti
     });
   } catch (err) {
     console.error('Errore GET bilancio/incassi:', err);
@@ -7270,7 +7291,7 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
   }
 });
 
-// Helper: assicura che la tabella bilancio_spese esista
+// Helper: assicura che le tabelle bilancio esistano
 async function ensureBilancioTable() {
   if (usePostgres) {
     await pgPool.query(`CREATE TABLE IF NOT EXISTS bilancio_spese (
@@ -7286,6 +7307,19 @@ async function ensureBilancioTable() {
       note TEXT,
       data_inserimento TIMESTAMP DEFAULT NOW()
     )`);
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS bilancio_entrate (
+      id SERIAL PRIMARY KEY,
+      descrizione TEXT NOT NULL,
+      categoria TEXT,
+      importo REAL NOT NULL DEFAULT 0,
+      tipo_pagamento TEXT DEFAULT 'bonifico',
+      stato_confermato INTEGER DEFAULT 0,
+      stato_incassato INTEGER DEFAULT 0,
+      includi_bando INTEGER DEFAULT 1,
+      ricevuta_filename TEXT,
+      note TEXT,
+      data_inserimento TIMESTAMP DEFAULT NOW()
+    )`);
   } else {
     db.run(`CREATE TABLE IF NOT EXISTS bilancio_spese (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7297,6 +7331,19 @@ async function ensureBilancioTable() {
       stato_pagato INTEGER DEFAULT 0,
       includi_bando INTEGER DEFAULT 0,
       fattura_filename TEXT,
+      note TEXT,
+      data_inserimento TEXT DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS bilancio_entrate (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      descrizione TEXT NOT NULL,
+      categoria TEXT,
+      importo REAL NOT NULL DEFAULT 0,
+      tipo_pagamento TEXT DEFAULT 'bonifico',
+      stato_confermato INTEGER DEFAULT 0,
+      stato_incassato INTEGER DEFAULT 0,
+      includi_bando INTEGER DEFAULT 1,
+      ricevuta_filename TEXT,
       note TEXT,
       data_inserimento TEXT DEFAULT (datetime('now'))
     )`);
@@ -7422,6 +7469,81 @@ app.delete('/api/bilancio/spese/:id/fattura', requireAdmin, async (req, res) => 
     }
     
     await dbRun('UPDATE bilancio_spese SET fattura_filename = NULL WHERE id = ?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================
+// API ENTRATE MANUALI (sponsor, donazioni, etc)
+// =============================================
+
+// API: Lista tutte le entrate manuali
+app.get('/api/bilancio/entrate', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const entrate = await dbAll('SELECT * FROM bilancio_entrate ORDER BY data_inserimento DESC');
+    res.json(entrate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Aggiungi nuova entrata
+app.post('/api/bilancio/entrate', requireAdmin, async (req, res) => {
+  try {
+    await ensureBilancioTable();
+    const { 
+      descrizione, categoria, importo, tipo_pagamento,
+      stato_confermato, stato_incassato, includi_bando, note 
+    } = req.body;
+    
+    if (!descrizione || importo === undefined) {
+      return res.status(400).json({ error: 'Descrizione e importo sono obbligatori' });
+    }
+    
+    const id = await dbInsert(
+      `INSERT INTO bilancio_entrate (descrizione, categoria, importo, tipo_pagamento, stato_confermato, stato_incassato, includi_bando, note) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [descrizione, categoria || '', importo, tipo_pagamento || 'bonifico', stato_confermato ? 1 : 0, stato_incassato ? 1 : 0, includi_bando ? 1 : 0, note || '']
+    );
+    
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error('Errore POST bilancio/entrate:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Modifica entrata
+app.put('/api/bilancio/entrate/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      descrizione, categoria, importo, tipo_pagamento,
+      stato_confermato, stato_incassato, includi_bando, note 
+    } = req.body;
+    
+    await dbRun(
+      `UPDATE bilancio_entrate SET 
+        descrizione = ?, categoria = ?, importo = ?, tipo_pagamento = ?,
+        stato_confermato = ?, stato_incassato = ?, includi_bando = ?, note = ?
+       WHERE id = ?`,
+      [descrizione, categoria || '', importo, tipo_pagamento || 'bonifico', stato_confermato ? 1 : 0, stato_incassato ? 1 : 0, includi_bando ? 1 : 0, note || '', id]
+    );
+    
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Elimina entrata
+app.delete('/api/bilancio/entrate/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await dbRun('DELETE FROM bilancio_entrate WHERE id = ?', [id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

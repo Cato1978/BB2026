@@ -161,7 +161,7 @@
     <div class="tabs">
       <button class="tab-btn active" id="btn-completo">📊 Bilancio Completo</button>
       <button class="tab-btn" id="btn-bando">🏛️ Bilancio Bando</button>
-      <button class="tab-btn" id="btn-spese">📝 Gestione Spese</button>
+      <button class="tab-btn" id="btn-spese">📝 Gestione Spese/Entrate</button>
     </div>
     
     <!-- TAB BILANCIO COMPLETO -->
@@ -184,6 +184,10 @@
         <div class="bilancio-row">
           <span>Merchandising (<span id="bc-merch-count">0</span> ordini)</span>
           <span class="entrata" id="bc-merch-tot">€ 0</span>
+        </div>
+        <div class="bilancio-row">
+          <span>Altre Entrate (<span id="bc-entrate-man-count">0</span>)</span>
+          <span class="entrata" id="bc-entrate-man-tot">€ 0</span>
         </div>
         <div class="bilancio-row totale">
           <span>TOTALE ENTRATE</span>
@@ -231,6 +235,10 @@
           <span>Merchandising</span>
           <span class="entrata" id="bb-merch-tot">€ 0</span>
         </div>
+        <div class="bilancio-row">
+          <span>Altre Entrate (no contanti)</span>
+          <span class="entrata" id="bb-entrate-man-tot">€ 0</span>
+        </div>
         <div class="bilancio-row totale">
           <span>TOTALE ENTRATE BANDO</span>
           <span class="entrata" id="bb-entrate-tot">€ 0</span>
@@ -265,8 +273,9 @@
       <div id="categorie-grid" class="categoria-grid"></div>
     </div>
     
-    <!-- TAB GESTIONE SPESE -->
+    <!-- TAB GESTIONE SPESE/ENTRATE -->
     <div id="tab-spese" class="tab-content">
+      <!-- FORM NUOVA SPESA -->
       <div class="form-card">
         <h3 id="form-title">➕ Nuova Spesa</h3>
         <form id="form-spesa">
@@ -320,6 +329,62 @@
         </form>
       </div>
       
+      <!-- FORM NUOVA ENTRATA -->
+      <div class="form-card" style="border-color:#22c55e">
+        <h3 id="form-title-entrata" style="color:#22c55e">➕ Nuova Entrata</h3>
+        <form id="form-entrata">
+          <input type="hidden" id="entrata-id">
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Descrizione *</label>
+              <input type="text" id="entrata-descrizione" placeholder="Es: Sponsor Decathlon" required>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Importo € *</label>
+              <input type="number" id="entrata-importo" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Categoria</label>
+              <select id="entrata-categoria">
+                <option value="">-- Seleziona categoria --</option>
+                <option value="Sponsor">Sponsor</option>
+                <option value="Donazione">Donazione</option>
+                <option value="Contributo ente">Contributo ente pubblico</option>
+                <option value="Contributo federazione">Contributo federazione</option>
+                <option value="Rimborso">Rimborso</option>
+                <option value="Altro">Altro</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Tipo Pagamento</label>
+              <select id="entrata-tipo-pagamento">
+                <option value="bonifico">Bonifico</option>
+                <option value="carta">Carta</option>
+                <option value="contanti">Contanti</option>
+                <option value="assegno">Assegno</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#888">Note</label>
+              <textarea id="entrata-note" placeholder="Note aggiuntive..."></textarea>
+            </div>
+          </div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="entrata-confermato"> ✅ Confermato</label>
+            <label><input type="checkbox" id="entrata-incassato"> 💰 Incassato</label>
+            <label><input type="checkbox" id="entrata-bando" checked> 🏛️ Includi nel Bando</label>
+          </div>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button type="submit" style="background:#22c55e">💾 Salva Entrata</button>
+            <button type="button" class="secondary" id="btn-reset-entrata">🔄 Annulla</button>
+          </div>
+        </form>
+      </div>
+      
       <h2>📋 Elenco Spese</h2>
       <div style="margin-bottom:1rem;display:flex;gap:1rem;flex-wrap:wrap">
         <select id="filter-bando">
@@ -343,11 +408,37 @@
         </thead>
         <tbody></tbody>
       </table>
+      
+      <h2 style="color:#22c55e;margin-top:2rem">💵 Elenco Entrate Manuali</h2>
+      <div style="margin-bottom:1rem;display:flex;gap:1rem;flex-wrap:wrap">
+        <select id="filter-entrate-bando">
+          <option value="">Tutte</option>
+          <option value="1">Solo bando</option>
+          <option value="0">Non bando</option>
+        </select>
+        <input type="text" id="search-entrate" placeholder="Cerca..." style="flex:1;min-width:200px">
+      </div>
+      <table id="tabella-entrate">
+        <thead>
+          <tr>
+            <th>Descrizione</th>
+            <th>Categoria</th>
+            <th>Importo</th>
+            <th>Pagamento</th>
+            <th>Stato</th>
+            <th>Bando</th>
+            <th>Note</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
   <script>
     let spese = [];
+    let entrate = [];
     let incassi = {};
     let riepilogo = {};
     
@@ -361,8 +452,9 @@
 
     async function caricaDati() {
       try {
-        const [speseRes, incassiRes, riepilogoRes] = await Promise.all([
+        const [speseRes, entrateRes, incassiRes, riepilogoRes] = await Promise.all([
           fetch('/api/bilancio/spese'),
+          fetch('/api/bilancio/entrate'),
           fetch('/api/bilancio/incassi'),
           fetch('/api/bilancio/riepilogo')
         ]);
@@ -373,13 +465,14 @@
         }
         
         spese = speseRes.ok ? await speseRes.json() : [];
+        entrate = entrateRes.ok ? await entrateRes.json() : [];
         incassi = incassiRes.ok ? await incassiRes.json() : {};
         riepilogo = riepilogoRes.ok ? await riepilogoRes.json() : {};
         
         renderAll();
       } catch (err) {
         console.error('Errore:', err);
-        spese = []; incassi = {}; riepilogo = {};
+        spese = []; entrate = []; incassi = {}; riepilogo = {};
         renderAll();
       }
     }
@@ -388,16 +481,21 @@
       renderBilancioCompleto();
       renderBilancioBando();
       renderSpese();
+      renderEntrate();
     }
     
     function renderBilancioCompleto() {
-      // Entrate
+      // Entrate da iscrizioni/prove/merch
       document.getElementById('bc-isc-count').textContent = incassi.iscrizioni?.count || 0;
       document.getElementById('bc-isc-tot').textContent = '€ ' + fmt(incassi.iscrizioni?.totale || 0);
       document.getElementById('bc-prove-count').textContent = incassi.prove?.count || 0;
       document.getElementById('bc-prove-tot').textContent = '€ ' + fmt(incassi.prove?.totale || 0);
       document.getElementById('bc-merch-count').textContent = incassi.merch?.count || 0;
       document.getElementById('bc-merch-tot').textContent = '€ ' + fmt(incassi.merch?.totale || 0);
+      
+      // Entrate manuali
+      document.getElementById('bc-entrate-man-count').textContent = incassi.entrateManuali?.count || 0;
+      document.getElementById('bc-entrate-man-tot').textContent = '€ ' + fmt(incassi.entrateManuali?.totale || 0);
       
       const totEntrate = incassi.totaleGenerale || 0;
       document.getElementById('bc-entrate-tot').textContent = '€ ' + fmt(totEntrate);
@@ -428,6 +526,7 @@
       document.getElementById('bb-isc-tot').textContent = '€ ' + fmt(incassi.iscrizioni?.bando || 0);
       document.getElementById('bb-prove-tot').textContent = '€ ' + fmt(incassi.prove?.bando || 0);
       document.getElementById('bb-merch-tot').textContent = '€ ' + fmt(incassi.merch?.bando || 0);
+      document.getElementById('bb-entrate-man-tot').textContent = '€ ' + fmt(incassi.entrateManuali?.bando || 0);
       
       const totEntrateBando = incassi.totaleBando || 0;
       document.getElementById('bb-entrate-tot').textContent = '€ ' + fmt(totEntrateBando);
@@ -506,7 +605,7 @@
         return `<tr>
           <td>${esc(s.descrizione)}</td>
           <td style="font-size:0.85rem">${esc(s.categoria_bando || '-')}</td>
-          <td style="font-weight:bold">€ ${fmt(s.importo)}</td>
+          <td style="font-weight:bold;color:#ef4444">€ ${fmt(s.importo)}</td>
           <td>${badges || '-'}</td>
           <td>${s.includi_bando ? '<span class="badge badge-bando">Bando</span>' : '-'}</td>
           <td style="font-size:0.85rem;color:#888">${esc(s.note || '-')}</td>
@@ -515,14 +614,56 @@
             <button class="danger" data-delete="${s.id}">❌</button>
           </td>
         </tr>`;
-      }).join('');
+      }).join('') || '<tr><td colspan="7" style="color:#666;text-align:center">Nessuna spesa</td></tr>';
       
-      // Event delegation per edit/delete
+      // Event delegation per edit/delete spese
       document.querySelector('#tabella-spese tbody').onclick = function(e) {
         const editId = e.target.dataset.edit;
         const deleteId = e.target.dataset.delete;
         if (editId) editSpesa(parseInt(editId));
         if (deleteId) deleteSpesa(parseInt(deleteId));
+      };
+    }
+    
+    function renderEntrate() {
+      const filterBando = document.getElementById('filter-entrate-bando').value;
+      const search = document.getElementById('search-entrate').value.toLowerCase();
+      
+      let filtered = entrate.filter(e => {
+        if (filterBando === '1' && !e.includi_bando) return false;
+        if (filterBando === '0' && e.includi_bando) return false;
+        if (search && !e.descrizione.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      document.querySelector('#tabella-entrate tbody').innerHTML = filtered.map(e => {
+        let badges = '';
+        if (e.stato_confermato) badges += '<span class="badge badge-conf">Conf</span> ';
+        if (e.stato_incassato) badges += '<span class="badge badge-pag">Incass</span> ';
+        
+        const tipoPag = { bonifico: '🏦 Bonifico', carta: '💳 Carta', contanti: '💵 Contanti', assegno: '📝 Assegno' };
+        
+        return `<tr>
+          <td>${esc(e.descrizione)}</td>
+          <td style="font-size:0.85rem">${esc(e.categoria || '-')}</td>
+          <td style="font-weight:bold;color:#22c55e">€ ${fmt(e.importo)}</td>
+          <td style="font-size:0.85rem">${tipoPag[e.tipo_pagamento] || e.tipo_pagamento || '-'}</td>
+          <td>${badges || '-'}</td>
+          <td>${e.includi_bando ? '<span class="badge badge-bando">Bando</span>' : '-'}</td>
+          <td style="font-size:0.85rem;color:#888">${esc(e.note || '-')}</td>
+          <td class="actions">
+            <button class="secondary" data-edit-e="${e.id}">✏️</button>
+            <button class="danger" data-delete-e="${e.id}">❌</button>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" style="color:#666;text-align:center">Nessuna entrata manuale</td></tr>';
+      
+      // Event delegation per edit/delete entrate
+      document.querySelector('#tabella-entrate tbody').onclick = function(e) {
+        const editId = e.target.dataset.editE;
+        const deleteId = e.target.dataset.deleteE;
+        if (editId) editEntrata(parseInt(editId));
+        if (deleteId) deleteEntrata(parseInt(deleteId));
       };
     }
     
@@ -546,7 +687,7 @@
       document.getElementById('tab-spese').classList.add('active');
     });
     
-    // Form
+    // Form Spesa
     document.getElementById('form-spesa').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('spesa-id').value;
@@ -569,16 +710,49 @@
           body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Errore salvataggio');
-        resetForm();
+        resetFormSpesa();
         caricaDati();
       } catch (err) {
         alert('Errore: ' + err.message);
       }
     });
     
-    document.getElementById('btn-reset').addEventListener('click', resetForm);
+    // Form Entrata
+    document.getElementById('form-entrata').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('entrata-id').value;
+      const data = {
+        descrizione: document.getElementById('entrata-descrizione').value,
+        importo: parseFloat(document.getElementById('entrata-importo').value) || 0,
+        categoria: document.getElementById('entrata-categoria').value,
+        tipo_pagamento: document.getElementById('entrata-tipo-pagamento').value,
+        note: document.getElementById('entrata-note').value,
+        stato_confermato: document.getElementById('entrata-confermato').checked,
+        stato_incassato: document.getElementById('entrata-incassato').checked,
+        includi_bando: document.getElementById('entrata-bando').checked
+      };
+      
+      try {
+        const url = id ? `/api/bilancio/entrate/${id}` : '/api/bilancio/entrate';
+        const res = await fetch(url, {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Errore salvataggio');
+        resetFormEntrata();
+        caricaDati();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    });
+    
+    document.getElementById('btn-reset').addEventListener('click', resetFormSpesa);
+    document.getElementById('btn-reset-entrata').addEventListener('click', resetFormEntrata);
     document.getElementById('filter-bando').addEventListener('change', renderSpese);
     document.getElementById('search').addEventListener('input', renderSpese);
+    document.getElementById('filter-entrate-bando').addEventListener('change', renderEntrate);
+    document.getElementById('search-entrate').addEventListener('input', renderEntrate);
     
     function editSpesa(id) {
       const s = spese.find(x => x.id === id);
@@ -596,17 +770,50 @@
       window.scrollTo(0, 0);
     }
     
-    function resetForm() {
+    function editEntrata(id) {
+      const e = entrate.find(x => x.id === id);
+      if (!e) return;
+      document.getElementById('entrata-id').value = e.id;
+      document.getElementById('entrata-descrizione').value = e.descrizione;
+      document.getElementById('entrata-importo').value = e.importo;
+      document.getElementById('entrata-categoria').value = e.categoria || '';
+      document.getElementById('entrata-tipo-pagamento').value = e.tipo_pagamento || 'bonifico';
+      document.getElementById('entrata-note').value = e.note || '';
+      document.getElementById('entrata-confermato').checked = e.stato_confermato;
+      document.getElementById('entrata-incassato').checked = e.stato_incassato;
+      document.getElementById('entrata-bando').checked = e.includi_bando;
+      document.getElementById('form-title-entrata').textContent = '✏️ Modifica Entrata';
+      window.scrollTo(0, 0);
+    }
+    
+    function resetFormSpesa() {
       document.getElementById('spesa-id').value = '';
       document.getElementById('form-spesa').reset();
       document.getElementById('spesa-preventivo').checked = true;
       document.getElementById('form-title').textContent = '➕ Nuova Spesa';
     }
     
+    function resetFormEntrata() {
+      document.getElementById('entrata-id').value = '';
+      document.getElementById('form-entrata').reset();
+      document.getElementById('entrata-bando').checked = true;
+      document.getElementById('form-title-entrata').textContent = '➕ Nuova Entrata';
+    }
+    
     async function deleteSpesa(id) {
       if (!confirm('Eliminare questa spesa?')) return;
       try {
         await fetch(`/api/bilancio/spese/${id}`, { method: 'DELETE' });
+        caricaDati();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    async function deleteEntrata(id) {
+      if (!confirm('Eliminare questa entrata?')) return;
+      try {
+        await fetch(`/api/bilancio/entrate/${id}`, { method: 'DELETE' });
         caricaDati();
       } catch (err) {
         alert('Errore: ' + err.message);
