@@ -403,6 +403,7 @@
             <th>Importo</th>
             <th>Stato</th>
             <th>Bando</th>
+            <th>Fattura</th>
             <th>Note</th>
             <th>Azioni</th>
           </tr>
@@ -609,26 +610,41 @@
         else if (s.includi_bando) bandoBadge = '<span class="badge badge-bando">Bando</span>';
         else bandoBadge = '-';
         
+        // Fattura
+        let fatturaHtml = '';
+        if (s.fattura_filename) {
+          fatturaHtml = `<a href="/uploads/fatture/${s.fattura_filename}" target="_blank" style="color:#22c55e;text-decoration:none">📄 Vedi</a>
+            <button class="danger" style="padding:0.2rem 0.4rem;font-size:0.7rem;margin-left:0.3rem" data-del-fattura="${s.id}">🗑️</button>`;
+        } else {
+          fatturaHtml = `<button class="secondary" style="padding:0.2rem 0.4rem;font-size:0.7rem" data-upload-fattura="${s.id}">📎</button>`;
+        }
+        
         return `<tr>
           <td>${esc(s.descrizione)}</td>
           <td style="font-size:0.85rem">${esc(s.categoria_bando || '-')}</td>
           <td style="font-weight:bold;color:#ef4444">€ ${fmt(s.importo)}</td>
           <td>${badges || '-'}</td>
           <td>${bandoBadge}</td>
-          <td style="font-size:0.85rem;color:#888">${esc(s.note || '-')}</td>
+          <td style="font-size:0.85rem">${fatturaHtml}</td>
+          <td style="font-size:0.85rem;color:#888;max-width:150px;overflow:hidden;text-overflow:ellipsis">${esc(s.note || '-')}</td>
           <td class="actions">
             <button class="secondary" data-edit="${s.id}">✏️</button>
             <button class="danger" data-delete="${s.id}">❌</button>
           </td>
         </tr>`;
-      }).join('') || '<tr><td colspan="7" style="color:#666;text-align:center">Nessuna spesa</td></tr>';
+      }).join('') || '<tr><td colspan="8" style="color:#666;text-align:center">Nessuna spesa</td></tr>';
       
-      // Event delegation per edit/delete spese
+      // Event delegation per edit/delete/fattura spese
       document.querySelector('#tabella-spese tbody').onclick = function(e) {
         const editId = e.target.dataset.edit;
         const deleteId = e.target.dataset.delete;
+        const uploadFatturaId = e.target.dataset.uploadFattura;
+        const delFatturaId = e.target.dataset.delFattura;
+        
         if (editId) editSpesa(parseInt(editId));
         if (deleteId) deleteSpesa(parseInt(deleteId));
+        if (uploadFatturaId) uploadFattura(parseInt(uploadFatturaId));
+        if (delFatturaId) deleteFattura(parseInt(delFatturaId));
       };
     }
     
@@ -814,6 +830,41 @@
       if (!confirm('Eliminare questa spesa?')) return;
       try {
         await fetch(`/api/bilancio/spese/${id}`, { method: 'DELETE' });
+        caricaDati();
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      }
+    }
+    
+    function uploadFattura(id) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.jpg,.jpeg,.png';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('fattura', file);
+        
+        try {
+          const res = await fetch(`/api/bilancio/spese/${id}/fattura`, {
+            method: 'POST',
+            body: formData
+          });
+          if (!res.ok) throw new Error('Errore upload');
+          caricaDati();
+        } catch (err) {
+          alert('Errore upload: ' + err.message);
+        }
+      };
+      input.click();
+    }
+    
+    async function deleteFattura(id) {
+      if (!confirm('Eliminare la fattura allegata?')) return;
+      try {
+        await fetch(`/api/bilancio/spese/${id}/fattura`, { method: 'DELETE' });
         caricaDati();
       } catch (err) {
         alert('Errore: ' + err.message);
