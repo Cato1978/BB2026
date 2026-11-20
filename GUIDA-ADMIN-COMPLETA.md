@@ -19,6 +19,19 @@ Nel pannello admin vedrai la lista di tutti gli iscritti con:
 - Metodo di pagamento
 - Stato (in attesa, confermata, etc.)
 
+### Costo Iscrizioni
+
+| Voce | Costo |
+|------|-------|
+| Prima disciplina | €50 |
+| Ogni disciplina aggiuntiva | €30 |
+| Felpa | €35 (contanti) |
+| Cappellino | €5 (contanti) |
+| Asciugamano | €5 (contanti) |
+| Prove pista (per slot) | €5 (contanti) |
+
+> ⚠️ **Importante**: Felpa, cappellino, asciugamano e prove pista incluse nell'iscrizione si pagano **sempre in contanti** alla gara.
+
 ### Stati di un'Iscrizione
 
 | Stato | Significato |
@@ -134,15 +147,19 @@ Durante il check-in puoi segnare:
 ### I Tre Tab del Bilancio
 
 #### 📊 Tab "Bilancio Completo"
-Mostra TUTTO l'evento:
+Mostra il bilancio reale dell'evento (senza considerare il bando):
 - **Entrate**: tutte le iscrizioni + prove + merch + entrate manuali
-- **Uscite**: solo spese NON marcate come "bando"
+- **Uscite**: tutte le spese **TRANNE** quelle "Solo per Bando"
 - **Saldo**: Entrate - Uscite
 
 #### 🏛️ Tab "Bilancio Bando"
 Per il bando Regione Lombardia:
 - **Entrate**: ESCLUSI i contanti (solo bonifici/carte)
-- **Uscite**: TUTTE le spese
+  - Iscrizioni: solo la quota gara (50€+30€), esclusi merch e prove (sono contanti)
+  - Prove pista standalone (pagate online)
+  - Merch standalone (pagato online)
+  - Entrate manuali non in contanti
+- **Uscite**: TUTTE le spese (incluse quelle "Solo per Bando")
 - **Disavanzo**: Uscite - Entrate (se positivo)
 - **Contributo stimato**: 60% del disavanzo (min €2.000, max €15.000)
 
@@ -160,7 +177,38 @@ Per inserire spese e entrate manuali.
    - **Categoria Bando**: seleziona la categoria appropriata
    - **Stato**: Preventivo / Confermato / Pagato
    - **Includi nel Bando**: ✅ se è una spesa ammissibile
+   - **Solo per Bando**: ✅ se è una spesa che fai SOLO per partecipare al bando
 3. Clicca **"💾 Salva Spesa"**
+
+### I Due Flag delle Spese
+
+#### 🏛️ Includi nel Bando
+- ✅ = La spesa è ammissibile per il bando Regione Lombardia
+- La spesa appare in **entrambi** i bilanci
+
+#### 🎯 Solo per Bando
+- ✅ = La spesa esiste SOLO perché partecipi al bando
+- **Esclusa** dal Bilancio Completo (non la faresti se non ci fosse il bando)
+- **Inclusa** nel Bilancio Bando
+
+### Tabella Riassuntiva Flag
+
+| Spesa | Includi Bando | Solo Bando | Bil. Completo | Bil. Bando |
+|-------|:-------------:|:----------:|:-------------:|:----------:|
+| Affitto palazzetto | ✅ | ❌ | ✅ Sì | ✅ Sì |
+| Ambulanza | ✅ | ❌ | ✅ Sì | ✅ Sì |
+| Commercialista rendicontazione | ✅ | ✅ | ❌ No | ✅ Sì |
+| Consulente bando | ✅ | ✅ | ❌ No | ✅ Sì |
+| Cena sociale | ❌ | ❌ | ✅ Sì | ✅ Sì |
+| Gadget staff | ❌ | ❌ | ✅ Sì | ✅ Sì |
+
+### Badge nella Tabella Spese
+
+| Badge | Significato |
+|-------|-------------|
+| 🟠 **Bando** | Spesa ammissibile per il bando |
+| 🟣 **Solo Bando** | Spesa esclusiva per il bando |
+| **-** | Spesa non ammissibile |
 
 ### Categorie Spese per il Bando
 
@@ -202,61 +250,39 @@ Per sponsor, donazioni, contributi non legati alle iscrizioni:
 
 #### Step 1: Inserisci le Spese
 
-| Descrizione | Importo | Categoria | Bando |
-|-------------|---------|-----------|-------|
-| Affitto Palazzetto Moriggia | €3.000 | Affitto e allestimento | ✅ |
-| Ambulanza 2 giorni | €800 | Ambulanza e sicurezza | ✅ |
-| Service audio/video | €1.200 | Noleggio attrezzature | ✅ |
-| Medaglie e coppe | €1.400 | Premi in beni materiali | ✅ |
-| Catering giudici | €600 | Rinfreschi e ristori | ✅ |
-| Volantini e manifesti | €300 | Comunicazione | ✅ |
-| Fee WSSA | €500 | Tasse e fee | ✅ |
-| Rimborso giudici | €2.000 | Compensi e rimborsi | ✅ |
-| Cena sociale (non ammissibile) | €1.500 | Altre spese | ❌ |
+| Descrizione | Importo | Categoria | Bando | Solo Bando |
+|-------------|---------|-----------|:-----:|:----------:|
+| Affitto Palazzetto Moriggia | €3.000 | Affitto e allestimento | ✅ | ❌ |
+| Ambulanza 2 giorni | €800 | Ambulanza e sicurezza | ✅ | ❌ |
+| Service audio/video | €1.200 | Noleggio attrezzature | ✅ | ❌ |
+| Medaglie e coppe | €1.400 | Premi in beni materiali | ✅ | ❌ |
+| Catering giudici | €600 | Rinfreschi e ristori | ✅ | ❌ |
+| Volantini e manifesti | €300 | Comunicazione | ✅ | ❌ |
+| Fee WSSA | €500 | Tasse e fee | ✅ | ❌ |
+| Rimborso giudici | €2.000 | Compensi e rimborsi | ✅ | ❌ |
+| Commercialista rendicontazione | €400 | Altre spese | ✅ | ✅ |
+| Cena sociale | €1.500 | Altre spese | ❌ | ❌ |
 
-**Totale spese bando**: €9.800
-**Totale spese non bando**: €1.500
+#### Step 2: Verifica i Bilanci
 
-#### Step 2: Inserisci Entrate Extra (se presenti)
+**Bilancio Completo** (evento reale):
+- Uscite: €3.000 + €800 + €1.200 + €1.400 + €600 + €300 + €500 + €2.000 + €1.500 = **€11.300**
+- (Il commercialista €400 è escluso perché è "Solo Bando")
 
-| Descrizione | Importo | Tipo | Bando |
-|-------------|---------|------|-------|
-| Sponsor Rollerblade | €1.000 | Bonifico | ✅ |
-| Contributo Comune | €500 | Bonifico | ✅ |
+**Bilancio Bando**:
+- Uscite: €3.000 + €800 + €1.200 + €1.400 + €600 + €300 + €500 + €2.000 + €400 + €1.500 = **€11.700**
+- (Include il commercialista perché serve per il bando)
 
-#### Step 3: Verifica il Bilancio Bando
-
-Vai su **"Bilancio Bando"** e controlla:
-
-```
-ENTRATE (esclusi contanti)
-├── Iscrizioni (no contanti): €12.000
-├── Prove Pista standalone: €150
-├── Merch standalone: €80
-├── Altre Entrate: €1.500
-└── TOTALE ENTRATE BANDO: €13.730
-
-USCITE (tutte le spese)
-├── Affitto Palazzetto: €3.000
-├── Ambulanza: €800
-├── Service audio: €1.200
-├── ... altre spese ...
-└── TOTALE USCITE: €11.300
-
-DISAVANZO (Uscite - Entrate): €0
-(se entrate > uscite, disavanzo = 0)
-```
-
-In questo caso le entrate superano le uscite, quindi disavanzo = 0 e contributo = 0.
-
-#### Se invece avessi più uscite:
+#### Step 3: Calcolo Contributo
 
 ```
-TOTALE ENTRATE BANDO: €8.000
-TOTALE USCITE: €15.000
+ENTRATE BANDO: €10.000 (esempio)
+USCITE BANDO: €11.700
 
-DISAVANZO: €15.000 - €8.000 = €7.000
-CONTRIBUTO STIMATO (60%): €4.200
+DISAVANZO: €11.700 - €10.000 = €1.700
+CONTRIBUTO (60%): €1.020
+
+⚠️ Attenzione: sotto il minimo di €2.000!
 ```
 
 ---
@@ -298,11 +324,25 @@ R: Puoi modificare l'iscrizione e cambiare lo stato manualmente.
 **D: Perché il Bilancio Bando mostra meno entrate del Bilancio Completo?**
 R: Il Bilancio Bando esclude:
 - Iscrizioni pagate in contanti
-- Prove pista e merch dentro le iscrizioni (sono contanti)
+- Merch e prove pista dentro le iscrizioni (sono sempre contanti)
 - Entrate manuali marcate come "contanti"
+
+**D: Perché il Bilancio Completo mostra meno uscite del Bilancio Bando?**
+R: Il Bilancio Completo esclude le spese marcate come "Solo per Bando" (es. commercialista per la rendicontazione), perché sono spese che non faresti se non partecipassi al bando.
 
 **D: Cosa succede se supero il limite di €1.500 per i premi?**
 R: Il sistema ti mostra un avviso in rosso. La parte eccedente non sarà rimborsata dal bando.
+
+**D: Qual è la differenza tra "Includi nel Bando" e "Solo per Bando"?**
+R: 
+- **Includi nel Bando** = spesa ammissibile, appare in entrambi i bilanci
+- **Solo per Bando** = spesa che fai SOLO per il bando, esclusa dal Bilancio Completo
+
+**D: Cosa conta come "contanti" per il bando?**
+R: Per il Bilancio Bando, vengono escluse:
+- Iscrizioni con metodo pagamento = "Contanti"
+- Merch e prove dentro le iscrizioni (si pagano sempre in contanti alla gara)
+- Entrate manuali con tipo pagamento = "Contanti"
 
 ---
 
