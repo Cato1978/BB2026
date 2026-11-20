@@ -7174,26 +7174,32 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
     let totaleIscrizioni = 0;
     let totaleIscrizioniBando = 0; // Esclude contanti
     
+    // Helper per contare discipline
+    function numDiscipline(cat) { return cat ? cat.split(',').length : 0; }
+    
+    // Helper per calcolare totale iscrizione (stessa logica di admin.html)
+    function calcolaTotaleIscrizione(i) {
+      const numDisc = numDiscipline(i.categoria);
+      if (numDisc === 0) return 0;
+      let totale = 50 + (numDisc - 1) * 30; // 50 prima + 30 altre
+      // Aggiungi merch se presente nelle note
+      if (i.note && i.note.includes('Felpa:')) totale += 35;
+      if (i.note && i.note.toLowerCase().includes('cappellino')) totale += 5;
+      if (i.note && i.note.toLowerCase().includes('asciugamano')) totale += 5;
+      // Aggiungi prove pista (€5 per slot)
+      if (i.note && i.note.includes('Prove:')) {
+        const proveMatch = i.note.match(/Prove:\s*([^\n|]+)/);
+        if (proveMatch) {
+          const proveStr = proveMatch[1];
+          const slots = (proveStr.match(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/g) || []).length;
+          totale += slots * 5;
+        }
+      }
+      return totale;
+    }
+    
     for (const isc of iscritti) {
-      // Calcola totale iscrizione (stessa logica dell'export)
-      let totale = 0;
-      const note = isc.note || '';
-      
-      // Discipline base
-      const discCount = ['Speed', 'Classic', 'Battle', 'Slides', 'Pair', 'Free'].filter(d => 
-        note.toLowerCase().includes(d.toLowerCase())
-      ).length;
-      
-      // Prima disciplina gratis con pacchetto, altrimenti 15€ ciascuna
-      if (note.includes('Pack 1')) totale += 30;
-      else if (note.includes('Pack 2')) totale += 40;
-      else if (note.includes('Pack 3')) totale += 50;
-      else totale += discCount * 15;
-      
-      // Maglia +15, Felpa +35
-      if (note.includes('Maglia:')) totale += 15;
-      if (note.includes('Felpa:')) totale += 35;
-      
+      const totale = calcolaTotaleIscrizione(isc);
       totaleIscrizioni += totale;
       
       // Per bando: escludi contanti
@@ -7202,26 +7208,14 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
       }
     }
     
-    // Prove pista confermate
+    // Prove pista confermate (standalone, non quelle già incluse nelle iscrizioni)
     const prove = await dbAll("SELECT * FROM prove_prenotazioni WHERE stato = 'confermata'");
-    let totaleProve = prove.length * 5; // 5€ a sessione
-    let totaleProveBando = 0;
+    // Filtra solo quelle standalone (senza iscrizione_codice) perché le altre sono già conteggiate sopra
+    const proveStandalone = prove.filter(p => !p.iscrizione_codice);
+    let totaleProve = proveStandalone.length * 5; // 5€ a sessione
+    let totaleProveBando = totaleProve; // Tutte le prove standalone sono bando (non si paga in contanti)
     
-    for (const p of prove) {
-      // Cerca se collegata a iscrizione con metodo != contanti
-      if (p.iscrizione_codice) {
-        const match = p.iscrizione_codice.match(/BB11-(\d+)/);
-        if (match) {
-          const iscId = parseInt(match[1]);
-          const isc = iscritti.find(i => i.id === iscId);
-          if (isc && isc.metodo_pagamento !== 'contanti') {
-            totaleProveBando += 5;
-          }
-        }
-      }
-    }
-    
-    // Merch confermato
+    // Merch confermato (ordini standalone)
     const ordini = await dbAll("SELECT * FROM merch_ordini WHERE stato = 'confermata'");
     let totaleMerch = 0;
     let totaleMerchBando = 0;
@@ -7231,20 +7225,9 @@ app.get('/api/bilancio/incassi', requireAdmin, async (req, res) => {
       const totOrdine = items.reduce((sum, it) => sum + (it.prezzo_unitario * it.quantita), 0);
       totaleMerch += totOrdine;
       
-      // Per bando: escludi se origine iscrizione con contanti
-      if (o.iscrizione_codice) {
-        const match = o.iscrizione_codice.match(/BB11-(\d+)/);
-        if (match) {
-          const iscId = parseInt(match[1]);
-          const isc = iscritti.find(i => i.id === iscId);
-          if (isc && isc.metodo_pagamento !== 'contanti') {
-            totaleMerchBando += totOrdine;
-          }
-        }
-      } else {
-        // Ordine standalone, includi nel bando
-        totaleMerchBando += totOrdine;
-      }
+      // Per bando: escludi se pagato in contanti
+      // Gli ordini standalone sono generalmente via carta/bonifico, quindi li includiamo
+      totaleMerchBando += totOrdine;
     }
     
     // Entrate manuali (sponsor, donazioni, etc)
