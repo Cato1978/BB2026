@@ -7294,10 +7294,14 @@ async function ensureBilancioTable() {
       stato_confermato INTEGER DEFAULT 0,
       stato_pagato INTEGER DEFAULT 0,
       includi_bando INTEGER DEFAULT 0,
+      solo_bando INTEGER DEFAULT 0,
       fattura_filename TEXT,
       note TEXT,
       data_inserimento TIMESTAMP DEFAULT NOW()
     )`);
+    // Aggiungi colonna solo_bando se non esiste
+    await pgPool.query(`ALTER TABLE bilancio_spese ADD COLUMN IF NOT EXISTS solo_bando INTEGER DEFAULT 0`);
+    
     await pgPool.query(`CREATE TABLE IF NOT EXISTS bilancio_entrate (
       id SERIAL PRIMARY KEY,
       descrizione TEXT NOT NULL,
@@ -7321,6 +7325,7 @@ async function ensureBilancioTable() {
       stato_confermato INTEGER DEFAULT 0,
       stato_pagato INTEGER DEFAULT 0,
       includi_bando INTEGER DEFAULT 0,
+      solo_bando INTEGER DEFAULT 0,
       fattura_filename TEXT,
       note TEXT,
       data_inserimento TEXT DEFAULT (datetime('now'))
@@ -7360,7 +7365,7 @@ app.post('/api/bilancio/spese', requireAdmin, async (req, res) => {
     const { 
       descrizione, categoria_bando, importo, 
       stato_preventivo, stato_confermato, stato_pagato, 
-      includi_bando, note 
+      includi_bando, solo_bando, note 
     } = req.body;
     
     if (!descrizione || importo === undefined) {
@@ -7368,9 +7373,9 @@ app.post('/api/bilancio/spese', requireAdmin, async (req, res) => {
     }
     
     const id = await dbInsert(
-      `INSERT INTO bilancio_spese (descrizione, categoria_bando, importo, stato_preventivo, stato_confermato, stato_pagato, includi_bando, note) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, note || '']
+      `INSERT INTO bilancio_spese (descrizione, categoria_bando, importo, stato_preventivo, stato_confermato, stato_pagato, includi_bando, solo_bando, note) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, solo_bando ? 1 : 0, note || '']
     );
     
     res.json({ ok: true, id });
@@ -7387,16 +7392,16 @@ app.put('/api/bilancio/spese/:id', requireAdmin, async (req, res) => {
     const { 
       descrizione, categoria_bando, importo, 
       stato_preventivo, stato_confermato, stato_pagato, 
-      includi_bando, note 
+      includi_bando, solo_bando, note 
     } = req.body;
     
     await dbRun(
       `UPDATE bilancio_spese SET 
         descrizione = ?, categoria_bando = ?, importo = ?, 
         stato_preventivo = ?, stato_confermato = ?, stato_pagato = ?, 
-        includi_bando = ?, note = ?
+        includi_bando = ?, solo_bando = ?, note = ?
        WHERE id = ?`,
-      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, note || '', id]
+      [descrizione, categoria_bando || '', importo, stato_preventivo ? 1 : 0, stato_confermato ? 1 : 0, stato_pagato ? 1 : 0, includi_bando ? 1 : 0, solo_bando ? 1 : 0, note || '', id]
     );
     
     res.json({ ok: true });

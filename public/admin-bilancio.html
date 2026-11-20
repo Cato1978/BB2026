@@ -321,6 +321,7 @@
             <label><input type="checkbox" id="spesa-confermato"> ✅ Confermato</label>
             <label><input type="checkbox" id="spesa-pagato"> 💳 Pagato</label>
             <label><input type="checkbox" id="spesa-bando"> 🏛️ Includi nel Bando</label>
+            <label><input type="checkbox" id="spesa-solo-bando"> 🎯 Solo per Bando</label>
           </div>
           <div style="display:flex;gap:1rem;flex-wrap:wrap">
             <button type="submit">💾 Salva Spesa</button>
@@ -500,17 +501,18 @@
       const totEntrate = incassi.totaleGenerale || 0;
       document.getElementById('bc-entrate-tot').textContent = '€ ' + fmt(totEntrate);
       
-      // Uscite (NON bando)
-      const speseNonBando = spese.filter(s => !s.includi_bando);
+      // Uscite (NON bando e NON solo_bando)
+      // Escludo: spese marcate come "solo_bando" (esistono solo per il bando)
+      const speseCompleto = spese.filter(s => !s.solo_bando);
       const listDiv = document.getElementById('bc-uscite-list');
-      listDiv.innerHTML = speseNonBando.map(s => `
+      listDiv.innerHTML = speseCompleto.map(s => `
         <div class="bilancio-row">
           <span>${esc(s.descrizione)}</span>
           <span class="uscita">€ ${fmt(s.importo)}</span>
         </div>
       `).join('') || '<div class="bilancio-row"><span style="color:#666">Nessuna spesa</span></div>';
       
-      const totUscite = speseNonBando.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
+      const totUscite = speseCompleto.reduce((sum, s) => sum + (parseFloat(s.importo) || 0), 0);
       document.getElementById('bc-uscite-tot').textContent = '€ ' + fmt(totUscite);
       
       // Saldo
@@ -602,12 +604,17 @@
         if (s.stato_confermato) badges += '<span class="badge badge-conf">Conf</span> ';
         if (s.stato_pagato) badges += '<span class="badge badge-pag">Pag</span> ';
         
+        let bandoBadge = '';
+        if (s.solo_bando) bandoBadge = '<span class="badge" style="background:#8b5cf6;color:#fff">Solo Bando</span>';
+        else if (s.includi_bando) bandoBadge = '<span class="badge badge-bando">Bando</span>';
+        else bandoBadge = '-';
+        
         return `<tr>
           <td>${esc(s.descrizione)}</td>
           <td style="font-size:0.85rem">${esc(s.categoria_bando || '-')}</td>
           <td style="font-weight:bold;color:#ef4444">€ ${fmt(s.importo)}</td>
           <td>${badges || '-'}</td>
-          <td>${s.includi_bando ? '<span class="badge badge-bando">Bando</span>' : '-'}</td>
+          <td>${bandoBadge}</td>
           <td style="font-size:0.85rem;color:#888">${esc(s.note || '-')}</td>
           <td class="actions">
             <button class="secondary" data-edit="${s.id}">✏️</button>
@@ -699,7 +706,8 @@
         stato_preventivo: document.getElementById('spesa-preventivo').checked,
         stato_confermato: document.getElementById('spesa-confermato').checked,
         stato_pagato: document.getElementById('spesa-pagato').checked,
-        includi_bando: document.getElementById('spesa-bando').checked
+        includi_bando: document.getElementById('spesa-bando').checked,
+        solo_bando: document.getElementById('spesa-solo-bando').checked
       };
       
       try {
@@ -766,6 +774,7 @@
       document.getElementById('spesa-confermato').checked = s.stato_confermato;
       document.getElementById('spesa-pagato').checked = s.stato_pagato;
       document.getElementById('spesa-bando').checked = s.includi_bando;
+      document.getElementById('spesa-solo-bando').checked = s.solo_bando;
       document.getElementById('form-title').textContent = '✏️ Modifica Spesa';
       window.scrollTo(0, 0);
     }
@@ -790,6 +799,7 @@
       document.getElementById('spesa-id').value = '';
       document.getElementById('form-spesa').reset();
       document.getElementById('spesa-preventivo').checked = true;
+      document.getElementById('spesa-solo-bando').checked = false;
       document.getElementById('form-title').textContent = '➕ Nuova Spesa';
     }
     
